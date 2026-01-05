@@ -15,7 +15,7 @@ async function main() {
     }
 
     console.log("Seeding roles...");
-    const roleNames = ["admin", "developer"];
+    const roleNames = ["admin", "developer", "tester", "designer"];
     for (const name of roleNames) {
         const existing = await db.select().from(schema.roles).where(eq(schema.roles.name, name));
         if (existing.length === 0) {

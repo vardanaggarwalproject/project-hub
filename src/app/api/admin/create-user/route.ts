@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
     const session = await auth.api.getSession({
-        headers: await headers()
+        headers: await headers() 
     });
 
     if (!session || session.user.role !== "admin") {

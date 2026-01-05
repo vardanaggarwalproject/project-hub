@@ -37,7 +37,7 @@ export default function NewClientPage() {
                 throw new Error(error.error || "Failed to create client");
             }
 
-            router.push("/clients");
+            router.push("/dashboard/clients");
             router.refresh();
         } catch (error: any) {
             console.error(error);

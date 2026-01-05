@@ -1,12 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import Link from "next/link";
-import { Plus, ChevronLeft, ChevronRight, Edit3 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-
 import { 
     Table, 
     TableBody, 
@@ -16,7 +10,7 @@ import {
     TableRow 
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, Eye, MoreHorizontal } from "lucide-react";
+import { Search, Eye, MoreHorizontal, UserSquare2, ChevronLeft, ChevronRight, ShieldAlert } from "lucide-react";
 import { 
     DropdownMenu, 
     DropdownMenuContent, 
@@ -24,13 +18,20 @@ import {
     DropdownMenuLabel, 
     DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { hasPermission } from "@/lib/permissions";
 
-interface Client {
+interface Developer {
     id: string;
     name: string;
-    email: string | null;
+    email: string;
+    role: string;
     createdAt: string;
 }
 
@@ -41,18 +42,18 @@ interface Meta {
     totalPages: number;
 }
 
-export default function ClientsPage() {
+export default function DevelopersPage() {
     const { data: session } = authClient.useSession();
     const userRole = (session?.user as any)?.role;
 
-    const [clients, setClients] = useState<Client[]>([]);
+    const [developers, setDevelopers] = useState<Developer[]>([]);
     const [meta, setMeta] = useState<Meta | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const limit = 10;
 
-    const fetchClients = useCallback(() => {
+    const fetchDevelopers = useCallback(() => {
         setIsLoading(true);
         const params = new URLSearchParams({
             page: page.toString(),
@@ -60,10 +61,10 @@ export default function ClientsPage() {
         });
         if (search) params.append("search", search);
 
-        fetch(`/api/clients?${params.toString()}`)
+        fetch(`/api/users?${params.toString()}`)
             .then(res => res.json())
             .then(resData => {
-                setClients(resData.data);
+                setDevelopers(resData.data);
                 setMeta(resData.meta);
                 setIsLoading(false);
             })
@@ -75,14 +76,14 @@ export default function ClientsPage() {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchClients();
+            fetchDevelopers();
         }, 300);
         return () => clearTimeout(timer);
-    }, [fetchClients]);
+    }, [fetchDevelopers]);
 
-    const canManageClients = hasPermission(userRole, "CAN_MANAGE_CLIENTS");
+    const canManageUsers = hasPermission(userRole, "CAN_MANAGE_USERS");
 
-    if (isLoading && clients.length === 0) return (
+    if (isLoading && developers.length === 0) return (
         <div className="space-y-4">
             <Skeleton className="h-10 w-[250px]" />
             <Skeleton className="h-[400px] w-full" />
@@ -93,17 +94,9 @@ export default function ClientsPage() {
          <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-[#0f172a]">Clients</h2>
-                    <p className="text-muted-foreground">Manage and overview your client relationships</p>
+                    <h2 className="text-3xl font-bold tracking-tight text-[#0f172a]">Developers</h2>
+                    <p className="text-muted-foreground">Manage your organization's talent and team members</p>
                 </div>
-                {canManageClients && (
-                    <Button asChild className="bg-blue-600 hover:bg-blue-700 shadow-sm">
-                        <Link href="/dashboard/clients/new">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add New Client
-                        </Link>
-                    </Button>
-                )}
             </div>
 
             <Card className="border-none shadow-sm overflow-hidden">
@@ -111,7 +104,7 @@ export default function ClientsPage() {
                     <div className="relative max-w-sm">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
-                            placeholder="Search clients..." 
+                            placeholder="Search developers..." 
                             className="pl-10 bg-slate-50 border-none focus-visible:ring-1"
                             value={search}
                             onChange={(e) => {
@@ -127,23 +120,40 @@ export default function ClientsPage() {
                             <TableHeader>
                                 <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
                                     <TableHead className="w-[80px] font-bold text-muted-foreground uppercase text-[10px] tracking-wider pl-6">S.No</TableHead>
-                                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Client Name</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Developer</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Email Address</TableHead>
-                                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Added On</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Role</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-nowrap">Joined On</TableHead>
                                     <TableHead className="text-right font-bold text-muted-foreground uppercase text-[10px] tracking-wider pr-6">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {clients.length > 0 ? (
-                                    clients.map((client, index) => (
-                                        <TableRow key={client.id} className="group transition-colors hover:bg-slate-50/50">
+                                {developers.length > 0 ? (
+                                    developers.map((dev, index) => (
+                                        <TableRow key={dev.id} className="group transition-colors hover:bg-slate-50/50">
                                             <TableCell className="pl-6 font-medium text-slate-500">{(page - 1) * limit + index + 1}</TableCell>
                                             <TableCell>
-                                                <span className="font-bold text-[#0f172a]">{client.name}</span>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[#0f172a] font-bold text-[10px] uppercase">
+                                                        {dev.name.substring(0, 2)}
+                                                    </div>
+                                                    <span className="font-bold text-[#0f172a] whitespace-nowrap">{dev.name}</span>
+                                                </div>
                                             </TableCell>
-                                            <TableCell className="text-slate-600">{client.email || "—"}</TableCell>
+                                            <TableCell className="text-slate-600">{dev.email}</TableCell>
+                                            <TableCell>
+                                                <Badge className={cn(
+                                                    "border-none px-2.5 py-0.5 font-bold text-[10px] uppercase shadow-none",
+                                                    dev.role === "admin" ? "bg-amber-100 text-amber-700" :
+                                                    dev.role === "developer" ? "bg-blue-100 text-blue-700" :
+                                                    dev.role === "tester" ? "bg-purple-100 text-purple-700" :
+                                                    "bg-slate-100 text-slate-700"
+                                                )}>
+                                                    {dev.role || "member"}
+                                                </Badge>
+                                            </TableCell>
                                             <TableCell className="text-slate-500 text-xs text-nowrap">
-                                                {new Date(client.createdAt).toLocaleDateString()}
+                                                {new Date(dev.createdAt).toLocaleDateString()}
                                             </TableCell>
                                             <TableCell className="text-right pr-6">
                                                 <DropdownMenu>
@@ -155,15 +165,15 @@ export default function ClientsPage() {
                                                     <DropdownMenuContent align="end" className="w-48 shadow-lg border-slate-100">
                                                         <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground">Options</DropdownMenuLabel>
                                                         <DropdownMenuItem asChild>
-                                                            <Link href={`/dashboard/clients/${client.id}`} className="cursor-pointer">
+                                                            <Link href={`/dashboard/developers/${dev.id}`} className="cursor-pointer">
                                                                 <Eye className="mr-2 h-4 w-4 text-blue-500" />
-                                                                <span>View Details</span>
+                                                                <span>View Profile</span>
                                                             </Link>
                                                         </DropdownMenuItem>
-                                                        {canManageClients && (
+                                                        {canManageUsers && (
                                                             <DropdownMenuItem className="text-slate-600 cursor-pointer">
-                                                                <Edit3 className="mr-2 h-4 w-4" />
-                                                                <span>Edit Client</span>
+                                                                <ShieldAlert className="mr-2 h-4 w-4" />
+                                                                <span>Edit Permissions</span>
                                                             </DropdownMenuItem>
                                                         )}
                                                     </DropdownMenuContent>
@@ -173,8 +183,8 @@ export default function ClientsPage() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                                            {isLoading ? "Loading clients..." : "No clients found."}
+                                        <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                                            {isLoading ? "Loading developers..." : "No developers found."}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -186,7 +196,7 @@ export default function ClientsPage() {
                     {meta && meta.totalPages > 1 && (
                         <div className="flex items-center justify-between px-6 py-4 border-t bg-slate-50/50">
                             <p className="text-xs text-muted-foreground font-medium">
-                                Showing <span className="text-[#0f172a] font-bold">{(page - 1) * limit + 1}</span> to <span className="text-[#0f172a] font-bold">{Math.min(page * limit, meta.total)}</span> of <span className="text-[#0f172a] font-bold">{meta.total}</span> clients
+                                Showing <span className="text-[#0f172a] font-bold">{(page - 1) * limit + 1}</span> to <span className="text-[#0f172a] font-bold">{Math.min(page * limit, meta.total)}</span> of <span className="text-[#0f172a] font-bold">{meta.total}</span> developers
                             </p>
                             <div className="flex items-center gap-2">
                                 <Button 

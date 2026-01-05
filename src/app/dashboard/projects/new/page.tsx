@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
-import { Toaster } from "@/components/ui/sonner" // Assuming shadcn toast
 
 interface Client {
     id: string;
@@ -27,8 +26,19 @@ export default function NewProjectPage() {
         // Fetch clients for dropdown
         fetch("/api/clients")
             .then(res => res.json())
-            .then(data => setClients(data))
-            .catch(err => console.error("Failed to load clients", err));
+            .then(data => {
+                // API returns { data: [...], meta: {...} }
+                if (data.data && Array.isArray(data.data)) {
+                    setClients(data.data);
+                } else {
+                    console.error("Unexpected API response format", data);
+                    setClients([]);
+                }
+            })
+            .catch(err => {
+                console.error("Failed to load clients", err);
+                setClients([]);
+            });
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -51,11 +61,10 @@ export default function NewProjectPage() {
                 throw new Error(error.error || "Failed to create project");
             }
 
-            router.push("/projects");
+            router.push("/dashboard/projects");
             router.refresh();
         } catch (error: any) {
             console.error(error);
-            // alert(error.message); // Replace with toast
         } finally {
             setIsLoading(false);
         }
