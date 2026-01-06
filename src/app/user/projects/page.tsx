@@ -10,7 +10,7 @@ import {
     TableRow 
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, Eye, MoreHorizontal, FolderKanban, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Eye, MoreHorizontal, FolderKanban, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 import { 
     DropdownMenu, 
     DropdownMenuContent, 
@@ -227,6 +227,14 @@ export default function UserProjectsPage() {
                                                                     <Eye className="h-3.5 w-3.5" />
                                                                 </div>
                                                                 <span className="font-semibold text-sm">View Details</span>
+                                                            </Link>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem asChild>
+                                                            <Link href={`/user/chat/${project.id}`} className="cursor-pointer py-2 px-2.5 flex items-center gap-2">
+                                                                <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
+                                                                    <MessageSquare className="h-3.5 w-3.5" />
+                                                                </div>
+                                                                <span className="font-semibold text-sm">Project Chat</span>
                                                             </Link>
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>

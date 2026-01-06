@@ -113,8 +113,9 @@ export async function POST(req: Request) {
             name,
             clientId,
             status: status || "active",
-            totalTime,
-            description,
+            totalTime: totalTime || null,
+            completedTime: null, // explicit null
+            description: description || null, // explicit null
         }).returning();
 
         // Handle assignments
@@ -137,8 +138,16 @@ export async function POST(req: Request) {
 
         return NextResponse.json(newProject, { status: 201 });
 
-    } catch (error) {
-        console.error(error);
-        return NextResponse.json({ error: "Failed to create project" }, { status: 500 });
+    } catch (error: any) {
+        console.error("Project creation error:", error);
+        return NextResponse.json({ 
+            error: "Failed to create project", 
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint,
+            constraint: error.constraint,
+            stack: error.stack 
+        }, { status: 500 });
     }
 }

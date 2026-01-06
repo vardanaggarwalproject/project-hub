@@ -48,7 +48,6 @@ export default async function UserLayout({
     let managementItems = [
         { name: "EOD Reports", href: "/user/eods", icon: ClipboardList },
         { name: "Code Links", href: "/user/links", icon: LinkIcon },
-        { name: "Project Chat", href: "/user/chat", icon: MessageSquare },
     ];
     
     let sectionLabel = "Work";
@@ -63,7 +62,6 @@ export default async function UserLayout({
         managementItems = [
             { name: "Bugs & Issues", href: "/user/bugs", icon: ShieldCheck },
             { name: "Test Reports", href: "/user/eods", icon: FileText },
-            { name: "Project Chat", href: "/user/chat", icon: MessageSquare },
         ];
         sectionLabel = "Testing";
     } else if (userRole === "designer") {
@@ -75,7 +73,6 @@ export default async function UserLayout({
         managementItems = [
             { name: "Assets Library", href: "/user/assets", icon: FileCode2 },
             { name: "Feedback", href: "/user/memos", icon: FileText },
-            { name: "Project Chat", href: "/user/chat", icon: MessageSquare },
         ];
         sectionLabel = "Design";
     }

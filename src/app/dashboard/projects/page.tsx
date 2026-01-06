@@ -126,7 +126,7 @@ export default function ProjectsPage() {
                 </div>
                 {canManageProjects && (
                     <Button asChild className="bg-blue-600 hover:bg-blue-700 shadow-sm font-bold">
-                        <Link href="/dashboard/projects/new">
+                        <Link href="/admin/projects/new">
                             <Plus className="mr-2 h-4 w-4" />
                             New Project
                         </Link>

@@ -62,7 +62,7 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
                 <div className="ml-auto flex items-center gap-2">
                     <Button variant="outline" size="sm">Edit Client</Button>
                     <Button size="sm" className="bg-blue-600 hover:bg-blue-700" asChild>
-                        <Link href="/dashboard/projects/new">
+                        <Link href="/admin/projects/new">
                             <Plus className="mr-2 h-4 w-4" />
                             New Project
                         </Link>

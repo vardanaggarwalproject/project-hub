@@ -69,7 +69,7 @@ export const clients = pgTable("clients", {
 export const projects = pgTable("projects", {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
-    clientId: text("client_id").notNull().references(() => clients.id),
+    clientId: text("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
     totalTime: text("total_time"), // Using text to handle loose number/null formats or change to integer if strict
     completedTime: text("completed_time"),
     status: text("status"), // "active", "completed", "on-hold"
@@ -81,7 +81,7 @@ export const projects = pgTable("projects", {
 export const userProjectAssignments = pgTable("user_project_assignments", {
     id: text("id").primaryKey(),
     userId: text("user_id").notNull().references(() => user.id),
-    projectId: text("project_id").notNull().references(() => projects.id),
+    projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
     assignedAt: timestamp("assigned_at").defaultNow().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -95,7 +95,7 @@ export const tasks = pgTable("tasks", {
     deadline: timestamp("deadline"),
     estimatedTime: text("estimated_time"),
     completedTime: text("completed_time"),
-    projectId: text("project_id").notNull().references(() => projects.id),
+    projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -103,7 +103,7 @@ export const tasks = pgTable("tasks", {
 export const userTaskAssignments = pgTable("user_task_assignments", {
     id: text("id").primaryKey(),
     userId: text("user_id").notNull().references(() => user.id),
-    taskId: text("task_id").notNull().references(() => tasks.id),
+    taskId: text("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
     assignedAt: timestamp("assigned_at").defaultNow().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -112,7 +112,7 @@ export const userTaskAssignments = pgTable("user_task_assignments", {
 export const eodReports = pgTable("eod_reports", {
     id: text("id").primaryKey(),
     userId: text("user_id").notNull().references(() => user.id),
-    projectId: text("project_id").notNull().references(() => projects.id),
+    projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
     reportDate: timestamp("report_date").notNull(),
     clientUpdate: text("client_update"),
     actualUpdate: text("actual_update"),
@@ -124,7 +124,7 @@ export const memos = pgTable("memos", {
     id: text("id").primaryKey(),
     memoContent: text("memo_content"), // max 140 chars
     userId: text("user_id").notNull().references(() => user.id),
-    projectId: text("project_id").notNull().references(() => projects.id),
+    projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
     reportDate: timestamp("report_date").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -135,9 +135,9 @@ export const links = pgTable("links", {
     name: text("name").notNull(),
     url: text("url").notNull(),
     description: text("description"),
-    projectId: text("project_id").notNull().references(() => projects.id),
+    projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
     clientId: text("client_id").references(() => clients.id),
-    addedBy: text("added_by").references(() => user.id),
+    By: text("addeaddedd_by").references(() => user.id),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -148,7 +148,7 @@ export const assets = pgTable("assets", {
     fileUrl: text("file_url").notNull(),
     fileType: text("file_type"),
     fileSize: text("file_size"), // number in bytes stored as text or bigInt to avoid overflow? Using text for simplicity or integer
-    projectId: text("project_id").notNull().references(() => projects.id),
+    projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
     clientId: text("client_id").references(() => clients.id),
     uploadedBy: text("uploaded_by").notNull().references(() => user.id),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -158,7 +158,7 @@ export const assets = pgTable("assets", {
 export const chatGroups = pgTable("chat_groups", {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
-    projectId: text("project_id").unique().notNull().references(() => projects.id),
+    projectId: text("project_id").unique().notNull().references(() => projects.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -166,7 +166,7 @@ export const chatGroups = pgTable("chat_groups", {
 export const messages = pgTable("messages", {
     id: text("id").primaryKey(),
     senderId: text("sender_id").notNull().references(() => user.id),
-    groupId: text("group_id").notNull().references(() => chatGroups.id),
+    groupId: text("group_id").notNull().references(() => chatGroups.id, { onDelete: "cascade" }),
     content: text("content"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
