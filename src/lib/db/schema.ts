@@ -12,7 +12,7 @@ export const user = pgTable("user", {
 	id: text("id").primaryKey(),
 	name: text("name").notNull(),
 	email: text("email").notNull().unique(),
-	emailVerified: boolean("email_verified").notNull(),
+	emailVerified: boolean("email_verified").notNull(), 
 	image: text("image"),
 	createdAt: timestamp("created_at").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
@@ -73,6 +73,7 @@ export const projects = pgTable("projects", {
     totalTime: text("total_time"), // Using text to handle loose number/null formats or change to integer if strict
     completedTime: text("completed_time"),
     status: text("status"), // "active", "completed", "on-hold"
+    description: text("description"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -136,6 +137,7 @@ export const links = pgTable("links", {
     description: text("description"),
     projectId: text("project_id").notNull().references(() => projects.id),
     clientId: text("client_id").references(() => clients.id),
+    addedBy: text("added_by").references(() => user.id),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

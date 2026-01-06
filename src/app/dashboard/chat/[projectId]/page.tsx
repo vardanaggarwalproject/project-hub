@@ -17,6 +17,7 @@ interface Message {
     content: string;
     senderId: string;
     senderName: string;
+    senderImage?: string | null;
     createdAt: string;
 }
 
@@ -25,6 +26,8 @@ export default function ProjectChatPage({ params }: { params: Promise<{ projectI
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isConnected, setIsConnected] = useState(false);
+    const [hasAccess, setHasAccess] = useState(true);
+    const [isLoadingAccess, setIsLoadingAccess] = useState(true);
     const socketRef = useRef<Socket | null>(null);
     const scrollEndRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
@@ -48,20 +51,51 @@ export default function ProjectChatPage({ params }: { params: Promise<{ projectI
             setMessages(prev => [...prev, message]);
         });
 
+        // Listen for assignment changes
+        socket.on("user-removed-from-project", (data: { projectId: string; userId: string; action: string }) => {
+            if (data.projectId === projectId && session?.user.id === data.userId) {
+                setHasAccess(false);
+                alert("You have been removed from this project. You can no longer send messages.");
+            }
+        });
+
+        socket.on("user-assigned-to-project", (data: { projectId: string; userId: string; action: string }) => {
+            if (data.projectId === projectId && session?.user.id === data.userId) {
+                setHasAccess(true);
+            }
+        });
+
         socket.on("disconnect", () => {
             setIsConnected(false);
         });
 
-        // Fetch initial messages
+        // Fetch initial messages and verify access
         fetch(`/api/chat-groups/${projectId}/messages`)
-            .then(res => res.json())
-            .then(data => setMessages(data))
-            .catch(err => console.error("Failed to load messages", err));
+            .then(res => {
+                if (res.status === 403) {
+                    setHasAccess(false);
+                    setIsLoadingAccess(false);
+                    throw new Error("Access denied");
+                }
+                if (!res.ok) {
+                    throw new Error("Failed to load messages");
+                }
+                return res.json();
+            })
+            .then(data => {
+                setMessages(data);
+                setHasAccess(true);
+                setIsLoadingAccess(false);
+            })
+            .catch(err => {
+                console.error("Failed to load messages", err);
+                setIsLoadingAccess(false);
+            });
 
         return () => {
             socket.disconnect();
         };
-    }, [projectId]);
+    }, [projectId, session]);
 
     useEffect(() => {
         scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -69,7 +103,7 @@ export default function ProjectChatPage({ params }: { params: Promise<{ projectI
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!input.trim() || !session?.user) return;
+        if (!input.trim() || !session?.user || !hasAccess) return;
 
         const messageData = {
             content: input,
@@ -142,18 +176,25 @@ export default function ProjectChatPage({ params }: { params: Promise<{ projectI
                     </ScrollArea>
                 </CardContent>
                 <CardFooter className="p-4 bg-white border-t">
-                    <form onSubmit={handleSend} className="flex w-full items-center gap-2">
-                        <Input 
-                            placeholder="Type your message..." 
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            className="bg-slate-50 border-none focus-visible:ring-1"
-                            disabled={!isConnected}
-                        />
-                        <Button type="submit" size="icon" disabled={!input.trim() || !isConnected} className="bg-blue-600 hover:bg-blue-700 shrink-0">
-                            <Send className="h-4 w-4" />
-                        </Button>
-                    </form>
+                    {!hasAccess ? (
+                        <div className="w-full p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+                            <p className="text-sm font-bold text-red-700">You don't have access to this project chat.</p>
+                            <p className="text-xs text-red-600 mt-1">Contact an admin if you believe this is an error.</p>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSend} className="flex w-full items-center gap-2">
+                            <Input 
+                                placeholder="Type your message..." 
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                className="bg-slate-50 border-none focus-visible:ring-1"
+                                disabled={!isConnected || !hasAccess}
+                            />
+                            <Button type="submit" size="icon" disabled={!input.trim() || !isConnected || !hasAccess} className="bg-blue-600 hover:bg-blue-700 shrink-0">
+                                <Send className="h-4 w-4" />
+                            </Button>
+                        </form>
+                    )}
                 </CardFooter>
             </Card>
         </div>

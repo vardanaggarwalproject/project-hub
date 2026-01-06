@@ -12,7 +12,8 @@ import {
     ArrowLeft, 
     Building2,
     Briefcase,
-    Plus
+    Plus,
+    MoreVertical
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";

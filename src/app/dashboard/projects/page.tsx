@@ -42,6 +42,12 @@ interface Project {
     clientName: string | null;
     updatedAt: string;
     progress?: number;
+    team?: Array<{
+        id: string;
+        name: string;
+        image: string | null;
+        role: string;
+    }>;
 }
 
 interface Meta {
@@ -77,10 +83,10 @@ export default function ProjectsPage() {
         fetch(`/api/projects?${params.toString()}`)
             .then((res) => res.json())
             .then((resData) => {
-                // Mocking progress for demonstration
+                // Mocking progress for demonstration if not present
                 const dataWithProgress = resData.data.map((p: any) => ({ 
                     ...p, 
-                    progress: Math.floor(Math.random() * 100) 
+                    progress: p.progress || Math.floor(Math.random() * 100) 
                 }));
                 setProjects(dataWithProgress);
                 setMeta(resData.meta);
@@ -103,8 +109,11 @@ export default function ProjectsPage() {
 
     if (isLoading && projects.length === 0) return (
         <div className="space-y-4">
-            <Skeleton className="h-10 w-[250px]" />
-            <Skeleton className="h-[400px] w-full" />
+            <div className="flex justify-between">
+                <Skeleton className="h-10 w-[250px]" />
+                <Skeleton className="h-10 w-[120px]" />
+            </div>
+            <Skeleton className="h-[500px] w-full" />
         </div>
     );
 
@@ -116,7 +125,7 @@ export default function ProjectsPage() {
                     <p className="text-muted-foreground">Monitor and manage all active organization projects</p>
                 </div>
                 {canManageProjects && (
-                    <Button asChild className="bg-blue-600 hover:bg-blue-700 shadow-sm">
+                    <Button asChild className="bg-blue-600 hover:bg-blue-700 shadow-sm font-bold">
                         <Link href="/dashboard/projects/new">
                             <Plus className="mr-2 h-4 w-4" />
                             New Project
@@ -125,14 +134,14 @@ export default function ProjectsPage() {
                 )}
             </div>
 
-            <Card className="border-none shadow-sm overflow-hidden">
-                <CardHeader className="bg-white border-b py-4 px-6">
+            <Card className="border-none shadow-md overflow-hidden bg-white">
+                <CardHeader className="border-b py-4 px-6 bg-slate-50/30">
                     <div className="flex flex-col md:flex-row gap-4 justify-between">
                         <div className="relative max-w-sm w-full">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
                                 placeholder="Search projects..." 
-                                className="pl-10 bg-slate-50 border-none focus-visible:ring-1"
+                                className="pl-10 bg-white border-slate-200 focus-visible:ring-blue-500"
                                 value={search}
                                 onChange={(e) => {
                                     setSearch(e.target.value);
@@ -148,7 +157,7 @@ export default function ProjectsPage() {
                                     setPage(1);
                                 }}
                             >
-                                <SelectTrigger className="w-[150px] bg-slate-50 border-none">
+                                <SelectTrigger className="w-[150px] bg-white border-slate-200">
                                     <SelectValue placeholder="Status" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -168,6 +177,7 @@ export default function ProjectsPage() {
                                 <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
                                     <TableHead className="w-[80px] font-bold text-muted-foreground uppercase text-[10px] tracking-wider pl-6">S.No</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Project Information</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Assigned Team</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Status</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Progress</TableHead>
                                     <TableHead className="text-right font-bold text-muted-foreground uppercase text-[10px] tracking-wider pr-6">Actions</TableHead>
@@ -176,54 +186,96 @@ export default function ProjectsPage() {
                             <TableBody>
                                 {projects.length > 0 ? (
                                     projects.map((project, index) => (
-                                        <TableRow key={project.id} className="group transition-colors hover:bg-slate-50/50">
-                                            <TableCell className="pl-6 font-medium text-slate-500">{(page - 1) * limit + index + 1}</TableCell>
+                                        <TableRow key={project.id} className="group transition-colors hover:bg-slate-50/30">
+                                            <TableCell className="pl-6 font-medium text-slate-400">{(page - 1) * limit + index + 1}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
-                                                    <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
+                                                    <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 shadow-sm">
                                                         <FolderKanban className="h-4 w-4" />
                                                     </div>
                                                     <div>
-                                                        <div className="font-bold text-[#0f172a]">{project.name}</div>
-                                                        <div className="text-[10px] text-muted-foreground uppercase tracking-tight">{project.clientName || "Direct Client"}</div>
+                                                        <div className="font-bold text-[#0f172a] group-hover:text-blue-600 transition-colors uppercase text-sm tracking-tight">{project.name}</div>
+                                                        <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">{project.clientName || "Direct Client"}</div>
                                                     </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
+                                                <div className="flex -space-x-2 overflow-hidden">
+                                                    {project.team && project.team.length > 0 ? (
+                                                        project.team.slice(0, 3).map((member) => (
+                                                            <div 
+                                                                key={member.id} 
+                                                                className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600 overflow-hidden"
+                                                                title={`${member.name} (${member.role})`}
+                                                            >
+                                                                {member.image ? (
+                                                                    <img src={member.image} alt={member.name} className="h-full w-full object-cover" />
+                                                                ) : (
+                                                                    member.name.split(' ').map(n => n[0]).join('')
+                                                                )}
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground italic">No team assigned</span>
+                                                    )}
+                                                    {project.team && project.team.length > 3 && (
+                                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-[10px] font-bold text-slate-400 ring-2 ring-white">
+                                                            +{project.team.length - 3}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
                                                 <Badge className={cn(
-                                                    "border-none px-2.5 py-0.5 font-bold text-[10px] uppercase shadow-none",
+                                                    "border-none px-2.5 py-1 font-bold text-[10px] uppercase shadow-none",
                                                     project.status === "active" ? "bg-emerald-100 text-emerald-700" :
                                                     project.status === "completed" ? "bg-blue-100 text-blue-700" :
                                                     "bg-slate-100 text-slate-700"
                                                 )}>
+                                                    <div className={cn(
+                                                        "h-1.5 w-1.5 rounded-full mr-1.5",
+                                                        project.status === "active" ? "bg-emerald-500" :
+                                                        project.status === "completed" ? "bg-blue-500" : "bg-slate-500"
+                                                    )} />
                                                     {project.status}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="w-[200px]">
+                                            <TableCell className="w-[180px]">
                                                 <div className="flex items-center gap-3">
-                                                    <Progress value={project.progress} className="h-1.5 w-24 bg-slate-100" />
+                                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className="h-full bg-blue-500 rounded-full transition-all duration-500" 
+                                                            style={{ width: `${project.progress}%` }}
+                                                        />
+                                                    </div>
                                                     <span className="text-xs font-bold text-slate-600">{project.progress}%</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right pr-6">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-white hover:shadow-sm">
                                                             <MoreHorizontal className="h-4 w-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-48 shadow-lg border-slate-100">
-                                                        <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground">Options</DropdownMenuLabel>
+                                                    <DropdownMenuContent align="end" className="w-52 shadow-xl border-slate-100 p-1">
+                                                        <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground px-2 py-1.5">Options</DropdownMenuLabel>
                                                         <DropdownMenuItem asChild>
-                                                            <Link href={`/dashboard/projects/${project.id}`} className="cursor-pointer">
-                                                                <Eye className="mr-2 h-4 w-4 text-blue-500" />
-                                                                <span>View Details</span>
+                                                            <Link href={`/dashboard/projects/${project.id}`} className="cursor-pointer py-2 px-2.5 flex items-center gap-2">
+                                                                <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
+                                                                    <Eye className="h-3.5 w-3.5" />
+                                                                </div>
+                                                                <span className="font-semibold text-sm">View Details</span>
                                                             </Link>
                                                         </DropdownMenuItem>
                                                         {canManageProjects && (
-                                                            <DropdownMenuItem className="text-slate-600 cursor-pointer">
-                                                                <Edit3 className="mr-2 h-4 w-4" />
-                                                                <span>Edit Project</span>
+                                                            <DropdownMenuItem asChild>
+                                                                <Link href={`/dashboard/projects/${project.id}/edit`} className="cursor-pointer py-2 px-2.5 flex items-center gap-2">
+                                                                    <div className="p-1.5 rounded-lg bg-slate-50 text-slate-600">
+                                                                        <Edit3 className="h-3.5 w-3.5" />
+                                                                    </div>
+                                                                    <span className="font-semibold text-sm">Edit Project</span>
+                                                                </Link>
                                                             </DropdownMenuItem>
                                                         )}
                                                     </DropdownMenuContent>
@@ -233,8 +285,8 @@ export default function ProjectsPage() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                                            {isLoading ? "Loading projects..." : "No projects found."}
+                                        <TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">
+                                            {isLoading ? "Fetching organization projects..." : "No projects found matching your criteria."}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -244,9 +296,9 @@ export default function ProjectsPage() {
 
                     {/* Pagination */}
                     {meta && meta.totalPages > 1 && (
-                        <div className="flex items-center justify-between px-6 py-4 border-t bg-slate-50/50">
-                            <p className="text-xs text-muted-foreground font-medium">
-                                Showing <span className="text-[#0f172a] font-bold">{(page - 1) * limit + 1}</span> to <span className="text-[#0f172a] font-bold">{Math.min(page * limit, meta.total)}</span> of <span className="text-[#0f172a] font-bold">{meta.total}</span> projects
+                        <div className="flex items-center justify-between px-6 py-4 border-t bg-slate-50/30">
+                            <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider">
+                                Showing <span className="text-[#0f172a]">{(page - 1) * limit + 1}</span> to <span className="text-[#0f172a]">{Math.min(page * limit, meta.total)}</span> / <span className="text-[#0f172a]">{meta.total}</span>
                             </p>
                             <div className="flex items-center gap-2">
                                 <Button 
@@ -254,21 +306,23 @@ export default function ProjectsPage() {
                                     size="sm" 
                                     onClick={() => setPage(p => Math.max(1, p - 1))}
                                     disabled={page === 1}
-                                    className="h-8 w-8 p-0"
+                                    className="h-8 px-3 border-slate-200 hover:bg-white font-bold text-xs"
                                 >
-                                    <ChevronLeft className="h-4 w-4" />
+                                    <ChevronLeft className="h-4 w-4 mr-1" />
+                                    Prev
                                 </Button>
                                 <div className="text-xs font-bold text-[#0f172a] px-2">
-                                    Page {page} of {meta.totalPages}
+                                    {page} of {meta.totalPages}
                                 </div>
                                 <Button 
                                     variant="outline" 
                                     size="sm" 
                                     onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                                     disabled={page === meta.totalPages}
-                                    className="h-8 w-8 p-0"
+                                    className="h-8 px-3 border-slate-200 hover:bg-white font-bold text-xs"
                                 >
-                                    <ChevronRight className="h-4 w-4" />
+                                    Next
+                                    <ChevronRight className="h-4 w-4 ml-1" />
                                 </Button>
                             </div>
                         </div>
