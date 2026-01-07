@@ -16,15 +16,19 @@ interface ChatGroup {
     developerCount: number;
 }
 
-export function AdminChatView() {
+interface UserChatViewProps {
+    initialProjectId?: string;
+}
+
+export function UserChatView({ initialProjectId }: UserChatViewProps) {
     const { data: session } = authClient.useSession();
     const [chats, setChats] = useState<ChatGroup[]>([]);
-    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialProjectId || null);
     const [isLoading, setIsLoading] = useState(true);
     const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
     
     const chatsRef = useRef<ChatGroup[]>([]);
-    const selectedGroupIdRef = useRef<string | null>(null);
+    const selectedProjectIdRef = useRef<string | null>(null);
     const lastReadCallRef = useRef<Record<string, number>>({});
 
     useEffect(() => {
@@ -32,12 +36,9 @@ export function AdminChatView() {
     }, [chats]);
 
     useEffect(() => {
-        selectedGroupIdRef.current = selectedGroupId;
-    }, [selectedGroupId]);
+        selectedProjectIdRef.current = selectedProjectId;
+    }, [selectedProjectId]);
 
-    const selectedGroup = chats.find(c => c.id === selectedGroupId);
-
-    // Optimized: Fetch chats and unread counts in parallel
     const fetchData = useCallback(async () => {
         try {
             const [chatsRes, unreadRes] = await Promise.all([
@@ -60,18 +61,13 @@ export function AdminChatView() {
         fetchData();
     }, [fetchData]);
 
-    // Socket listeners
     useEffect(() => {
         const socket = getSocket();
         if (!socket || !session?.user) return;
 
         const onMessage = (data: any) => {
-            const currentSelectedGroupId = selectedGroupIdRef.current;
-            const currentChats = chatsRef.current;
-            const currentSelectedGroup = currentChats.find(c => c.id === currentSelectedGroupId);
-
-            // Increment if not the active project
-            if (data.projectId && (!currentSelectedGroup || data.projectId !== currentSelectedGroup.projectId)) {
+            const currentSelectedProjectId = selectedProjectIdRef.current;
+            if (data.projectId && data.projectId !== currentSelectedProjectId) {
                 setUnreadCounts(prev => ({
                     ...prev,
                     [data.projectId]: (prev[data.projectId] || 0) + 1
@@ -80,7 +76,6 @@ export function AdminChatView() {
         };
 
         const onRead = (data: any) => {
-            // If WE read it on another device/tab, clear locally
             if (data.userId === session.user.id && data.projectId) {
                 setUnreadCounts(prev => ({
                     ...prev,
@@ -113,7 +108,6 @@ export function AdminChatView() {
         };
     }, [fetchData, session?.user?.id]);
 
-    // Re-join rooms when chats change
     useEffect(() => {
         const socket = getSocket();
         if (socket && socket.connected && chats.length > 0) {
@@ -138,6 +132,20 @@ export function AdminChatView() {
             .catch(() => {});
     };
 
+    const handleSelectChat = (groupId: string) => {
+        const chat = chats.find(c => c.id === groupId);
+        if (chat) {
+            setSelectedProjectId(chat.projectId);
+            setUnreadCounts(prev => ({
+                ...prev,
+                [chat.projectId]: 0
+            }));
+            handleMarkRead(chat.projectId);
+        }
+    };
+
+    const selectedChat = chats.find(c => c.projectId === selectedProjectId);
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-full w-full min-h-[600px] bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -147,31 +155,21 @@ export function AdminChatView() {
     }
 
     return (
-        <div className="flex h-full w-full bg-white border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex h-full w-full bg-white border border-slate-200 shadow-sm overflow-hidden rounded-xl">
             <ChatSidebar 
                 groups={chats} 
-                selectedGroupId={selectedGroupId} 
-                onSelectGroup={(id: string) => {
-                    setSelectedGroupId(id);
-                    const chat = chats.find(c => c.id === id);
-                    if (chat) {
-                        setUnreadCounts(prev => ({
-                            ...prev,
-                            [chat.projectId]: 0
-                        }));
-                        handleMarkRead(chat.projectId);
-                    }
-                }} 
+                selectedGroupId={selectedChat?.id || null} 
+                onSelectGroup={handleSelectChat}
                 unreadCounts={unreadCounts}
             />
 
             <div className="flex-1 flex flex-col bg-slate-50/50 min-w-0">
-                {selectedGroup ? (
+                {selectedChat ? (
                     <ChatWindow 
-                        key={selectedGroup.projectId}
-                        groupId={selectedGroup.id} 
-                        groupName={selectedGroup.name}
-                        projectId={selectedGroup.projectId}
+                        key={selectedChat.projectId}
+                        groupId={selectedChat.id} 
+                        groupName={selectedChat.name}
+                        projectId={selectedChat.projectId}
                     />
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4">
@@ -179,8 +177,8 @@ export function AdminChatView() {
                             <MessageSquareDashed className="h-10 w-10 text-slate-300" />
                         </div>
                         <div className="text-center">
-                            <h3 className="text-lg font-bold text-slate-700">Select a group</h3>
-                            <p className="text-sm max-w-xs mx-auto mt-1">Choose a project group from the sidebar to view the conversation.</p>
+                            <h3 className="text-lg font-bold text-slate-700">Select a project</h3>
+                            <p className="text-sm max-w-xs mx-auto mt-1">Choose a project from the sidebar to view the conversation.</p>
                         </div>
                     </div>
                 )}

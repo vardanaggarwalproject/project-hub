@@ -18,7 +18,7 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        
+
         const projectData = await db.select({
             id: projects.id,
             name: projects.name,
@@ -30,10 +30,10 @@ export async function GET(
             clientId: projects.clientId,
             clientName: clients.name,
         })
-        .from(projects)
-        .leftJoin(clients, eq(projects.clientId, clients.id))
-        .where(eq(projects.id, id))
-        .limit(1);
+            .from(projects)
+            .leftJoin(clients, eq(projects.clientId, clients.id))
+            .where(eq(projects.id, id))
+            .limit(1);
 
         if (!projectData.length) {
             return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -46,9 +46,9 @@ export async function GET(
             image: user.image,
             role: user.role
         })
-        .from(userProjectAssignments)
-        .innerJoin(user, eq(userProjectAssignments.userId, user.id))
-        .where(eq(userProjectAssignments.projectId, id));
+            .from(userProjectAssignments)
+            .innerJoin(user, eq(userProjectAssignments.userId, user.id))
+            .where(eq(userProjectAssignments.projectId, id));
 
         return NextResponse.json({
             ...projectData[0],
@@ -82,7 +82,7 @@ export async function PATCH(
                 description,
                 status,
                 clientId,
-                updatedAt: new Date(),
+                updatedAt: sql`NOW()`,
             })
             .where(eq(projects.id, id));
 

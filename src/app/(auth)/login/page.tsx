@@ -27,8 +27,13 @@ export default function LoginPage() {
             email,
             password,
         }, {
-            onSuccess: () => {
-                router.push("/dashboard");
+            onSuccess: async () => {
+                const { data: session } = await authClient.getSession();
+                if (session?.user.role === "admin") {
+                    router.push("/admin/dashboard");
+                } else {
+                    router.push("/user/dashboard");
+                }
             },
             onError: (ctx) => {
                 setError(ctx.error.message);

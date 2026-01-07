@@ -98,7 +98,7 @@ export default async function AdminUsersPage() {
 
                 {/* Info Panel */}
                 <div className="space-y-6">
-                    <Card className="border-none shadow-md bg-gradient-to-br from-amber-50 to-orange-50">
+                    {/* <Card className="border-none shadow-md bg-gradient-to-br from-amber-50 to-orange-50">
                         <CardHeader>
                             <CardTitle className="text-lg text-amber-900">Quick Tips</CardTitle>
                         </CardHeader>
@@ -116,7 +116,7 @@ export default async function AdminUsersPage() {
                                 <p className="text-sm text-amber-900">Users can update their profile after first login</p>
                             </div>
                         </CardContent>
-                    </Card>
+                    </Card> */}
 
                     <Card className="border-none shadow-md bg-gradient-to-br from-slate-50 to-gray-50">
                         <CardHeader>

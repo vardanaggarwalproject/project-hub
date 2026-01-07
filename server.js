@@ -5,8 +5,8 @@ const next = require("next");
 const { Server } = require("socket.io");
 
 const dev = process.env.NODE_ENV !== "production";
-const hostname = "localhost";
-const port = 3000;
+const hostname = "0.0.0.0";
+const port = parseInt(process.env.PORT || "3000", 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
@@ -37,6 +37,18 @@ app.prepare().then(() => {
     socket.on("join-room", (projectId) => {
       socket.join(projectId);
       console.log(`📥 Socket ${socket.id} joined room ${projectId}`);
+    });
+
+    socket.on("join-rooms", (projectIds) => {
+      if (Array.isArray(projectIds)) {
+        projectIds.forEach(id => socket.join(id));
+        console.log(`📥 Socket ${socket.id} joined multiple rooms:`, projectIds);
+      }
+    });
+
+    socket.on("leave-room", (projectId) => {
+      socket.leave(projectId);
+      console.log(`📤 Socket ${socket.id} left room ${projectId}`);
     });
 
     socket.on("send-message", (data) => {
@@ -72,6 +84,11 @@ app.prepare().then(() => {
         userId: data.userId,
         userName: data.userName
       });
+    });
+
+    socket.on("mark-read", (data) => {
+      console.log(`👁️ Broadcasting read status for room ${data.projectId} by user ${data.userId}`);
+      io.to(data.projectId).emit("messages-read", data);
     });
 
     socket.on("disconnect", () => {

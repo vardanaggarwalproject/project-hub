@@ -36,7 +36,7 @@ export async function GET(req: Request) {
 
         // Fetch assignments for these tasks
         const taskIds = taskList.map(t => t.id);
-        const allAssignments = taskIds.length > 0 
+        const allAssignments = taskIds.length > 0
             ? await db.select({
                 taskId: userTaskAssignments.taskId,
                 user: {
@@ -45,9 +45,9 @@ export async function GET(req: Request) {
                     image: user.image
                 }
             })
-            .from(userTaskAssignments)
-            .innerJoin(user, eq(userTaskAssignments.userId, user.id))
-            .where(inArray(userTaskAssignments.taskId, taskIds))
+                .from(userTaskAssignments)
+                .innerJoin(user, eq(userTaskAssignments.userId, user.id))
+                .where(inArray(userTaskAssignments.taskId, taskIds))
             : [];
 
         const tasksWithAssignees = taskList.map(task => ({
@@ -80,8 +80,10 @@ export async function POST(req: Request) {
             name,
             description,
             status: status || "todo",
-            deadline: deadline ? new Date(deadline) : null,
+            deadline: deadline ? new Date(deadline).toISOString() : null,
             projectId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         }).returning();
 
         if (assignedUserIds && assignedUserIds.length > 0) {
@@ -89,7 +91,10 @@ export async function POST(req: Request) {
                 assignedUserIds.map(userId => ({
                     id: crypto.randomUUID(),
                     userId,
-                    taskId: newTask.id
+                    taskId: newTask.id,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    assignedAt: new Date().toISOString(),
                 }))
             );
         }

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { projects, clients, chatGroups, user, userProjectAssignments } from "@/lib/db/schema";
-import { eq, and, sql, desc, ilike } from "drizzle-orm";
+import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -42,18 +42,21 @@ export async function GET(req: Request) {
             name: projects.name,
             status: projects.status,
             clientName: clients.name,
+            totalTime: projects.totalTime,
+            completedTime: projects.completedTime,
+            description: projects.description,
             updatedAt: projects.updatedAt,
         })
-        .from(projects)
-        .leftJoin(clients, eq(projects.clientId, clients.id))
-        .where(whereClause)
-        .limit(limit)
-        .offset(offset)
-        .orderBy(desc(projects.updatedAt));
+            .from(projects)
+            .leftJoin(clients, eq(projects.clientId, clients.id))
+            .where(whereClause)
+            .limit(limit)
+            .offset(offset)
+            .orderBy(desc(projects.updatedAt));
 
         // Fetch assignments for these projects
         const projectIds = projectList.map(p => p.id);
-        const allAssignments = projectIds.length > 0 
+        const allAssignments = projectIds.length > 0
             ? await db.select({
                 projectId: userProjectAssignments.projectId,
                 user: {
@@ -63,9 +66,9 @@ export async function GET(req: Request) {
                     role: user.role
                 }
             })
-            .from(userProjectAssignments)
-            .innerJoin(user, eq(userProjectAssignments.userId, user.id))
-            .where(sql`${userProjectAssignments.projectId} IN ${projectIds}`)
+                .from(userProjectAssignments)
+                .innerJoin(user, eq(userProjectAssignments.userId, user.id))
+                .where(inArray(userProjectAssignments.projectId, projectIds))
             : [];
 
         const projectsWithTeam = projectList.map(project => ({
@@ -78,8 +81,8 @@ export async function GET(req: Request) {
         const totalResult = await db.select({ count: sql<number>`count(*)` })
             .from(projects)
             .where(whereClause);
-        
-        const total = totalResult[0].count;
+
+        const total = Number(totalResult[0]?.count || 0);
 
         return NextResponse.json({
             data: projectsWithTeam,
@@ -101,13 +104,13 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const validation = projectSchema.safeParse(body);
-        
+
         if (!validation.success) {
             return NextResponse.json({ error: validation.error.issues }, { status: 400 });
         }
 
         const { name, clientId, status, totalTime, description, assignedUserIds } = validation.data;
-        
+
         const [newProject] = await db.insert(projects).values({
             id: crypto.randomUUID(),
             name,
@@ -140,14 +143,14 @@ export async function POST(req: Request) {
 
     } catch (error: any) {
         console.error("Project creation error:", error);
-        return NextResponse.json({ 
-            error: "Failed to create project", 
+        return NextResponse.json({
+            error: "Failed to create project",
             message: error.message,
             code: error.code,
             detail: error.detail,
             hint: error.hint,
             constraint: error.constraint,
-            stack: error.stack 
+            stack: error.stack
         }, { status: 500 });
     }
 }

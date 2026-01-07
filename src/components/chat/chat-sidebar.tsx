@@ -17,9 +17,10 @@ interface ChatSidebarProps {
     groups: ChatGroup[];
     selectedGroupId: string | null;
     onSelectGroup: (groupId: string) => void;
+    unreadCounts?: Record<string, number>;
 }
 
-export function ChatSidebar({ groups, selectedGroupId, onSelectGroup }: ChatSidebarProps) {
+export function ChatSidebar({ groups, selectedGroupId, onSelectGroup, unreadCounts }: ChatSidebarProps) {
     const [search, setSearch] = useState("");
 
     const filteredGroups = groups.filter(group => 
@@ -68,7 +69,11 @@ export function ChatSidebar({ groups, selectedGroupId, onSelectGroup }: ChatSide
                                         )}>
                                             {group.name}
                                         </p>
-                                        {/* Optional: Add time or unread badge here */}
+                                        {unreadCounts?.[group.projectId] && unreadCounts[group.projectId] > 0 && (
+                                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white animate-in zoom-in">
+                                                {unreadCounts[group.projectId] > 9 ? "9+" : unreadCounts[group.projectId]}
+                                            </span>
+                                        )}
                                     </div>
                                     <p className="text-[11px] font-medium text-slate-400 truncate">
                                         {group.developerCount} Developers

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { messages, chatGroups } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 
 export async function POST(req: NextRequest) {
@@ -37,7 +37,9 @@ export async function POST(req: NextRequest) {
             id: crypto.randomUUID(),
             content,
             senderId: session.user.id,
-            groupId: group.id
+            groupId: group.id,
+            createdAt: sql`NOW()`,
+            updatedAt: sql`NOW()`
         }).returning();
 
         return NextResponse.json(newMessage[0]);

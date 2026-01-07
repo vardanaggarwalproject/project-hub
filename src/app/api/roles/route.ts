@@ -6,8 +6,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth"; // We need to verify if user is admin usually
 
+const ALLOWED_ROLES = ["admin", "developer", "tester", "designer"] as const;
+
 const roleSchema = z.object({
-    name: z.string().min(1, "Role name is required"),
+    name: z.enum(ALLOWED_ROLES, {
+        message: `Role must be one of: ${ALLOWED_ROLES.join(", ")}`
+    }),
 });
 
 export async function GET(req: Request) {
@@ -27,7 +31,7 @@ export async function POST(req: Request) {
         const validation = roleSchema.safeParse(body);
         
         if (!validation.success) {
-            return NextResponse.json({ error: validation.error.errors }, { status: 400 });
+            return NextResponse.json({ error: validation.error.format() }, { status: 400 });
         }
 
         const { name } = validation.data;

@@ -32,6 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
+import { getSocket } from "@/lib/socket";
 
 interface Project {
     id: string;
@@ -61,12 +62,24 @@ export default function UserProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [meta, setMeta] = useState<Meta | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
     
     // Filters
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [page, setPage] = useState(1);
     const limit = 10;
+
+    const fetchUnreadCounts = useCallback(() => {
+        fetch("/api/chat/unread-counts")
+            .then(res => res.json())
+            .then(data => {
+                if (typeof data === "object") {
+                    setUnreadCounts(data);
+                }
+            })
+            .catch(err => console.error("Error fetching unread counts:", err));
+    }, []);
 
     const fetchProjects = useCallback(() => {
         setIsLoading(true);
@@ -88,6 +101,9 @@ export default function UserProjectsPage() {
                 // Or API might already handle filtering by user.
                 setProjects(dataWithProgress);
                 setMeta(resData.meta);
+                
+                setProjects(dataWithProgress);
+                setMeta(resData.meta);
                 setIsLoading(false);
             })
             .catch((err) => {
@@ -99,9 +115,42 @@ export default function UserProjectsPage() {
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchProjects();
+            fetchUnreadCounts();
         }, 300);
         return () => clearTimeout(timer);
-    }, [fetchProjects]);
+    }, [fetchProjects, fetchUnreadCounts]);
+
+    useEffect(() => {
+        const socket = getSocket();
+
+        const joinAllRooms = () => {
+            if (projects.length > 0) {
+                const projectIds = projects.map(p => p.id);
+                console.log("📥 UserProjectsPage joining groups:", projectIds);
+                socket.emit("join-rooms", projectIds);
+            }
+        };
+
+        const onMessage = (data: any) => {
+            if (data.projectId) {
+                console.log("🔔 Projects page unread update for:", data.projectId);
+                setUnreadCounts(prev => ({
+                    ...prev,
+                    [data.projectId]: (prev[data.projectId] || 0) + 1
+                }));
+            }
+        };
+
+        if (socket.connected) joinAllRooms();
+
+        socket.on("connect", joinAllRooms);
+        socket.on("message", onMessage);
+
+        return () => {
+            socket.off("connect", joinAllRooms);
+            socket.off("message", onMessage);
+        };
+    }, [projects.length]); // Re-join if project list changes (e.g. after search/pagination)
 
     if (isLoading && projects.length === 0) return (
         <div className="space-y-4">
@@ -167,6 +216,7 @@ export default function UserProjectsPage() {
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Project Information</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Status</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Progress</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Project Chat</TableHead>
                                     <TableHead className="text-right font-bold text-muted-foreground uppercase text-[10px] tracking-wider pr-6">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -212,33 +262,46 @@ export default function UserProjectsPage() {
                                                     <span className="text-xs font-bold text-slate-600">{project.progress}%</span>
                                                 </div>
                                             </TableCell>
+                                            <TableCell className="text-center">
+                                                <Link href={`/user/chat/${project.id}`} className="inline-flex items-center justify-center">
+                                                    <div className="relative p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors cursor-pointer group/chat">
+                                                        <MessageSquare className="h-5 w-5" />
+                                                        {unreadCounts[project.id] > 0 && (
+                                                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white animate-in zoom-in">
+                                                                {unreadCounts[project.id] > 9 ? "9+" : unreadCounts[project.id]}
+                                                            </span>
+                                                        )}
+                                                        <span className="sr-only">Project Chat</span>
+                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover/chat:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                                                            Project Chat
+                                                        </div>
+                                                    </div>
+                                                </Link>
+                                            </TableCell>
                                             <TableCell className="text-right pr-6">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-white hover:shadow-sm">
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-52 shadow-xl border-slate-100 p-1">
-                                                        <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground px-2 py-1.5">Options</DropdownMenuLabel>
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={`/user/projects/${project.id}`} className="cursor-pointer py-2 px-2.5 flex items-center gap-2">
-                                                                <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
-                                                                    <Eye className="h-3.5 w-3.5" />
-                                                                </div>
-                                                                <span className="font-semibold text-sm">View Details</span>
-                                                            </Link>
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={`/user/chat/${project.id}`} className="cursor-pointer py-2 px-2.5 flex items-center gap-2">
-                                                                <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
-                                                                    <MessageSquare className="h-3.5 w-3.5" />
-                                                                </div>
-                                                                <span className="font-semibold text-sm">Project Chat</span>
-                                                            </Link>
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Button asChild variant="outline" size="sm" className="h-8 px-3 border-blue-100 bg-blue-50/50 text-blue-600 hover:bg-blue-100 hover:border-blue-200 font-bold text-[10px] uppercase tracking-wider">
+                                                        <Link href={`/user/projects/${project.id}`} className="flex items-center gap-1.5">
+                                                            <Eye className="h-3.5 w-3.5" />
+                                                            View Details
+                                                        </Link>
+                                                    </Button>
+
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-white hover:shadow-sm">
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-48 shadow-xl border-slate-100 p-1">
+                                                            <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground px-2 py-1.5">Other Options</DropdownMenuLabel>
+                                                            <DropdownMenuItem className="cursor-pointer py-2 px-2.5 flex items-center gap-2 text-slate-600">
+                                                                <FolderKanban className="h-3.5 w-3.5" />
+                                                                <span className="font-semibold text-sm">Project Files</span>
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))

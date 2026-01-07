@@ -1,9 +1,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { messages, chatGroups, user } from "@/lib/db/schema";
+import { messages, chatGroups, user, userProjectAssignments } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
@@ -15,50 +15,58 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ proj
         if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        
+
         const { projectId } = await params;
+        if (!projectId) return NextResponse.json({ error: "Invalid Project ID" }, { status: 400 });
 
-        // Find the chat group
-        const group = await db.query.chatGroups.findFirst({
-            where: eq(chatGroups.projectId, projectId)
-        });
-
-        if (!group) {
-             // Return empty array instead of 404 if no group exists yet (could happen)? 
-             // Or better, 404 implies "not found". 
-             // But chat-window expects array.
-            return NextResponse.json({ error: "Group not found" }, { status: 404 });
+        // Update lastReadAt silently
+        try {
+            await db.update(userProjectAssignments)
+                .set({
+                    lastReadAt: sql`NOW()`,
+                    updatedAt: sql`NOW()`
+                })
+                .where(and(
+                    eq(userProjectAssignments.userId, session.user.id),
+                    eq(userProjectAssignments.projectId, projectId)
+                ));
+        } catch (e) {
+            console.error("[API] Failed to update lastReadAt for", projectId, e);
         }
 
-        // Fetch messages with sender info
-        // Using db.query.messages.findMany with relational query would be nicer if relations were set up in schema.ts
-        // Since schema.ts (as seen in prev turn) just has table definitions but maybe missing explicit `relations`,
-        // let's do a join manually or use findMany if we assume relations exist in `index.ts`.
-        // I'll stick to manual join logic via `db.select` or relying on what's available. 
-        // Let's assume `db.query` works if relations are defined (usually `index.ts` is where DRIZZLE relations are).
-        // If not, I'll fallback to `db.select`.
-        // Reviewing schema.ts from previous turn... it only exported tables.
-        // It's safer to use `db.select` with `leftJoin` or just fetch and map if simpler.
-        // Actually, let's try `db.select().from(messages).innerJoin(user, ...)` pattern.
+        // Find group
+        const group = await db.select().from(chatGroups).where(eq(chatGroups.projectId, projectId)).limit(1);
 
+        if (!group || group.length === 0) {
+            return NextResponse.json([]); // Return empty list to avoid crashes
+        }
+
+        const groupId = group[0].id;
+
+        // Fetch messages
         const results = await db.select({
             id: messages.id,
-            projectId: chatGroups.projectId, // Derived from join, but we know it
+            content: messages.content,
             senderId: messages.senderId,
             senderName: user.name,
-            content: messages.content,
+            senderImage: user.image,
             createdAt: messages.createdAt
         })
-        .from(messages)
-        .innerJoin(chatGroups, eq(messages.groupId, chatGroups.id))
-        .innerJoin(user, eq(messages.senderId, user.id))
-        .where(eq(chatGroups.projectId, projectId))
-        .orderBy(asc(messages.createdAt));
+            .from(messages)
+            .leftJoin(user, eq(messages.senderId, user.id))
+            .where(eq(messages.groupId, groupId))
+            .orderBy(asc(messages.createdAt));
 
-        return NextResponse.json(results);
+        // Add projectId to each message (frontend expects it)
+        const messagesWithProject = results.map(m => ({
+            ...m,
+            projectId: projectId
+        }));
 
-    } catch (error) {
-        console.error("Error fetching messages:", error);
-        return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
+        return NextResponse.json(messagesWithProject);
+
+    } catch (error: any) {
+        console.error("Critical error in /api/chat/[projectId]:", error);
+        return NextResponse.json({ error: "Server Error", details: error.message }, { status: 500 });
     }
 }

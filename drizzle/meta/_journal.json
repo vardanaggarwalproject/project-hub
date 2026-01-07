@@ -15,6 +15,13 @@
       "when": 1767436453876,
       "tag": "0001_fine_invaders",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767787491492,
+      "tag": "0002_fresh_landau",
+      "breakpoints": true
     }
   ]
 }

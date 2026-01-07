@@ -41,10 +41,10 @@ export async function GET(req: Request) {
                 image: user.image
             }
         })
-        .from(eodReports)
-        .leftJoin(user, eq(eodReports.userId, user.id))
-        .where(whereClause)
-        .orderBy(desc(eodReports.reportDate));
+            .from(eodReports)
+            .leftJoin(user, eq(eodReports.userId, user.id))
+            .where(whereClause)
+            .orderBy(desc(eodReports.reportDate));
 
         return NextResponse.json(reports);
     } catch (error) {
@@ -57,17 +57,17 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const validation = eodSchema.safeParse(body);
-        
+
         if (!validation.success) {
             return NextResponse.json({ error: validation.error.issues }, { status: 400 });
         }
 
         const { clientUpdate, actualUpdate, projectId, userId, reportDate } = validation.data;
-         const dateObj = new Date(reportDate);
+        const dateObj = new Date(reportDate);
         dateObj.setHours(0, 0, 0, 0);
 
         // Check duplicate
-         const existing = await db.select().from(eodReports)
+        const existing = await db.select().from(eodReports)
             .where(and(
                 eq(eodReports.userId, userId),
                 eq(eodReports.projectId, projectId),
@@ -80,11 +80,13 @@ export async function POST(req: Request) {
 
         const newReport = await db.insert(eodReports).values({
             id: crypto.randomUUID(),
+            projectId,
+            reportDate: new Date(reportDate).toISOString(),
             clientUpdate,
             actualUpdate,
             userId,
-            projectId,
-            reportDate: dateObj,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         }).returning();
 
         return NextResponse.json(newReport[0], { status: 201 });
