@@ -39,10 +39,10 @@ export async function GET(req: Request) {
                 image: user.image
             }
         })
-        .from(memos)
-        .leftJoin(user, eq(memos.userId, user.id))
-        .where(whereClause)
-        .orderBy(desc(memos.reportDate));
+            .from(memos)
+            .leftJoin(user, eq(memos.userId, user.id))
+            .where(whereClause)
+            .orderBy(desc(memos.reportDate));
 
         return NextResponse.json(allMemos);
     } catch (error) {
@@ -55,13 +55,13 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const validation = memoSchema.safeParse(body);
-        
+
         if (!validation.success) {
             return NextResponse.json({ error: validation.error.issues }, { status: 400 });
         }
 
         const { memoContent, projectId, userId, reportDate } = validation.data;
-        
+
         // Convert reportDate to Date object and strip time for comparison
         const dateObj = new Date(reportDate);
         dateObj.setHours(0, 0, 0, 0);
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
         // Check if memo exists for this user+project+date
         // Complex checking might require 'sql' operator to match date part if stored as timestamp
         // For now trusting simple comparison or we query range
-        
+
         const existing = await db.select().from(memos)
             .where(and(
                 eq(memos.userId, userId),
@@ -83,10 +83,12 @@ export async function POST(req: Request) {
 
         const newMemo = await db.insert(memos).values({
             id: crypto.randomUUID(),
+            projectId,
+            reportDate: new Date(reportDate).toISOString(),
             memoContent,
             userId,
-            projectId,
-            reportDate: dateObj,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         }).returning();
 
         return NextResponse.json(newMemo[0], { status: 201 });

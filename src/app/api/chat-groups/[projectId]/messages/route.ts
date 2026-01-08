@@ -1,7 +1,7 @@
 
 import { db } from "@/lib/db";
 import { messages, user, chatGroups, userProjectAssignments } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -12,7 +12,7 @@ export async function GET(
 ) {
     try {
         const { projectId } = await params;
-        
+
         // Get session to verify access
         const session = await auth.api.getSession({
             headers: await headers()
@@ -39,7 +39,7 @@ export async function GET(
 
         // Find the group for this project
         const group = await db.select().from(chatGroups).where(eq(chatGroups.projectId, projectId)).limit(1);
-        
+
         if (!group.length) {
             return NextResponse.json({ error: "Chat group not found" }, { status: 404 });
         }
@@ -52,10 +52,10 @@ export async function GET(
             senderImage: user.image,
             createdAt: messages.createdAt,
         })
-        .from(messages)
-        .innerJoin(user, eq(messages.senderId, user.id))
-        .where(eq(messages.groupId, group[0].id))
-        .orderBy(messages.createdAt);
+            .from(messages)
+            .innerJoin(user, eq(messages.senderId, user.id))
+            .where(eq(messages.groupId, group[0].id))
+            .orderBy(messages.createdAt);
 
         return NextResponse.json(msgs);
     } catch (error) {
@@ -104,7 +104,7 @@ export async function POST(
 
         // Find group ID for this project
         const group = await db.select().from(chatGroups).where(eq(chatGroups.projectId, projectId)).limit(1);
-        
+
         if (!group.length) {
             return NextResponse.json({ error: "Chat group not found" }, { status: 404 });
         }
@@ -114,7 +114,7 @@ export async function POST(
             content,
             senderId,
             groupId: group[0].id,
-            createdAt: new Date(),
+            createdAt: sql`NOW()`,
         }).returning();
 
         return NextResponse.json(newMessage[0], { status: 201 });

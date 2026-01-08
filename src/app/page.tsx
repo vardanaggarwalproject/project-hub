@@ -11,6 +11,10 @@ export default async function Home() {
   if (!session) {
       redirect("/login");
   } else {
-      redirect("/dashboard"); // Or render dashboard content here, but we put it in (dashboard) group
+      if (session.user.role === "admin") {
+          redirect("/admin/dashboard");
+      } else {
+          redirect("/user/dashboard");
+      }
   }
 }

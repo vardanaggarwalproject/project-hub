@@ -23,8 +23,17 @@ import {
     Link as LinkIcon,
     FileCode2,
     ArrowRight
-} from "lucide-react";import Link from "next/link";
+} from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { 
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 
 interface Project {
     id: string;
@@ -32,6 +41,8 @@ interface Project {
     clientName: string | null;
     status: string;
     team?: any[];
+    totalTime?: string | null;
+    completedTime?: string | null;
 }
 
 interface Stats {
@@ -258,32 +269,33 @@ export default function AdminDashboardPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-slate-50/50 border-b">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">Project Name</th>
-                                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">Client</th>
-                                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">Developers</th>
-                                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">Progress</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader className="bg-slate-50/50">
+                                <TableRow>
+                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Project Name</TableHead>
+                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Client</TableHead>
+                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Developers</TableHead>
+                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Progress</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {recentProjects.slice(0, 5).map((project) => (
-                                    <tr key={project.id} className="hover:bg-slate-50/50 transition-colors group">
-                                        <td className="px-6 py-4">
-                                            <Link href={`/dashboard/projects/${project.id}`} className="font-bold text-sm text-[#0f172a] hover:text-blue-600 transition-colors">
+                                    <TableRow key={project.id} className="hover:bg-slate-50/50 transition-colors group">
+                                        <TableCell className="px-6 py-4">
+                                            <Link href={`/admin/projects/${project.id}`} className="font-bold text-sm text-[#0f172a] hover:text-blue-600 transition-colors">
                                                 {project.name}
                                             </Link>
                                             <p className="text-xs text-muted-foreground mt-0.5">{project.clientName || "No client"}</p>
-                                        </td>
-                                        <td className="px-6 py-4">
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
                                             <span className="text-sm text-slate-600">{project.clientName || "—"}</span>
-                                        </td>
-                                        <td className="px-6 py-4">
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
                                             <span className="text-sm font-bold text-slate-600">{project.team?.length || 0} developers</span>
-                                        </td>
-                                        <td className="px-6 py-4">
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
                                             <Badge className={cn(
                                                 "font-bold text-xs uppercase",
                                                 project.status === "active" && "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -292,17 +304,27 @@ export default function AdminDashboardPage() {
                                             )}>
                                                 {project.status}
                                             </Badge>
-                                        </td>
-                                        <td className="px-6 py-4">
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <Progress value={Math.floor(Math.random() * 100)} className="h-2 w-24" />
-                                                <span className="text-xs font-black text-slate-500">75%</span>
+                                                {(() => {
+                                                    const total = parseFloat(project.totalTime || "0");
+                                                    const completed = parseFloat(project.completedTime || "0");
+                                                    const progress = total > 0 ? Math.min(Math.round((completed / total) * 100), 100) : 0;
+                                                    return (
+                                                        <>
+                                                            <Progress value={progress} className="h-2 w-24" />
+                                                            <span className="text-xs font-black text-slate-500">{progress}%</span>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
+                            </TableBody>
+                        </Table>
+                    </div>
                     </div>
                 </CardContent>
             </Card>

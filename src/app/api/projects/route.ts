@@ -1,8 +1,10 @@
 import { db } from "@/lib/db";
 import { projects, clients, chatGroups, user, userProjectAssignments } from "@/lib/db/schema";
-import { eq, and, sql, desc, ilike } from "drizzle-orm";
+import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 const projectSchema = z.object({
     name: z.string().min(1, "Name required"),
@@ -14,8 +16,15 @@ const projectSchema = z.object({
 });
 
 
+
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
     try {
+        const session = await auth.api.getSession({ headers: await headers() });
+        const userRole = session?.user?.role;
+        const currentUserId = session?.user?.id;
+
         const { searchParams } = new URL(req.url);
         const page = parseInt(searchParams.get("page") || "1");
         const limit = parseInt(searchParams.get("limit") || "10");
@@ -33,6 +42,16 @@ export async function GET(req: Request) {
         // Note: ILike is pg specific, using sql for generic search if needed or simple like
         if (search) conditions.push(sql`${projects.name} ILIKE ${`%${search}%`}`);
 
+        // If not admin and we have a user ID, only show assigned projects
+        if (userRole !== "admin" && currentUserId) {
+            // Subquery to find project IDs assigned to this user
+            const userProjectIds = db.select({ projectId: userProjectAssignments.projectId })
+                .from(userProjectAssignments)
+                .where(eq(userProjectAssignments.userId, currentUserId));
+
+            conditions.push(inArray(projects.id, userProjectIds));
+        }
+
         if (conditions.length > 0) {
             whereClause = and(...conditions);
         }
@@ -42,18 +61,21 @@ export async function GET(req: Request) {
             name: projects.name,
             status: projects.status,
             clientName: clients.name,
+            totalTime: projects.totalTime,
+            completedTime: projects.completedTime,
+            description: projects.description,
             updatedAt: projects.updatedAt,
         })
-        .from(projects)
-        .leftJoin(clients, eq(projects.clientId, clients.id))
-        .where(whereClause)
-        .limit(limit)
-        .offset(offset)
-        .orderBy(desc(projects.updatedAt));
+            .from(projects)
+            .leftJoin(clients, eq(projects.clientId, clients.id))
+            .where(whereClause)
+            .limit(limit)
+            .offset(offset)
+            .orderBy(desc(projects.updatedAt));
 
         // Fetch assignments for these projects
         const projectIds = projectList.map(p => p.id);
-        const allAssignments = projectIds.length > 0 
+        const allAssignments = projectIds.length > 0
             ? await db.select({
                 projectId: userProjectAssignments.projectId,
                 user: {
@@ -63,9 +85,9 @@ export async function GET(req: Request) {
                     role: user.role
                 }
             })
-            .from(userProjectAssignments)
-            .innerJoin(user, eq(userProjectAssignments.userId, user.id))
-            .where(sql`${userProjectAssignments.projectId} IN ${projectIds}`)
+                .from(userProjectAssignments)
+                .innerJoin(user, eq(userProjectAssignments.userId, user.id))
+                .where(inArray(userProjectAssignments.projectId, projectIds))
             : [];
 
         const projectsWithTeam = projectList.map(project => ({
@@ -78,8 +100,8 @@ export async function GET(req: Request) {
         const totalResult = await db.select({ count: sql<number>`count(*)` })
             .from(projects)
             .where(whereClause);
-        
-        const total = totalResult[0].count;
+
+        const total = Number(totalResult[0]?.count || 0);
 
         return NextResponse.json({
             data: projectsWithTeam,
@@ -101,20 +123,21 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const validation = projectSchema.safeParse(body);
-        
+
         if (!validation.success) {
             return NextResponse.json({ error: validation.error.issues }, { status: 400 });
         }
 
         const { name, clientId, status, totalTime, description, assignedUserIds } = validation.data;
-        
+
         const [newProject] = await db.insert(projects).values({
             id: crypto.randomUUID(),
             name,
             clientId,
             status: status || "active",
-            totalTime,
-            description,
+            totalTime: totalTime || null,
+            completedTime: null, // explicit null
+            description: description || null, // explicit null
         }).returning();
 
         // Handle assignments
@@ -135,10 +158,52 @@ export async function POST(req: Request) {
             projectId: newProject.id,
         });
 
+        // Emit socket event from server-side
+        // Emit socket event from server-side using global io instance
+        try {
+            const io = (global as any).io;
+            if (io) {
+                console.log("✅ API Route found global.io. Emitting project-created...");
+                io.emit("project-created", {
+                    projectId: newProject.id,
+                    project: newProject,
+                    assignedUserIds: assignedUserIds || []
+                });
+                console.log("📤 Emitted project-created for project:", newProject.id);
+            } else {
+                console.warn("⚠️ global.io not found. Falling back to loopback connection...");
+                // Fallback to loopback if global.io is missing (shouldn't happen with custom server)
+                const { io: clientIo } = await import("socket.io-client");
+                const socket = clientIo("http://localhost:3000", {
+                    path: "/api/socket",
+                    addTrailingSlash: false,
+                });
+
+                socket.on("connect", () => {
+                    socket.emit("project-created", {
+                        projectId: newProject.id,
+                        project: newProject,
+                        assignedUserIds: assignedUserIds || []
+                    });
+                    setTimeout(() => socket.disconnect(), 500);
+                });
+            }
+        } catch (socketError) {
+            console.error("Failed to emit socket event:", socketError);
+        }
+
         return NextResponse.json(newProject, { status: 201 });
 
-    } catch (error) {
-        console.error(error);
-        return NextResponse.json({ error: "Failed to create project" }, { status: 500 });
+    } catch (error: any) {
+        console.error("Project creation error:", error);
+        return NextResponse.json({
+            error: "Failed to create project",
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint,
+            constraint: error.constraint,
+            stack: error.stack
+        }, { status: 500 });
     }
 }

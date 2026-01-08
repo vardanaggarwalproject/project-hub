@@ -23,6 +23,16 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { getSocket } from "@/lib/socket";
+import { toast } from "sonner";
+import { 
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 
 interface Project {
     id: string;
@@ -30,6 +40,8 @@ interface Project {
     clientName: string | null;
     status: string;
     team?: any[];
+    totalTime?: string | null;
+    completedTime?: string | null;
 }
 
 interface Stats {
@@ -51,6 +63,39 @@ export default function UserDashboardPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        const socket = getSocket();
+        
+        const onProjectDeleted = (data: { projectId: string }) => {
+            setMyProjects(prev => prev.filter(p => p.id !== data.projectId));
+            
+            if ((session?.user as any)?.role !== "admin") {
+                toast.error("Project is deleted by admin and you are no longer member of this");
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            }
+        };
+
+        const onProjectCreated = (data: { projectId: string; project: any; assignedUserIds: string[] }) => {
+            if (data.assignedUserIds && session?.user?.id && data.assignedUserIds.includes(session.user.id)) {
+                toast.success(`You have been assigned to new project: ${data.project.name}`);
+                setTimeout(() => {
+                   window.location.reload();
+                }, 2000);
+            }
+        };
+
+        if (socket) {
+            socket.on("project-deleted", onProjectDeleted);
+            socket.on("project-created", onProjectCreated);
+            return () => {
+                socket.off("project-deleted", onProjectDeleted);
+                socket.off("project-created", onProjectCreated);
+            };
+        }
+    }, [session]);
+
+    useEffect(() => {
         if (!session) return;
 
         const fetchDashboardData = async () => {
@@ -58,7 +103,7 @@ export default function UserDashboardPage() {
             try {
                 // In a real app, these endpoints would be filtered by the current user
                 const [projectsRes] = await Promise.all([
-                    fetch("/api/projects"), 
+                    fetch("/api/projects", { cache: "no-store" }), 
                 ]);
 
                 const projectsData = await projectsRes.json();
@@ -257,28 +302,29 @@ export default function UserDashboardPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-slate-50/50 border-b">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">Project Name</th>
-                                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">Client</th>
-                                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">Your Tasks</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader className="bg-slate-50/50">
+                                <TableRow>
+                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Project Name</TableHead>
+                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Client</TableHead>
+                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Your Tasks</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {myProjects.map((project) => (
-                                    <tr key={project.id} className="hover:bg-slate-50/50 transition-colors group">
-                                        <td className="px-6 py-4">
+                                    <TableRow key={project.id} className="hover:bg-slate-50/50 transition-colors group">
+                                        <TableCell className="px-6 py-4">
                                             <Link href={`/user/projects/${project.id}`} className="font-bold text-sm text-[#0f172a] hover:text-blue-600 transition-colors">
                                                 {project.name}
                                             </Link>
                                             <p className="text-xs text-muted-foreground mt-0.5">{project.clientName || "Direct Client"}</p>
-                                        </td>
-                                        <td className="px-6 py-4">
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
                                             <span className="text-sm text-slate-600">{project.clientName || "—"}</span>
-                                        </td>
-                                        <td className="px-6 py-4">
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
                                             <Badge className={cn(
                                                 "font-bold text-xs uppercase",
                                                 project.status === "active" && "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -287,17 +333,27 @@ export default function UserDashboardPage() {
                                             )}>
                                                 {project.status}
                                             </Badge>
-                                        </td>
-                                        <td className="px-6 py-4">
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <Progress value={Math.floor(Math.random() * 100)} className="h-2 w-24" />
-                                                <span className="text-xs font-black text-slate-500">3/4</span>
+                                                {(() => {
+                                                    const total = parseFloat(project.totalTime || "0");
+                                                    const completed = parseFloat(project.completedTime || "0");
+                                                    const progress = total > 0 ? Math.min(Math.round((completed / total) * 100), 100) : 0;
+                                                    return (
+                                                        <>
+                                                            <Progress value={progress} className="h-2 w-24" />
+                                                            <span className="text-xs font-black text-slate-500">{progress}%</span>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
+                            </TableBody>
+                        </Table>
+                    </div>
                     </div>
                 </CardContent>
             </Card>
