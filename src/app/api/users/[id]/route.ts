@@ -12,9 +12,9 @@ const updateUserSchema = z.object({
     role: z.enum(ALLOWED_ROLES).optional(),
 });
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const fetchedUser = await db.select().from(user).where(eq(user.id, id));
 
         if (fetchedUser.length === 0) {
@@ -27,9 +27,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const body = await req.json();
         const validation = updateUserSchema.safeParse(body);
 
@@ -64,9 +64,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const deleted = await db.delete(user).where(eq(user.id, id)).returning();
 
         if (deleted.length === 0) {

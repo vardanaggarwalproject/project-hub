@@ -97,7 +97,7 @@ export default async function UserLayout({
             <main className="flex-1 flex flex-col min-w-0">
                 <Header 
                     userName={session.user.name || ""} 
-                    userRole={session.user.role} 
+                    userRole={session.user.role || "developer"} 
                     searchPlaceholder="Search keywords, tasks..." 
                 />
                 
