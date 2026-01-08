@@ -14,7 +14,7 @@ export async function POST(req: Request) {
         }
 
         // 1. Ensure roles exist
-        const roleNames = ["admin", "developer", "tester", "designer"];
+        const roleNames = ["admin", "developer", "tester", "designer"] as const;
         for (const roleName of roleNames) {
             const existing = await db.select().from(schema.roles).where(eq(schema.roles.name, roleName));
             if (existing.length === 0) {
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
             await db.update(schema.user)
                 .set({ role: "admin" })
                 .where(eq(schema.user.email, email));
-            
+
             return NextResponse.json({ message: "Admin user seeded successfully!" }, { status: 201 });
         }
 

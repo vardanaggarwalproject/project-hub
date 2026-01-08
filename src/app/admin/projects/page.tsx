@@ -240,15 +240,15 @@ export default function AdminProjectsPage() {
                                                         <div 
                                                             className={cn(
                                                                 "h-full rounded-full transition-all duration-500",
-                                                                project.progress >= 75 ? "bg-gradient-to-r from-emerald-500 to-green-500" :
-                                                                project.progress >= 50 ? "bg-gradient-to-r from-blue-500 to-cyan-500" :
-                                                                project.progress >= 25 ? "bg-gradient-to-r from-amber-500 to-orange-500" :
+                                                                (project.progress || 0) >= 75 ? "bg-gradient-to-r from-emerald-500 to-green-500" :
+                                                                (project.progress || 0) >= 50 ? "bg-gradient-to-r from-blue-500 to-cyan-500" :
+                                                                (project.progress || 0) >= 25 ? "bg-gradient-to-r from-amber-500 to-orange-500" :
                                                                 "bg-gradient-to-r from-red-400 to-pink-500"
                                                             )}
-                                                            style={{ width: `${project.progress}%` }}
+                                                            style={{ width: `${project.progress || 0}%` }}
                                                         />
                                                     </div>
-                                                    <span className="text-xs font-bold text-slate-600 min-w-[35px] text-right">{project.progress}%</span>
+                                                    <span className="text-xs font-bold text-slate-600 min-w-[35px] text-right">{project.progress || 0}%</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right pr-6">
