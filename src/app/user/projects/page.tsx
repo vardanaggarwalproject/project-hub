@@ -26,6 +26,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { getSocket } from "@/lib/socket";
+import { useUnreadCounts } from "@/components/chat/unread-count-provider";
 import { toast } from "sonner";
 
 interface Project {
@@ -52,11 +53,11 @@ interface Meta {
 
 export default function UserProjectsPage() {
     const { data: session } = authClient.useSession();
+    const { unreadCounts } = useUnreadCounts();
 
     const [projects, setProjects] = useState<Project[]>([]);
     const [meta, setMeta] = useState<Meta | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
     // Filters
     const [search, setSearch] = useState("");
@@ -64,16 +65,6 @@ export default function UserProjectsPage() {
     const [page, setPage] = useState(1);
     const limit = 10;
 
-    const fetchUnreadCounts = useCallback(() => {
-        fetch("/api/chat/unread-counts")
-            .then(res => res.json())
-            .then(data => {
-                if (typeof data === "object") {
-                    setUnreadCounts(data);
-                }
-            })
-            .catch(err => console.error("Error fetching unread counts:", err));
-    }, []);
 
     const fetchProjects = useCallback(() => {
         setIsLoading(true);
@@ -109,10 +100,9 @@ export default function UserProjectsPage() {
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchProjects();
-            fetchUnreadCounts();
         }, 300);
         return () => clearTimeout(timer);
-    }, [fetchProjects, fetchUnreadCounts]);
+    }, [fetchProjects]);
 
     useEffect(() => {
         const socket = getSocket();
@@ -120,19 +110,8 @@ export default function UserProjectsPage() {
         const joinAllRooms = () => {
             if (projects.length > 0) {
                 const projectIds = projects.map(p => p.id);
-                console.log("📥 UserProjectsPage joining groups:", projectIds);
+                console.log("📥 [UserProjects] Joining rooms:", projectIds.length);
                 socket.emit("join-rooms", projectIds);
-            }
-        };
-
-        const onMessage = (data: any) => {
-            // Only increment if it's from someone else
-            if (data.projectId && data.senderId !== session?.user?.id) {
-                console.log("🔔 Projects page unread update for:", data.projectId);
-                setUnreadCounts(prev => ({
-                    ...prev,
-                    [data.projectId]: (prev[data.projectId] || 0) + 1
-                }));
             }
         };
 
@@ -160,13 +139,11 @@ export default function UserProjectsPage() {
         if (socket.connected) joinAllRooms();
 
         socket.on("connect", joinAllRooms);
-        socket.on("message", onMessage);
         socket.on("project-deleted", onProjectDeleted);
         socket.on("project-created", onProjectCreated);
 
         return () => {
             socket.off("connect", joinAllRooms);
-            socket.off("message", onMessage);
             socket.off("project-deleted", onProjectDeleted);
             socket.off("project-created", onProjectCreated);
         };

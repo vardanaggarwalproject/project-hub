@@ -32,7 +32,7 @@ export async function GET() {
                     LEFT JOIN messages m 
                         ON cg.id = m.group_id 
                         AND m.sender_id != ${userId}
-                        AND m.created_at > COALESCE(upa.last_read_at, '1970-01-01 00:00:00')
+                        AND m.created_at > COALESCE(upa.last_read_at, '1970-01-01 00:00:00'::timestamp)
                     GROUP BY cg.project_id
                 `);
             } else {
@@ -48,7 +48,7 @@ export async function GET() {
                     LEFT JOIN messages m 
                         ON cg.id = m.group_id 
                         AND m.sender_id != ${userId}
-                        AND m.created_at > COALESCE(upa.last_read_at, '1970-01-01 00:00:00')
+                        AND m.created_at > COALESCE(upa.last_read_at, '1970-01-01 00:00:00'::timestamp)
                     GROUP BY cg.project_id
                 `);
             }

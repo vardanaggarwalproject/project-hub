@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Create the message
-        const newMessage = await db.insert(messages).values({
+        const [newMessage] = await db.insert(messages).values({
             id: crypto.randomUUID(),
             content,
             senderId: session.user.id,
@@ -42,7 +42,21 @@ export async function POST(req: NextRequest) {
             updatedAt: sql`NOW()`
         }).returning();
 
-        return NextResponse.json(newMessage[0]);
+        // Emit socket event from server-side using global io instance
+        try {
+            const io = (global as any).io;
+            if (io) {
+                console.log(`📤 [API] Broadcasting message to room ${projectId}`);
+                io.to(projectId).emit("message", {
+                    ...newMessage,
+                    projectId: projectId
+                });
+            }
+        } catch (socketError) {
+            console.error("Failed to emit socket event:", socketError);
+        }
+
+        return NextResponse.json(newMessage);
 
     } catch (error) {
         console.error("Error creating message:", error);

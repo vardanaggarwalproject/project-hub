@@ -124,7 +124,7 @@ export function AdminChatView() {
     }
 
     return (
-        <div className="flex h-full w-full bg-white border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex h-full w-full bg-white border border-slate-200 shadow-sm overflow-hidden min-h-0">
             <ChatSidebar
                 groups={chats}
                 selectedGroupId={selectedGroupId}
@@ -139,7 +139,7 @@ export function AdminChatView() {
                 unreadCounts={unreadCounts}
             />
 
-            <div className="flex-1 flex flex-col bg-slate-50/50 min-w-0">
+            <div className="flex-1 flex flex-col bg-slate-50/50 min-w-0 min-h-0">
                 {selectedGroup ? (
                     <ChatWindow
                         key={selectedGroup.projectId}

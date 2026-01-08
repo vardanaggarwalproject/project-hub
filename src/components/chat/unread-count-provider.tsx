@@ -113,14 +113,17 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
 
         const fetchAndJoin = async () => {
             try {
+                // Fetch groups to know which rooms to join
                 const res = await fetch("/api/chat-groups");
                 if (res.ok) {
                     const chats = await res.json();
                     if (Array.isArray(chats)) {
                         const projectIds = chats.map(c => c.projectId);
-                        chatsRef.current = projectIds;
+                        
+                        // Only join if projectIds has changed or on initial connect
                         socket.emit("join-rooms", projectIds);
-                        console.log("🔊 Joined chat rooms:", projectIds.length);
+                        console.log(`🔊 [UnreadCount] Joined ${projectIds.length} rooms`);
+                        chatsRef.current = projectIds;
                     }
                 }
             } catch (err) {
@@ -130,10 +133,17 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
 
         if (socket.connected) {
             fetchAndJoin();
-        } else {
-            socket.on("connect", fetchAndJoin);
-            return () => { socket.off("connect", fetchAndJoin); };
         }
+
+        const onConnect = () => {
+            fetchAndJoin();
+            refreshUnread();
+        };
+
+        socket.on("connect", onConnect);
+        return () => {
+            socket.off("connect", onConnect);
+        };
     }, [session?.user]);
 
     return (
