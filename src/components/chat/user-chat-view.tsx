@@ -8,6 +8,7 @@ import { MessageSquareDashed } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { getSocket } from "@/lib/socket";
 import { authClient } from "@/lib/auth-client";
+import { useUnreadCounts } from "./unread-count-provider";
 
 interface ChatGroup {
     id: string;
@@ -25,8 +26,8 @@ export function UserChatView({ initialProjectId }: UserChatViewProps) {
     const [chats, setChats] = useState<ChatGroup[]>([]);
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialProjectId || null);
     const [isLoading, setIsLoading] = useState(true);
-    const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
-    
+    const { unreadCounts, clearUnread } = useUnreadCounts();
+
     const chatsRef = useRef<ChatGroup[]>([]);
     const selectedProjectIdRef = useRef<string | null>(null);
     const lastReadCallRef = useRef<Record<string, number>>({});
@@ -41,17 +42,10 @@ export function UserChatView({ initialProjectId }: UserChatViewProps) {
 
     const fetchData = useCallback(async () => {
         try {
-            const [chatsRes, unreadRes] = await Promise.all([
-                fetch("/api/chat-groups").then(r => r.json()),
-                fetch("/api/chat/unread-counts").then(r => r.json())
-            ]);
-
+            const chatsRes = await fetch("/api/chat-groups").then(r => r.json());
             if (Array.isArray(chatsRes)) setChats(chatsRes);
-            if (unreadRes && typeof unreadRes === "object" && !Array.isArray(unreadRes)) {
-                setUnreadCounts(unreadRes);
-            }
         } catch (err) {
-            console.error("Fetch data failed:", err);
+            console.error("Fetch chats failed:", err);
         } finally {
             setIsLoading(false);
         }
@@ -61,28 +55,17 @@ export function UserChatView({ initialProjectId }: UserChatViewProps) {
         fetchData();
     }, [fetchData]);
 
+    // Clear unread for initially selected project
+    useEffect(() => {
+        if (!isLoading && selectedProjectId) {
+            clearUnread(selectedProjectId);
+            handleMarkRead(selectedProjectId);
+        }
+    }, [isLoading, selectedProjectId, clearUnread]);
+
     useEffect(() => {
         const socket = getSocket();
         if (!socket || !session?.user) return;
-
-        const onMessage = (data: any) => {
-            const currentSelectedProjectId = selectedProjectIdRef.current;
-            if (data.projectId && data.projectId !== currentSelectedProjectId) {
-                setUnreadCounts(prev => ({
-                    ...prev,
-                    [data.projectId]: (prev[data.projectId] || 0) + 1
-                }));
-            }
-        };
-
-        const onRead = (data: any) => {
-            if (data.userId === session.user.id && data.projectId) {
-                setUnreadCounts(prev => ({
-                    ...prev,
-                    [data.projectId]: 0
-                }));
-            }
-        };
 
         const onConnect = () => {
             if (chatsRef.current.length > 0) {
@@ -91,8 +74,6 @@ export function UserChatView({ initialProjectId }: UserChatViewProps) {
             }
         };
 
-        socket.on("message", onMessage);
-        socket.on("messages-read", onRead);
         socket.on("connect", onConnect);
         socket.on("user-assigned-to-project", fetchData);
         socket.on("user-removed-from-project", fetchData);
@@ -100,13 +81,11 @@ export function UserChatView({ initialProjectId }: UserChatViewProps) {
         if (socket.connected) onConnect();
 
         return () => {
-            socket.off("message", onMessage);
-            socket.off("messages-read", onRead);
             socket.off("connect", onConnect);
             socket.off("user-assigned-to-project", fetchData);
             socket.off("user-removed-from-project", fetchData);
         };
-    }, [fetchData, session?.user?.id]);
+    }, [fetchData, session?.user?.id, chats.length]);
 
     useEffect(() => {
         const socket = getSocket();
@@ -121,7 +100,7 @@ export function UserChatView({ initialProjectId }: UserChatViewProps) {
         const now = Date.now();
         const lastCall = lastReadCallRef.current[projectId] || 0;
         if (now - lastCall < 2000) return; // Debounce 2s
-        
+
         lastReadCallRef.current[projectId] = now;
         fetch(`/api/chat/${projectId}/read`, { method: "POST" })
             .then(res => {
@@ -129,17 +108,14 @@ export function UserChatView({ initialProjectId }: UserChatViewProps) {
                     getSocket()?.emit("mark-read", { projectId, userId: session.user.id });
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     };
 
     const handleSelectChat = (groupId: string) => {
         const chat = chats.find(c => c.id === groupId);
         if (chat) {
             setSelectedProjectId(chat.projectId);
-            setUnreadCounts(prev => ({
-                ...prev,
-                [chat.projectId]: 0
-            }));
+            clearUnread(chat.projectId);
             handleMarkRead(chat.projectId);
         }
     };
@@ -156,18 +132,18 @@ export function UserChatView({ initialProjectId }: UserChatViewProps) {
 
     return (
         <div className="flex h-full w-full bg-white border border-slate-200 shadow-sm overflow-hidden rounded-xl">
-            <ChatSidebar 
-                groups={chats} 
-                selectedGroupId={selectedChat?.id || null} 
+            <ChatSidebar
+                groups={chats}
+                selectedGroupId={selectedChat?.id || null}
                 onSelectGroup={handleSelectChat}
                 unreadCounts={unreadCounts}
             />
 
             <div className="flex-1 flex flex-col bg-slate-50/50 min-w-0">
                 {selectedChat ? (
-                    <ChatWindow 
+                    <ChatWindow
                         key={selectedChat.projectId}
-                        groupId={selectedChat.id} 
+                        groupId={selectedChat.id}
                         groupName={selectedChat.name}
                         projectId={selectedChat.projectId}
                     />

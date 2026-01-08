@@ -23,7 +23,7 @@ interface ChatSidebarProps {
 export function ChatSidebar({ groups, selectedGroupId, onSelectGroup, unreadCounts }: ChatSidebarProps) {
     const [search, setSearch] = useState("");
 
-    const filteredGroups = groups.filter(group => 
+    const filteredGroups = groups.filter(group =>
         group.name.toLowerCase().includes(search.toLowerCase())
     );
 
@@ -33,15 +33,15 @@ export function ChatSidebar({ groups, selectedGroupId, onSelectGroup, unreadCoun
                 <h3 className="font-bold text-lg mb-4 text-slate-800">Messages</h3>
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                        placeholder="Search chats..." 
+                    <Input
+                        placeholder="Search chats..."
                         className="pl-9 bg-slate-50 border-slate-200 focus-visible:ring-blue-500"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
             </div>
-            
+
             <ScrollArea className="flex-1">
                 <div className="flex flex-col p-2 gap-1">
                     {filteredGroups.length > 0 ? (
@@ -69,9 +69,9 @@ export function ChatSidebar({ groups, selectedGroupId, onSelectGroup, unreadCoun
                                         )}>
                                             {group.name}
                                         </p>
-                                        {unreadCounts?.[group.projectId] && unreadCounts[group.projectId] > 0 && (
+                                        {(unreadCounts?.[group.projectId] ?? 0) > 0 && (
                                             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white animate-in zoom-in">
-                                                {unreadCounts[group.projectId] > 9 ? "9+" : unreadCounts[group.projectId]}
+                                                {unreadCounts![group.projectId] > 9 ? "9+" : unreadCounts![group.projectId]}
                                             </span>
                                         )}
                                     </div>

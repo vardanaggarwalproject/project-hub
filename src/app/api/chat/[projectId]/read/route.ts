@@ -16,7 +16,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
 
         const { projectId } = await params;
         const userId = session.user.id;
-        const now = new Date().toISOString();
 
         try {
             // Check if assignment exists
@@ -31,7 +30,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
                 const assignmentId = (checkResult.rows[0] as any).id;
                 await db.execute(sql`
                     UPDATE user_project_assignments 
-                    SET last_read_at = ${now}, updated_at = ${now}
+                    SET last_read_at = NOW(), updated_at = NOW()
                     WHERE id = ${assignmentId}
                 `);
 
@@ -42,7 +41,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
                 await db.execute(sql`
                     INSERT INTO user_project_assignments 
                     (id, user_id, project_id, last_read_at, updated_at, assigned_at, created_at, is_active)
-                    VALUES (${newId}, ${userId}, ${projectId}, ${now}, ${now}, ${now}, ${now}, true)
+                    VALUES (${newId}, ${userId}, ${projectId}, NOW(), NOW(), NOW(), NOW(), true)
                 `);
                 return NextResponse.json({ success: true, action: "created" });
             }

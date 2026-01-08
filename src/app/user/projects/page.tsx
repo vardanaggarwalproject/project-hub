@@ -1,24 +1,24 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { 
-    Table, 
-    TableBody, 
-    TableCell, 
-    TableHead, 
-    TableHeader, 
-    TableRow 
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Search, Eye, MoreHorizontal, FolderKanban, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuItem, 
-    DropdownMenuLabel, 
-    DropdownMenuTrigger 
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { 
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -58,12 +58,12 @@ interface Meta {
 
 export default function UserProjectsPage() {
     const { data: session } = authClient.useSession();
-    
+
     const [projects, setProjects] = useState<Project[]>([]);
     const [meta, setMeta] = useState<Meta | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
-    
+
     // Filters
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -93,15 +93,15 @@ export default function UserProjectsPage() {
         fetch(`/api/projects?${params.toString()}`)
             .then((res) => res.json())
             .then((resData) => {
-                const dataWithProgress = resData.data.map((p: any) => ({ 
-                    ...p, 
-                    progress: p.progress || Math.floor(Math.random() * 100) 
+                const dataWithProgress = resData.data.map((p: any) => ({
+                    ...p,
+                    progress: p.progress || Math.floor(Math.random() * 100)
                 }));
                 // Filter client side if needed, assuming API returns all for now.
                 // Or API might already handle filtering by user.
                 setProjects(dataWithProgress);
                 setMeta(resData.meta);
-                
+
                 setProjects(dataWithProgress);
                 setMeta(resData.meta);
                 setIsLoading(false);
@@ -132,7 +132,8 @@ export default function UserProjectsPage() {
         };
 
         const onMessage = (data: any) => {
-            if (data.projectId) {
+            // Only increment if it's from someone else
+            if (data.projectId && data.senderId !== session?.user?.id) {
                 console.log("🔔 Projects page unread update for:", data.projectId);
                 setUnreadCounts(prev => ({
                     ...prev,
@@ -176,8 +177,8 @@ export default function UserProjectsPage() {
                     <div className="flex flex-col md:flex-row gap-4 justify-between">
                         <div className="relative max-w-sm w-full">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                placeholder="Search projects..." 
+                            <Input
+                                placeholder="Search projects..."
                                 className="pl-10 bg-white border-slate-200 focus-visible:ring-blue-500"
                                 value={search}
                                 onChange={(e) => {
@@ -187,8 +188,8 @@ export default function UserProjectsPage() {
                             />
                         </div>
                         <div className="flex items-center gap-3">
-                            <Select 
-                                value={statusFilter} 
+                            <Select
+                                value={statusFilter}
                                 onValueChange={(val) => {
                                     setStatusFilter(val);
                                     setPage(1);
@@ -240,13 +241,13 @@ export default function UserProjectsPage() {
                                                 <Badge className={cn(
                                                     "border-none px-2.5 py-1 font-bold text-[10px] uppercase shadow-none",
                                                     project.status === "active" ? "bg-emerald-100 text-emerald-700" :
-                                                    project.status === "completed" ? "bg-blue-100 text-blue-700" :
-                                                    "bg-slate-100 text-slate-700"
+                                                        project.status === "completed" ? "bg-blue-100 text-blue-700" :
+                                                            "bg-slate-100 text-slate-700"
                                                 )}>
                                                     <div className={cn(
                                                         "h-1.5 w-1.5 rounded-full mr-1.5",
                                                         project.status === "active" ? "bg-emerald-500" :
-                                                        project.status === "completed" ? "bg-blue-500" : "bg-slate-500"
+                                                            project.status === "completed" ? "bg-blue-500" : "bg-slate-500"
                                                     )} />
                                                     {project.status}
                                                 </Badge>
@@ -254,8 +255,8 @@ export default function UserProjectsPage() {
                                             <TableCell className="w-[180px]">
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                        <div 
-                                                            className="h-full bg-blue-500 rounded-full transition-all duration-500" 
+                                                        <div
+                                                            className="h-full bg-blue-500 rounded-full transition-all duration-500"
                                                             style={{ width: `${project.progress}%` }}
                                                         />
                                                     </div>
@@ -266,7 +267,7 @@ export default function UserProjectsPage() {
                                                 <Link href={`/user/chat/${project.id}`} className="inline-flex items-center justify-center">
                                                     <div className="relative p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors cursor-pointer group/chat">
                                                         <MessageSquare className="h-5 w-5" />
-                                                        {unreadCounts[project.id] > 0 && (
+                                                        {(unreadCounts[project.id] ?? 0) > 0 && (
                                                             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white animate-in zoom-in">
                                                                 {unreadCounts[project.id] > 9 ? "9+" : unreadCounts[project.id]}
                                                             </span>
@@ -322,9 +323,9 @@ export default function UserProjectsPage() {
                                 Showing <span className="text-[#0f172a]">{(page - 1) * limit + 1}</span> to <span className="text-[#0f172a]">{Math.min(page * limit, meta.total)}</span> / <span className="text-[#0f172a]">{meta.total}</span>
                             </p>
                             <div className="flex items-center gap-2">
-                                <Button 
-                                    variant="outline" 
-                                    size="sm" 
+                                <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => setPage(p => Math.max(1, p - 1))}
                                     disabled={page === 1}
                                     className="h-8 px-3 border-slate-200 hover:bg-white font-bold text-xs"
@@ -335,9 +336,9 @@ export default function UserProjectsPage() {
                                 <div className="text-xs font-bold text-[#0f172a] px-2">
                                     {page} of {meta.totalPages}
                                 </div>
-                                <Button 
-                                    variant="outline" 
-                                    size="sm" 
+                                <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                                     disabled={page === meta.totalPages}
                                     className="h-8 px-3 border-slate-200 hover:bg-white font-bold text-xs"

@@ -8,6 +8,7 @@ import { MessageSquareDashed } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { getSocket } from "@/lib/socket";
 import { authClient } from "@/lib/auth-client";
+import { useUnreadCounts } from "./unread-count-provider";
 
 interface ChatGroup {
     id: string;
@@ -21,8 +22,8 @@ export function AdminChatView() {
     const [chats, setChats] = useState<ChatGroup[]>([]);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
-    
+    const { unreadCounts, clearUnread } = useUnreadCounts();
+
     const chatsRef = useRef<ChatGroup[]>([]);
     const selectedGroupIdRef = useRef<string | null>(null);
     const lastReadCallRef = useRef<Record<string, number>>({});
@@ -37,20 +38,13 @@ export function AdminChatView() {
 
     const selectedGroup = chats.find(c => c.id === selectedGroupId);
 
-    // Optimized: Fetch chats and unread counts in parallel
+    // Optimized: Fetch chats
     const fetchData = useCallback(async () => {
         try {
-            const [chatsRes, unreadRes] = await Promise.all([
-                fetch("/api/chat-groups").then(r => r.json()),
-                fetch("/api/chat/unread-counts").then(r => r.json())
-            ]);
-
+            const chatsRes = await fetch("/api/chat-groups").then(r => r.json());
             if (Array.isArray(chatsRes)) setChats(chatsRes);
-            if (unreadRes && typeof unreadRes === "object" && !Array.isArray(unreadRes)) {
-                setUnreadCounts(unreadRes);
-            }
         } catch (err) {
-            console.error("Fetch data failed:", err);
+            console.error("Fetch chats failed:", err);
         } finally {
             setIsLoading(false);
         }
@@ -60,34 +54,21 @@ export function AdminChatView() {
         fetchData();
     }, [fetchData]);
 
+    // Clear unread for initially selected group
+    useEffect(() => {
+        if (!isLoading && selectedGroupId) {
+            const chat = chats.find(c => c.id === selectedGroupId);
+            if (chat) {
+                clearUnread(chat.projectId);
+                handleMarkRead(chat.projectId);
+            }
+        }
+    }, [isLoading, selectedGroupId, chats, clearUnread]);
+
     // Socket listeners
     useEffect(() => {
         const socket = getSocket();
         if (!socket || !session?.user) return;
-
-        const onMessage = (data: any) => {
-            const currentSelectedGroupId = selectedGroupIdRef.current;
-            const currentChats = chatsRef.current;
-            const currentSelectedGroup = currentChats.find(c => c.id === currentSelectedGroupId);
-
-            // Increment if not the active project
-            if (data.projectId && (!currentSelectedGroup || data.projectId !== currentSelectedGroup.projectId)) {
-                setUnreadCounts(prev => ({
-                    ...prev,
-                    [data.projectId]: (prev[data.projectId] || 0) + 1
-                }));
-            }
-        };
-
-        const onRead = (data: any) => {
-            // If WE read it on another device/tab, clear locally
-            if (data.userId === session.user.id && data.projectId) {
-                setUnreadCounts(prev => ({
-                    ...prev,
-                    [data.projectId]: 0
-                }));
-            }
-        };
 
         const onConnect = () => {
             if (chatsRef.current.length > 0) {
@@ -96,8 +77,6 @@ export function AdminChatView() {
             }
         };
 
-        socket.on("message", onMessage);
-        socket.on("messages-read", onRead);
         socket.on("connect", onConnect);
         socket.on("user-assigned-to-project", fetchData);
         socket.on("user-removed-from-project", fetchData);
@@ -105,8 +84,6 @@ export function AdminChatView() {
         if (socket.connected) onConnect();
 
         return () => {
-            socket.off("message", onMessage);
-            socket.off("messages-read", onRead);
             socket.off("connect", onConnect);
             socket.off("user-assigned-to-project", fetchData);
             socket.off("user-removed-from-project", fetchData);
@@ -127,7 +104,7 @@ export function AdminChatView() {
         const now = Date.now();
         const lastCall = lastReadCallRef.current[projectId] || 0;
         if (now - lastCall < 2000) return; // Debounce 2s
-        
+
         lastReadCallRef.current[projectId] = now;
         fetch(`/api/chat/${projectId}/read`, { method: "POST" })
             .then(res => {
@@ -135,7 +112,7 @@ export function AdminChatView() {
                     getSocket()?.emit("mark-read", { projectId, userId: session.user.id });
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     };
 
     if (isLoading) {
@@ -148,28 +125,25 @@ export function AdminChatView() {
 
     return (
         <div className="flex h-full w-full bg-white border border-slate-200 shadow-sm overflow-hidden">
-            <ChatSidebar 
-                groups={chats} 
-                selectedGroupId={selectedGroupId} 
+            <ChatSidebar
+                groups={chats}
+                selectedGroupId={selectedGroupId}
                 onSelectGroup={(id: string) => {
                     setSelectedGroupId(id);
                     const chat = chats.find(c => c.id === id);
                     if (chat) {
-                        setUnreadCounts(prev => ({
-                            ...prev,
-                            [chat.projectId]: 0
-                        }));
+                        clearUnread(chat.projectId);
                         handleMarkRead(chat.projectId);
                     }
-                }} 
+                }}
                 unreadCounts={unreadCounts}
             />
 
             <div className="flex-1 flex flex-col bg-slate-50/50 min-w-0">
                 {selectedGroup ? (
-                    <ChatWindow 
+                    <ChatWindow
                         key={selectedGroup.projectId}
-                        groupId={selectedGroup.id} 
+                        groupId={selectedGroup.id}
                         groupName={selectedGroup.name}
                         projectId={selectedGroup.projectId}
                     />

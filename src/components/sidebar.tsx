@@ -5,12 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "./logout-button";
-import { 
-    LayoutDashboard, 
-    FolderOpen, 
-    Users, 
-    FileText, 
-    Settings, 
+import { useUnreadCounts } from "@/components/chat/unread-count-provider";
+import {
+    LayoutDashboard,
+    FolderOpen,
+    Users,
+    FileText,
+    Settings,
     UserSquare2,
     ShieldCheck,
     ClipboardList,
@@ -51,11 +52,11 @@ interface SidebarProps {
     sectionLabel?: string;
 }
 
-export function Sidebar({ 
-    mainItems, 
-    managementItems = [], 
-    settingsItems = [], 
-    sectionLabel = "Management" 
+export function Sidebar({
+    mainItems,
+    managementItems = [],
+    settingsItems = [],
+    sectionLabel = "Management"
 }: SidebarProps) {
     const pathname = usePathname();
 
@@ -69,19 +70,28 @@ export function Sidebar({
     const NavLink = ({ item }: { item: NavItem }) => {
         const active = isLinkActive(item.href);
         const Icon = IconMap[item.icon] || LayoutDashboard;
+        const { totalUnread } = useUnreadCounts();
+        const isProjectChat = item.name === "Project Chat";
 
         return (
-            <Link 
+            <Link
                 href={item.href}
                 className={cn(
-                    "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                    active 
-                        ? "bg-blue-50 text-blue-700 shadow-sm" 
+                    "flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    active
+                        ? "bg-blue-50 text-blue-700 shadow-sm"
                         : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 )}
             >
-                <Icon className={cn("h-4 w-4", active ? "text-blue-600" : "text-slate-400")} />
-                {item.name}
+                <div className="flex items-center gap-3">
+                    <Icon className={cn("h-4 w-4", active ? "text-blue-600" : "text-slate-400")} />
+                    {item.name}
+                </div>
+                {isProjectChat && totalUnread > 0 && !active && (
+                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white shadow-sm animate-in zoom-in">
+                        {totalUnread > 99 ? "99+" : totalUnread}
+                    </span>
+                )}
             </Link>
         );
     };
@@ -94,7 +104,7 @@ export function Sidebar({
                     <h1 className="text-xl font-bold tracking-tight text-slate-900">ProjectHub</h1>
                 </Link>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto px-3 space-y-6">
                 <div>
                     <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Main</p>

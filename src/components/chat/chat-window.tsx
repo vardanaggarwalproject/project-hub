@@ -130,14 +130,18 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
             return [...prev, { ...data, senderName: data.senderName || "User" }];
         });
         
-        handleMarkRead();
+        // Only mark as read if it's from someone else
+        if (data.senderId !== session?.user.id) {
+            handleMarkRead();
+        }
     };
 
     socket.emit("join-room", projectId);
     socket.on("message", onMessage);
 
     return () => {
-        socket.emit("leave-room", projectId);
+        // We stay in the room to receive background updates (unread counts)
+        // socket.emit("leave-room", projectId); // REMOVED
         socket.off("message", onMessage);
     };
 }, [projectId, session?.user, session?.user.name]);
