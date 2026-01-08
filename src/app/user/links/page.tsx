@@ -28,6 +28,9 @@ interface SharedLink {
     createdAt: string;
 }
 
+import { getSocket } from "@/lib/socket";
+import { toast } from "sonner";
+
 export default function UserLinksPage() {
     const { data: session } = authClient.useSession();
     const [links, setLinks] = useState<SharedLink[]>([]);
@@ -49,6 +52,29 @@ export default function UserLinksPage() {
         };
 
         if (session) fetchLinks();
+    }, [session]);
+
+    useEffect(() => {
+        const socket = getSocket();
+        
+        const onProjectDeleted = (data: { projectId: string }) => {
+            // Remove links associated with the deleted project
+            setLinks(prev => prev.filter(link => link.projectId !== data.projectId));
+            
+            if ((session?.user as any)?.role !== "admin") {
+                toast.error("Project is deleted by admin and you are no longer member of this");
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            }
+        };
+
+        if (socket) {
+            socket.on("project-deleted", onProjectDeleted);
+            return () => {
+                socket.off("project-deleted", onProjectDeleted);
+            };
+        }
     }, [session]);
 
     const filteredLinks = links.filter(link => 

@@ -10,14 +10,7 @@ import {
     TableRow
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, Eye, MoreHorizontal, FolderKanban, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
+import { Search, Eye, FolderKanban, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 import {
     Select,
     SelectContent,
@@ -33,6 +26,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { getSocket } from "@/lib/socket";
+import { toast } from "sonner";
 
 interface Project {
     id: string;
@@ -90,7 +84,7 @@ export default function UserProjectsPage() {
         if (search) params.append("search", search);
         if (statusFilter !== "all") params.append("status", statusFilter);
 
-        fetch(`/api/projects?${params.toString()}`)
+        fetch(`/api/projects?${params.toString()}`, { cache: "no-store" })
             .then((res) => res.json())
             .then((resData) => {
                 const dataWithProgress = resData.data.map((p: any) => ({
@@ -142,16 +136,41 @@ export default function UserProjectsPage() {
             }
         };
 
+        const onProjectDeleted = (data: { projectId: string }) => {
+            console.log("🗑️ Project deleted event received for:", data.projectId);
+            setProjects(prev => prev.filter(p => p.id !== data.projectId));
+            
+            if ((session?.user as any)?.role !== "admin") {
+                toast.error("Project is deleted by admin and you are no longer member of this");
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            }
+        };
+
+        const onProjectCreated = (data: { projectId: string; project: any; assignedUserIds: string[] }) => {
+            if (data.assignedUserIds && session?.user?.id && data.assignedUserIds.includes(session.user.id)) {
+                toast.success(`You have been assigned to new project: ${data.project.name}`);
+                setTimeout(() => {
+                   window.location.reload();
+                }, 2000);
+            }
+        };
+
         if (socket.connected) joinAllRooms();
 
         socket.on("connect", joinAllRooms);
         socket.on("message", onMessage);
+        socket.on("project-deleted", onProjectDeleted);
+        socket.on("project-created", onProjectCreated);
 
         return () => {
             socket.off("connect", joinAllRooms);
             socket.off("message", onMessage);
+            socket.off("project-deleted", onProjectDeleted);
+            socket.off("project-created", onProjectCreated);
         };
-    }, [projects.length]); // Re-join if project list changes (e.g. after search/pagination)
+    }, [projects.length, session]); // Re-join if project list changes (e.g. after search/pagination)
 
     if (isLoading && projects.length === 0) return (
         <div className="space-y-4">
@@ -218,7 +237,8 @@ export default function UserProjectsPage() {
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Status</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Progress</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Project Chat</TableHead>
-                                    <TableHead className="text-right font-bold text-muted-foreground uppercase text-[10px] tracking-wider pr-6">Actions</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">View</TableHead>
+                                    <TableHead className="text-center font-bold text-muted-foreground uppercase text-[10px] tracking-wider pr-6">Files</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -279,36 +299,33 @@ export default function UserProjectsPage() {
                                                     </div>
                                                 </Link>
                                             </TableCell>
-                                            <TableCell className="text-right pr-6">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <Button asChild variant="outline" size="sm" className="h-8 px-3 border-blue-100 bg-blue-50/50 text-blue-600 hover:bg-blue-100 hover:border-blue-200 font-bold text-[10px] uppercase tracking-wider">
-                                                        <Link href={`/user/projects/${project.id}`} className="flex items-center gap-1.5">
-                                                            <Eye className="h-3.5 w-3.5" />
+                                            <TableCell className="text-center">
+                                                <Link href={`/user/projects/${project.id}`} className="inline-flex items-center justify-center">
+                                                    <div className="relative p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer group/view">
+                                                        <Eye className="h-5 w-5" />
+                                                        <span className="sr-only">View Details</span>
+                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover/view:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
                                                             View Details
-                                                        </Link>
-                                                    </Button>
-
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-white hover:shadow-sm">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-48 shadow-xl border-slate-100 p-1">
-                                                            <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground px-2 py-1.5">Other Options</DropdownMenuLabel>
-                                                            <DropdownMenuItem className="cursor-pointer py-2 px-2.5 flex items-center gap-2 text-slate-600">
-                                                                <FolderKanban className="h-3.5 w-3.5" />
-                                                                <span className="font-semibold text-sm">Project Files</span>
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
+                                                        </div>
+                                                    </div>
+                                                </Link>
+                                            </TableCell>
+                                            <TableCell className="text-center pr-6">
+                                                <Link href={`/user/projects/${project.id}?tab=links`} className="inline-flex items-center justify-center">
+                                                    <div className="relative p-2 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors cursor-pointer group/files">
+                                                        <FolderKanban className="h-5 w-5" />
+                                                        <span className="sr-only">Project Files</span>
+                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover/files:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                                                            Project Files
+                                                        </div>
+                                                    </div>
+                                                </Link>
                                             </TableCell>
                                         </TableRow>
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">
+                                        <TableCell colSpan={7} className="h-32 text-center text-muted-foreground italic">
                                             {isLoading ? "Fetching projects..." : "No projects assigned to you."}
                                         </TableCell>
                                     </TableRow>

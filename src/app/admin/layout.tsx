@@ -60,7 +60,7 @@ export default async function AdminLayout({
     ];
 
     return (
-        <div className="flex min-h-screen bg-[#f8fafc]">
+        <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
             <Sidebar 
                 mainItems={mainItems}
                 managementItems={managementItems}

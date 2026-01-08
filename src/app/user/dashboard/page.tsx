@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { getSocket } from "@/lib/socket";
+import { toast } from "sonner";
 import { 
     Table,
     TableBody,
@@ -61,6 +63,39 @@ export default function UserDashboardPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        const socket = getSocket();
+        
+        const onProjectDeleted = (data: { projectId: string }) => {
+            setMyProjects(prev => prev.filter(p => p.id !== data.projectId));
+            
+            if ((session?.user as any)?.role !== "admin") {
+                toast.error("Project is deleted by admin and you are no longer member of this");
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            }
+        };
+
+        const onProjectCreated = (data: { projectId: string; project: any; assignedUserIds: string[] }) => {
+            if (data.assignedUserIds && session?.user?.id && data.assignedUserIds.includes(session.user.id)) {
+                toast.success(`You have been assigned to new project: ${data.project.name}`);
+                setTimeout(() => {
+                   window.location.reload();
+                }, 2000);
+            }
+        };
+
+        if (socket) {
+            socket.on("project-deleted", onProjectDeleted);
+            socket.on("project-created", onProjectCreated);
+            return () => {
+                socket.off("project-deleted", onProjectDeleted);
+                socket.off("project-created", onProjectCreated);
+            };
+        }
+    }, [session]);
+
+    useEffect(() => {
         if (!session) return;
 
         const fetchDashboardData = async () => {
@@ -68,7 +103,7 @@ export default function UserDashboardPage() {
             try {
                 // In a real app, these endpoints would be filtered by the current user
                 const [projectsRes] = await Promise.all([
-                    fetch("/api/projects"), 
+                    fetch("/api/projects", { cache: "no-store" }), 
                 ]);
 
                 const projectsData = await projectsRes.json();

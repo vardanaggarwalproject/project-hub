@@ -3,6 +3,8 @@ import { projects, clients, chatGroups, user, userProjectAssignments } from "@/l
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 const projectSchema = z.object({
     name: z.string().min(1, "Name required"),
@@ -14,8 +16,15 @@ const projectSchema = z.object({
 });
 
 
+
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
     try {
+        const session = await auth.api.getSession({ headers: await headers() });
+        const userRole = session?.user?.role;
+        const currentUserId = session?.user?.id;
+
         const { searchParams } = new URL(req.url);
         const page = parseInt(searchParams.get("page") || "1");
         const limit = parseInt(searchParams.get("limit") || "10");
@@ -32,6 +41,16 @@ export async function GET(req: Request) {
         if (clientId) conditions.push(eq(projects.clientId, clientId));
         // Note: ILike is pg specific, using sql for generic search if needed or simple like
         if (search) conditions.push(sql`${projects.name} ILIKE ${`%${search}%`}`);
+
+        // If not admin and we have a user ID, only show assigned projects
+        if (userRole !== "admin" && currentUserId) {
+            // Subquery to find project IDs assigned to this user
+            const userProjectIds = db.select({ projectId: userProjectAssignments.projectId })
+                .from(userProjectAssignments)
+                .where(eq(userProjectAssignments.userId, currentUserId));
+
+            conditions.push(inArray(projects.id, userProjectIds));
+        }
 
         if (conditions.length > 0) {
             whereClause = and(...conditions);
@@ -138,6 +157,40 @@ export async function POST(req: Request) {
             name: `${name} Chat`,
             projectId: newProject.id,
         });
+
+        // Emit socket event from server-side
+        // Emit socket event from server-side using global io instance
+        try {
+            const io = (global as any).io;
+            if (io) {
+                console.log("✅ API Route found global.io. Emitting project-created...");
+                io.emit("project-created", {
+                    projectId: newProject.id,
+                    project: newProject,
+                    assignedUserIds: assignedUserIds || []
+                });
+                console.log("📤 Emitted project-created for project:", newProject.id);
+            } else {
+                console.warn("⚠️ global.io not found. Falling back to loopback connection...");
+                // Fallback to loopback if global.io is missing (shouldn't happen with custom server)
+                const { io: clientIo } = await import("socket.io-client");
+                const socket = clientIo("http://localhost:3000", {
+                    path: "/api/socket",
+                    addTrailingSlash: false,
+                });
+
+                socket.on("connect", () => {
+                    socket.emit("project-created", {
+                        projectId: newProject.id,
+                        project: newProject,
+                        assignedUserIds: assignedUserIds || []
+                    });
+                    setTimeout(() => socket.disconnect(), 500);
+                });
+            }
+        } catch (socketError) {
+            console.error("Failed to emit socket event:", socketError);
+        }
 
         return NextResponse.json(newProject, { status: 201 });
 

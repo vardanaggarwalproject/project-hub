@@ -18,6 +18,7 @@ import {
 import { LogoutButton } from "@/components/logout-button";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
+import { UserMainContent } from "@/components/user-main-content";
 
 export default async function UserLayout({
     children,
@@ -84,7 +85,7 @@ export default async function UserLayout({
     ];
 
     return (
-        <div className="flex min-h-screen bg-[#f8fafc]">
+        <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
             <Sidebar 
                 mainItems={mainItems}
                 managementItems={managementItems}
@@ -95,14 +96,14 @@ export default async function UserLayout({
             {/* Main Content */}
             <main className="flex-1 flex flex-col min-w-0">
                 <Header 
-                    userName={session.user.name} 
+                    userName={session.user.name || ""} 
                     userRole={session.user.role} 
                     searchPlaceholder="Search keywords, tasks..." 
                 />
                 
-                <div className="flex-1 p-8 overflow-auto">
+                <UserMainContent>
                     {children}
-                </div>
+                </UserMainContent>
             </main>
         </div>
     );

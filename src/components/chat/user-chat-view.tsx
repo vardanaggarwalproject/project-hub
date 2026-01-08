@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { getSocket } from "@/lib/socket";
 import { authClient } from "@/lib/auth-client";
 import { useUnreadCounts } from "./unread-count-provider";
+import { toast } from "sonner";
 
 interface ChatGroup {
     id: string;
@@ -63,6 +64,25 @@ export function UserChatView({ initialProjectId }: UserChatViewProps) {
         }
     }, [isLoading, selectedProjectId, clearUnread]);
 
+    const onProjectDeleted = useCallback((data: { projectId: string }) => {
+         console.log("🗑️ Chat View: Project deleted:", data.projectId);
+         
+         // Remove from list
+         setChats(prev => prev.filter(c => c.projectId !== data.projectId));
+
+         // If current, deselect/redirect
+         if (selectedProjectId === data.projectId) {
+             setSelectedProjectId(null);
+         }
+         
+         if ((session?.user as any)?.role !== "admin") {
+             toast.error("Project is deleted by admin and you are no longer member of this");
+             setTimeout(() => {
+                 window.location.reload();
+             }, 2000);
+         }
+    }, [selectedProjectId, session]);
+
     useEffect(() => {
         const socket = getSocket();
         if (!socket || !session?.user) return;
@@ -74,9 +94,19 @@ export function UserChatView({ initialProjectId }: UserChatViewProps) {
             }
         };
 
+        const onProjectCreated = (data: { projectId: string; assignedUserIds: string[] }) => {
+            if (data.assignedUserIds && session?.user?.id && data.assignedUserIds.includes(session.user.id)) {
+                 console.log("🆕 Chat View: New project created and assigned:", data.projectId);
+                 fetchData();
+                 toast.success("New project chat available!");
+            }
+        };
+
         socket.on("connect", onConnect);
         socket.on("user-assigned-to-project", fetchData);
         socket.on("user-removed-from-project", fetchData);
+        socket.on("project-created", onProjectCreated);
+        socket.on("project-deleted", onProjectDeleted);
 
         if (socket.connected) onConnect();
 
@@ -84,8 +114,12 @@ export function UserChatView({ initialProjectId }: UserChatViewProps) {
             socket.off("connect", onConnect);
             socket.off("user-assigned-to-project", fetchData);
             socket.off("user-removed-from-project", fetchData);
+            socket.off("project-created", onProjectCreated);
+            socket.off("project-deleted", onProjectDeleted);
         };
-    }, [fetchData, session?.user?.id, chats.length]);
+    }, [fetchData, session?.user?.id, chats.length, selectedProjectId, onProjectDeleted]);
+
+
 
     useEffect(() => {
         const socket = getSocket();

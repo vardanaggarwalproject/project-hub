@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getSocket } from "@/lib/socket";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +33,11 @@ export default function NewProjectPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+
+
+    useEffect(() => {
+        getSocket();
+    }, []);
 
     useEffect(() => {
         // Fetch clients
@@ -80,6 +86,8 @@ export default function NewProjectPage() {
                 const error = await res.json();
                 throw new Error(error.error || "Failed to create project");
             }
+
+            const data = await res.json();
 
             // Redirect to admin projects
             router.push("/admin/projects");

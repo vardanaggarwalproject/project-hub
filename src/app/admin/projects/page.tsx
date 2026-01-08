@@ -79,7 +79,7 @@ export default function AdminProjectsPage() {
         if (search) params.append("search", search);
         if (statusFilter !== "all") params.append("status", statusFilter);
 
-        fetch(`/api/projects?${params.toString()}`)
+        fetch(`/api/projects?${params.toString()}`, { cache: "no-store" })
             .then((res) => res.json())
             .then((resData) => {
                 // Use actual progress from DB, default to 0 if not set

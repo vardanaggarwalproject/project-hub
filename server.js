@@ -31,6 +31,9 @@ app.prepare().then(() => {
     }
   });
 
+  // Attach io to global object for API routes to access
+  global.io = io;
+
   io.on("connection", (socket) => {
     console.log("✅ Client connected:", socket.id);
 
@@ -91,8 +94,20 @@ app.prepare().then(() => {
       io.to(data.projectId).emit("messages-read", data);
     });
 
+    socket.on("project-deleted", (data) => {
+      console.log(`🗑️ Project deleted: ${data.projectId}`);
+      // Broadcast to ALL clients so they can remove it from lists/redirect
+      io.emit("project-deleted", { projectId: data.projectId });
+    });
+
+    socket.on("project-created", (data) => {
+      console.log(`🆕 SERVER RECEIVED project-created: ${data.projectId}. Broadcasting to all clients...`);
+      // Broadcast to ALL clients so assigned users can be notified
+      io.emit("project-created", data);
+    });
+
     socket.on("disconnect", () => {
-      console.log("❌ Client disconnected:", socket.id);
+      // console.log("❌ Client disconnected:", socket.id);
     });
   });
 
