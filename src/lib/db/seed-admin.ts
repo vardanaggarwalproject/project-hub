@@ -15,7 +15,7 @@ async function main() {
     }
 
     console.log("Seeding roles...");
-    const roleNames = ["admin", "developer", "tester", "designer"];
+    const roleNames = ["admin", "developer", "tester", "designer"] as const;
     for (const name of roleNames) {
         const existing = await db.select().from(schema.roles).where(eq(schema.roles.name, name));
         if (existing.length === 0) {
@@ -28,7 +28,7 @@ async function main() {
     }
 
     console.log(`Creating admin user: ${email}`);
-    
+
     try {
         // Better Auth signUp handles password hashing and user creation
         const user = await auth.api.signUpEmail({
@@ -44,13 +44,13 @@ async function main() {
             await db.update(schema.user)
                 .set({ role: "admin" })
                 .where(eq(schema.user.email, email));
-            
+
             console.log("Admin user seeded successfully!");
         }
     } catch (error: any) {
         if (error.message?.includes("already exists")) {
             console.log("User already exists. Updating role to admin...");
-             await db.update(schema.user)
+            await db.update(schema.user)
                 .set({ role: "admin" })
                 .where(eq(schema.user.email, email));
             console.log("User role updated to admin.");

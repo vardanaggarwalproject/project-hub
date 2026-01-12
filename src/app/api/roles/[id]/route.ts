@@ -13,9 +13,9 @@ const roleSchema = z.object({
     }),
 });
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const role = await db.select().from(roles).where(eq(roles.id, id));
 
         if (role.length === 0) {
@@ -28,9 +28,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const body = await req.json();
         const validation = roleSchema.safeParse(body);
 
@@ -61,9 +61,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const deleted = await db.delete(roles).where(eq(roles.id, id)).returning();
 
         if (deleted.length === 0) {

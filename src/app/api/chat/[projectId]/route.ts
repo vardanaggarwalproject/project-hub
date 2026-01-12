@@ -19,20 +19,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ proj
         const { projectId } = await params;
         if (!projectId) return NextResponse.json({ error: "Invalid Project ID" }, { status: 400 });
 
-        // Update lastReadAt silently
-        try {
-            await db.update(userProjectAssignments)
-                .set({
-                    lastReadAt: sql`NOW()`,
-                    updatedAt: sql`NOW()`
-                })
-                .where(and(
-                    eq(userProjectAssignments.userId, session.user.id),
-                    eq(userProjectAssignments.projectId, projectId)
-                ));
-        } catch (e) {
-            console.error("[API] Failed to update lastReadAt for", projectId, e);
-        }
 
         // Find group
         const group = await db.select().from(chatGroups).where(eq(chatGroups.projectId, projectId)).limit(1);

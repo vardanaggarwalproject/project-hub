@@ -29,7 +29,7 @@ export default function LoginPage() {
         }, {
             onSuccess: async () => {
                 const { data: session } = await authClient.getSession();
-                if (session?.user.role === "admin") {
+                if ((session?.user as any).role === "admin") {
                     router.push("/admin/dashboard");
                 } else {
                     router.push("/user/dashboard");

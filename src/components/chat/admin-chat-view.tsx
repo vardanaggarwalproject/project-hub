@@ -5,10 +5,11 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { ChatSidebar } from "./chat-sidebar";
 import { ChatWindow } from "./chat-window";
 import { MessageSquareDashed } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
 import { getSocket } from "@/lib/socket";
 import { authClient } from "@/lib/auth-client";
 import { useUnreadCounts } from "./unread-count-provider";
+import { ChatSkeleton } from "./chat-skeleton";
+import { useRouter } from "next/navigation";
 
 interface ChatGroup {
     id: string;
@@ -17,12 +18,17 @@ interface ChatGroup {
     developerCount: number;
 }
 
-export function AdminChatView() {
+interface AdminChatViewProps {
+    initialGroupId?: string | null;
+}
+
+export function AdminChatView({ initialGroupId }: AdminChatViewProps) {
+    const router = useRouter();
     const { data: session } = authClient.useSession();
     const [chats, setChats] = useState<ChatGroup[]>([]);
-    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(initialGroupId || null);
     const [isLoading, setIsLoading] = useState(true);
-    const { unreadCounts, clearUnread } = useUnreadCounts();
+    const { unreadCounts, clearUnread, setActiveProjectId } = useUnreadCounts();
 
     const chatsRef = useRef<ChatGroup[]>([]);
     const selectedGroupIdRef = useRef<string | null>(null);
@@ -54,50 +60,50 @@ export function AdminChatView() {
         fetchData();
     }, [fetchData]);
 
-    // Clear unread for initially selected group
+    // Clear unread for initially selected group and set active project
     useEffect(() => {
         if (!isLoading && selectedGroupId) {
             const chat = chats.find(c => c.id === selectedGroupId);
             if (chat) {
+                setActiveProjectId(chat.projectId);
                 clearUnread(chat.projectId);
                 handleMarkRead(chat.projectId);
             }
+        } else {
+            setActiveProjectId(null);
         }
-    }, [isLoading, selectedGroupId, chats, clearUnread]);
+    }, [isLoading, selectedGroupId, chats, clearUnread, setActiveProjectId]);
 
-    // Socket listeners
+    // Socket listeners for metadata updates
     useEffect(() => {
         const socket = getSocket();
         if (!socket || !session?.user) return;
 
-        const onConnect = () => {
-            if (chatsRef.current.length > 0) {
-                const projectIds = chatsRef.current.map(c => c.projectId);
-                socket.emit("join-rooms", projectIds);
-            }
-        };
-
-        socket.on("connect", onConnect);
         socket.on("user-assigned-to-project", fetchData);
         socket.on("user-removed-from-project", fetchData);
 
-        if (socket.connected) onConnect();
-
         return () => {
-            socket.off("connect", onConnect);
             socket.off("user-assigned-to-project", fetchData);
             socket.off("user-removed-from-project", fetchData);
         };
     }, [fetchData, session?.user?.id]);
 
-    // Re-join rooms when chats change
+    // Role-based on-demand room joining
     useEffect(() => {
         const socket = getSocket();
-        if (socket && socket.connected && chats.length > 0) {
-            const projectIds = chats.map(c => c.projectId);
-            socket.emit("join-rooms", projectIds);
-        }
-    }, [chats]);
+        if (!socket || !selectedGroupId) return;
+
+        const chat = chats.find(c => c.id === selectedGroupId);
+        if (!chat) return;
+
+        console.log(`🔌 Joining active chat room: group:${chat.projectId}`);
+        socket.emit("join-group", chat.projectId);
+
+        return () => {
+            console.log(`🔌 Leaving chat room: group:${chat.projectId}`);
+            socket.emit("leave-group", chat.projectId);
+        };
+    }, [selectedGroupId, chats]);
 
     const handleMarkRead = (projectId: string) => {
         if (!session?.user) return;
@@ -116,22 +122,20 @@ export function AdminChatView() {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-full w-full min-h-[600px] bg-white rounded-xl border border-slate-200 shadow-sm">
-                <Spinner className="h-8 w-8 text-blue-600" />
-            </div>
-        );
+        return <ChatSkeleton />;
     }
 
     return (
-        <div className="flex h-full w-full bg-white border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex h-full w-full bg-white border border-slate-200 shadow-sm overflow-hidden min-h-0">
             <ChatSidebar
                 groups={chats}
                 selectedGroupId={selectedGroupId}
                 onSelectGroup={(id: string) => {
                     setSelectedGroupId(id);
+                    router.push(`/admin/chat?groupId=${id}`, { scroll: false });
                     const chat = chats.find(c => c.id === id);
                     if (chat) {
+                        setActiveProjectId(chat.projectId);
                         clearUnread(chat.projectId);
                         handleMarkRead(chat.projectId);
                     }
@@ -139,7 +143,7 @@ export function AdminChatView() {
                 unreadCounts={unreadCounts}
             />
 
-            <div className="flex-1 flex flex-col bg-slate-50/50 min-w-0">
+            <div className="flex-1 flex flex-col bg-slate-50/50 min-w-0 min-h-0">
                 {selectedGroup ? (
                     <ChatWindow
                         key={selectedGroup.projectId}

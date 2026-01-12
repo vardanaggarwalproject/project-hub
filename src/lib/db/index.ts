@@ -1,7 +1,9 @@
 
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import * as schema from "./schema";
+import * as baseSchema from "./schema";
+import * as relations from "./relations";
+const schema = { ...baseSchema, ...relations };
 import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.local' });
