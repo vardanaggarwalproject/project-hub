@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, MoreVertical, Phone, Video, MessageSquare } from "lucide-react";
@@ -60,20 +60,24 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
     messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
-  const handleMarkRead = () => {
-    if (!session?.user) return;
-    const now = Date.now();
-    if (now - lastReadCallRef.current < 3000) return; // Debounce 3s
-    lastReadCallRef.current = now;
+  const handleMarkRead = useCallback(async () => {
+    if (!session?.user || !projectId) return;
     
-    fetch(`/api/chat/${projectId}/read`, { method: "POST" })
-        .then(res => {
-            if (res.ok) {
-                getSocket()?.emit("mark-read", { projectId, userId: session.user.id });
-            }
-        })
-        .catch(() => {});
-  };
+    // Only mark as read if the document is visible to prevent clearing from background tabs
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        console.log("👀 Skipping mark-as-read: Tab is not visible");
+        return;
+    }
+
+    try {
+      const res = await fetch(`/api/chat/${projectId}/read`, { method: "POST" });
+      if (res.ok) {
+        getSocket()?.emit("mark-read", { projectId, userId: session.user.id });
+      }
+    } catch (err) {
+      console.error("Failed to mark messages as read:", err);
+    }
+  }, [projectId, session?.user?.id]);
 
   useEffect(() => {
     if (!isLoading && messages.length > 0) {
@@ -106,45 +110,73 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
   }, [projectId]);
 
   // Socket connection
+  // Move onMessage logic outside the useEffect to memoize it properly
+  const onMessage = useCallback((data: any) => {
+    console.log(`📨 [ChatWindow] Received message event:`, data);
+    console.log(`📨 [ChatWindow] Current projectId: ${projectId}, Message projectId: ${data.projectId}`);
+    
+    if (data.projectId !== projectId) {
+      console.log(`⏭️ [ChatWindow] Ignoring message for different project`);
+      return;
+    }
+    
+    if (processedIds.current.has(data.id)) {
+      console.log(`⏭️ [ChatWindow] Message already processed: ${data.id}`);
+      return;
+    }
+    
+    console.log(`✅ [ChatWindow] Processing new message: ${data.id}`);
+    processedIds.current.add(data.id);
+
+    setMessages(prev => {
+        if (data.senderId === session?.user.id) {
+            const tempIndex = prev.findIndex(m => 
+                m.id.startsWith("temp-") && m.content === data.content
+            );
+            if (tempIndex !== -1) {
+                console.log(`🔄 [ChatWindow] Replacing temp message with real one`);
+                const nextMsgs = [...prev];
+                nextMsgs[tempIndex] = { ...data, senderName: session?.user.name || "Me" };
+                return nextMsgs;
+            }
+        }
+        console.log(`➕ [ChatWindow] Adding new message to list`);
+        return [...prev, { ...data, senderName: data.senderName || "User" }];
+    });
+    
+    // Only mark as read if it's from someone else
+    if (data.senderId !== session?.user.id) {
+        console.log(`👁️ [ChatWindow] Marking as read (from other user)`);
+        handleMarkRead();
+    }
+  }, [projectId, session?.user?.id, session?.user?.name, handleMarkRead]);
+
+  // Socket connection and visibility management
   useEffect(() => {
     const socket = getSocket();
     if (!socket) return;
+    const groupRoom = projectId; 
+    // Actually our server.js uses `group:${projectId}` as the room ID internally.
+    // So the client just needs to emit "join-group", projectId.
 
-    const onMessage = (data: any) => {
-        if (data.projectId !== projectId) return;
-        
-        if (processedIds.current.has(data.id)) return;
-        processedIds.current.add(data.id);
-
-        setMessages(prev => {
-            if (data.senderId === session?.user.id) {
-                const tempIndex = prev.findIndex(m => 
-                    m.id.startsWith("temp-") && m.content === data.content
-                );
-                if (tempIndex !== -1) {
-                    const nextMsgs = [...prev];
-                    nextMsgs[tempIndex] = { ...data, senderName: session?.user.name || "Me" };
-                    return nextMsgs;
-                }
-            }
-            return [...prev, { ...data, senderName: data.senderName || "User" }];
-        });
-        
-        // Only mark as read if it's from someone else
-        if (data.senderId !== session?.user.id) {
+    const onVisibilityChange = () => {
+        if (document.visibilityState === "visible") {
             handleMarkRead();
         }
     };
 
-    socket.emit("join-room", projectId);
+    console.log(`🔌 ChatWindow: Joining group:${projectId}`);
+    socket.emit("join-group", projectId);
     socket.on("message", onMessage);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
-        // We stay in the room to receive background updates (unread counts)
-        // socket.emit("leave-room", projectId); // REMOVED
+        console.log(`🔌 ChatWindow: Leaving group:${projectId}`);
+        socket.emit("leave-group", projectId);
         socket.off("message", onMessage);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-}, [projectId, session?.user, session?.user.name]);
+  }, [projectId, onMessage, handleMarkRead]);
 
   useEffect(() => {
     if (messages.length > 0 && !isLoading) {
@@ -194,8 +226,7 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
         return nextMsgs;
       });
 
-      const socketMsg = { ...realMessage, senderName: session.user.name || "Me", projectId };
-      getSocket().emit("send-message", socketMsg);
+      // Emission is now handled server-side
 
     } catch (error) {
       console.error("Failed to send message", error);
@@ -205,7 +236,7 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
+    <div className="flex flex-col h-full bg-slate-50/30 min-h-0">
         <div className="h-16 border-b bg-white flex items-center justify-between px-6 shrink-0 shadow-sm z-10">
             <div className="flex items-center gap-4">
                 <Avatar className="h-9 w-9 border border-slate-200">

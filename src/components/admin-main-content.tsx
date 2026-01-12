@@ -12,7 +12,7 @@ export function AdminMainContent({ children }: AdminMainContentProps) {
   const isChatRoute = pathname === "/admin/chat";
 
   return (
-    <div className={cn("flex-1 overflow-auto", isChatRoute ? "p-0 overflow-hidden" : "p-8")}>
+    <div className={cn("flex-1 overflow-auto min-h-0", isChatRoute ? "p-0 overflow-hidden" : "p-8")}>
       {children}
     </div>
   );

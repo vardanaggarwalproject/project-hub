@@ -94,7 +94,7 @@ export default async function UserLayout({
             />
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col min-w-0">
+            <main className="flex-1 flex flex-col min-w-0 min-h-0">
                 <Header 
                     userName={session.user.name || ""} 
                     userRole={session.user.role || "developer"} 

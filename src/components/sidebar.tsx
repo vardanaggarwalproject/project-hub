@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "./logout-button";
 import { useUnreadCounts } from "@/components/chat/unread-count-provider";
+import { authClient } from "@/lib/auth-client";
 import {
     LayoutDashboard,
     FolderOpen,
@@ -59,6 +60,7 @@ export function Sidebar({
     sectionLabel = "Management"
 }: SidebarProps) {
     const pathname = usePathname();
+    const { data: session } = authClient.useSession();
 
     const isLinkActive = (href: string) => {
         if (href === "/admin/dashboard" || href === "/user/dashboard") {

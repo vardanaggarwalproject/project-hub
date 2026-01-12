@@ -34,6 +34,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
                     WHERE id = ${assignmentId}
                 `);
 
+                console.log(`👁️ [Mark Read API] Updated last_read_at for user ${userId}, project ${projectId}`);
+
+                // Emit socket event to notify other users
+                try {
+                    const io = (global as any).io;
+                    if (io) {
+                        const groupRoom = `group:${projectId}`;
+                        io.to(groupRoom).emit("messages-read", {
+                            userId,
+                            projectId
+                        });
+                        console.log(`👁️ [Mark Read API] Emitted messages-read to ${groupRoom}`);
+                    }
+                } catch (socketError) {
+                    console.error("Failed to emit mark-read socket event:", socketError);
+                }
+
                 return NextResponse.json({ success: true, action: "updated" });
             } else if (session.user.role === "admin") {
                 // Create for admin if missing
@@ -43,6 +60,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
                     (id, user_id, project_id, last_read_at, updated_at, assigned_at, created_at, is_active)
                     VALUES (${newId}, ${userId}, ${projectId}, NOW(), NOW(), NOW(), NOW(), true)
                 `);
+                console.log(`👁️ [Mark Read API] Created assignment for admin ${userId}, project ${projectId}`);
                 return NextResponse.json({ success: true, action: "created" });
             }
 

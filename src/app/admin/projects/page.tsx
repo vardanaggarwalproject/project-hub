@@ -10,7 +10,8 @@ import {
     TableRow 
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, Eye, MoreHorizontal, FolderKanban, Plus, ChevronLeft, ChevronRight, Edit3 } from "lucide-react";
+import { Search, Eye, MoreHorizontal, FolderKanban, Plus, ChevronLeft, ChevronRight, Edit3, MessageSquare } from "lucide-react";
+import { useUnreadCounts } from "@/components/chat/unread-count-provider";
 import { 
     DropdownMenu, 
     DropdownMenuContent, 
@@ -33,6 +34,13 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { hasPermission } from "@/lib/permissions";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+    Tooltip, 
+    TooltipContent, 
+    TooltipProvider, 
+    TooltipTrigger 
+} from "@/components/ui/tooltip";
 
 interface Project {
     id: string;
@@ -58,6 +66,7 @@ interface Meta {
 
 export default function AdminProjectsPage() {
     const { data: session } = authClient.useSession();
+    const { unreadCounts } = useUnreadCounts();
     const userRole = (session?.user as any)?.role;
 
     const [projects, setProjects] = useState<Project[]>([]);
@@ -107,14 +116,62 @@ export default function AdminProjectsPage() {
     const canManageProjects = hasPermission(userRole, "CAN_MANAGE_PROJECTS");
 
     if (isLoading && projects.length === 0) return (
-        <div className="space-y-4">
-            <Skeleton className="h-10 w-[250px]" />
-            <Skeleton className="h-[500px] w-full" />
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="space-y-2">
+                    <Skeleton className="h-10 w-48" />
+                    <Skeleton className="h-4 w-64" />
+                </div>
+                <div className="flex gap-3">
+                    <Skeleton className="h-10 w-full sm:w-80 rounded-lg" />
+                    <Skeleton className="h-10 w-32 rounded-lg" />
+                    <Skeleton className="h-10 w-32 rounded-lg" />
+                </div>
+            </div>
+
+            <Card className="border-none shadow-md overflow-hidden">
+                <div className="border-b-2 border-slate-200">
+                    <div className="grid grid-cols-6 gap-4 p-4">
+                        {[...Array(6)].map((_, i) => (
+                            <Skeleton key={i} className="h-4 w-full" />
+                        ))}
+                    </div>
+                </div>
+                <div className="p-0">
+                    {[...Array(8)].map((_, i) => (
+                        <div key={i} className="grid grid-cols-6 gap-4 p-6 border-b border-slate-100 items-center">
+                            <Skeleton className="h-4 w-8" />
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="h-10 w-10 rounded-xl" />
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-32" />
+                                    <Skeleton className="h-2 w-20" />
+                                </div>
+                            </div>
+                            <div className="flex -space-x-3">
+                                {[...Array(3)].map((_, j) => (
+                                    <Skeleton key={j} className="h-9 w-9 rounded-full border-2 border-white" />
+                                ))}
+                            </div>
+                            <Skeleton className="h-6 w-20 rounded-full" />
+                            <div className="flex items-center gap-2">
+                                <Skeleton className="h-2 w-24 rounded-full" />
+                                <Skeleton className="h-2 w-8" />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <Skeleton className="h-8 w-8 rounded-lg" />
+                                <Skeleton className="h-8 w-8 rounded-lg" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </Card>
         </div>
     );
 
     return (
-        <div className="space-y-6">
+        <TooltipProvider>
+            <div className="space-y-6">
             {/* Page Header with Search and Actions */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
@@ -174,6 +231,7 @@ export default function AdminProjectsPage() {
                                     <TableHead className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">Assigned Team</TableHead>
                                     <TableHead className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">Status</TableHead>
                                     <TableHead className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">Progress</TableHead>
+                                    <TableHead className="font-bold text-slate-700 uppercase text-[10px] tracking-wider text-center">Project Chat</TableHead>
                                     <TableHead className="text-right font-bold text-slate-700 uppercase text-[10px] tracking-wider pr-6">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -194,27 +252,32 @@ export default function AdminProjectsPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex -space-x-2 overflow-hidden">
+                                                <div className="flex -space-x-3 overflow-hidden">
                                                     {project.team && project.team.length > 0 ? (
-                                                        project.team.slice(0, 3).map((member) => (
-                                                            <div 
-                                                                key={member.id} 
-                                                                className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center text-[10px] font-bold text-purple-700 overflow-hidden"
-                                                                title={`${member.name} (${member.role})`}
-                                                            >
-                                                                {member.image ? (
-                                                                    <img src={member.image} alt={member.name} className="h-full w-full object-cover" />
-                                                                ) : (
-                                                                    member.name.split(' ').map(n => n[0]).join('')
-                                                                )}
-                                                            </div>
+                                                        project.team.slice(0, 4).map((member) => (
+                                                            <Tooltip key={member.id}>
+                                                                <TooltipTrigger asChild>
+                                                                    <Avatar className="h-9 w-9 border-1 border-white shadow-sm ring-[0.5px] ring-slate-100 hover:z-20 hover:scale-110 transition-all duration-200 cursor-pointer">
+                                                                        <AvatarImage src={member.image || ""} alt={member.name} />
+                                                                        <AvatarFallback className="text-[10px] font-bold bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                                                                            {member.name.split(' ').map(n => n[0]).join('')}
+                                                                        </AvatarFallback>
+                                                                    </Avatar>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top" className="bg-slate-900 border-slate-800 p-2 shadow-xl">
+                                                                    <div className="flex flex-col gap-0.5">
+                                                                        <p className="text-xs font-bold text-white">{member.name}</p>
+                                                                        <p className="text-[10px] text-slate-400 capitalize">{member.role}</p>
+                                                                    </div>
+                                                                </TooltipContent>
+                                                            </Tooltip>
                                                         ))
                                                     ) : (
                                                         <span className="text-xs text-muted-foreground italic">No team assigned</span>
                                                     )}
-                                                    {project.team && project.team.length > 3 && (
-                                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 ring-2 ring-white">
-                                                            +{project.team.length - 3}
+                                                    {project.team && project.team.length > 4 && (
+                                                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 text-[11px] font-bold text-slate-600 border-2 border-white shadow-sm ring-1 ring-slate-100">
+                                                            +{project.team.length - 4}
                                                         </div>
                                                     )}
                                                 </div>
@@ -250,6 +313,22 @@ export default function AdminProjectsPage() {
                                                     </div>
                                                     <span className="text-xs font-bold text-slate-600 min-w-[35px] text-right">{project.progress || 0}%</span>
                                                 </div>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Link href={`/admin/chat`} onClick={() => {
+                                                    // This is a bit tricky since admin/chat uses group select.
+                                                    // For now, let's just link to admin/chat.
+                                                }} className="inline-flex items-center justify-center">
+                                                    <div className="relative p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors cursor-pointer group/chat">
+                                                        <MessageSquare className="h-5 w-5" />
+                                                        {(unreadCounts[project.id] ?? 0) > 0 && (
+                                                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white animate-in zoom-in">
+                                                                {unreadCounts[project.id] > 9 ? "9+" : unreadCounts[project.id]}
+                                                            </span>
+                                                        )}
+                                                        <span className="sr-only">Project Chat</span>
+                                                    </div>
+                                                </Link>
                                             </TableCell>
                                             <TableCell className="text-right pr-6">
                                                 <DropdownMenu>
@@ -329,6 +408,7 @@ export default function AdminProjectsPage() {
                     )}
                 </CardContent>
             </Card>
-        </div>
+            </div>
+        </TooltipProvider>
     );
 }
