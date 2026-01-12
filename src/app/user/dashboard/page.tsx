@@ -2,361 +2,497 @@
 
 import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
-import { 
-    FolderKanban, 
-    ClipboardCheck, 
-    MessageSquare, 
-    ArrowUpRight,
-    TrendingUp,
-    Search,
-    Link as LinkIcon,
-    FileCode2,
-    ArrowRight,
-    ClipboardList,
-    Bug
-} from "lucide-react";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { getSocket } from "@/lib/socket";
 import { toast } from "sonner";
-import { 
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-
-interface Project {
-    id: string;
-    name: string;
-    clientName: string | null;
-    status: string;
-    team?: any[];
-    totalTime?: string | null;
-    completedTime?: string | null;
-}
-
-interface Stats {
-    myProjects: number;
-    pendingTasks: number;
-    eodStreak: number;
-    bugsAssigned: number;
-}
+import { UpdateModal } from "@/components/update-modal";
+import { useRouter } from "next/navigation";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { StatsCards } from "@/components/dashboard/StatsCards";
+import { ProjectsSection } from "@/components/dashboard/ProjectsSection";
+import { MissingUpdatesSection } from "@/components/dashboard/MissingUpdatesSection";
+import type { Project, ProjectStatus, ProjectAssignment } from "@/types/project";
+import type { MissingUpdate, Memo, EOD } from "@/types/report";
+import type { Session } from "@/types";
+import { getTodayDate, getYesterdayDate, getLocalDateString, formatDisplayDate } from "@/lib/utils/date";
+import { handleApiError } from "@/lib/utils/error-handler";
+import { projectsApi, memosApi, eodsApi } from "@/lib/api/client";
+import { MISSING_UPDATES_DAYS_TO_CHECK } from "@/lib/constants";
 
 export default function UserDashboardPage() {
-    const { data: session, isPending: isSessionLoading } = authClient.useSession();
-    const [stats, setStats] = useState<Stats>({
-        myProjects: 0,
-        pendingTasks: 0,
-        eodStreak: 0,
-        bugsAssigned: 0
-    });
-    const [myProjects, setMyProjects] = useState<Project[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+  const { data: sessionData, isPending: isSessionLoading } =
+    authClient.useSession();
+  const session = sessionData as Session | null;
+  const router = useRouter();
+  const [myProjects, setMyProjects] = useState<Project[]>([]);
+  const [projectStatuses, setProjectStatuses] = useState<ProjectStatus[]>([]);
+  const [projectAssignments, setProjectAssignments] = useState<
+    ProjectAssignment[]
+  >([]);
+  const [missingUpdates, setMissingUpdates] = useState<MissingUpdate[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  // Modal state - ONLY for controlling if modal is open/closed
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [initialModalTab, setInitialModalTab] = useState<"memo" | "eod">(
+    "memo"
+  );
+  const [initialProjectId, setInitialProjectId] = useState<string>("");
+  const [initialDate, setInitialDate] = useState<string>("");
 
-    useEffect(() => {
-        const socket = getSocket();
-        
-        const onProjectDeleted = (data: { projectId: string }) => {
-            setMyProjects(prev => prev.filter(p => p.id !== data.projectId));
-            
-            if ((session?.user as any)?.role !== "admin") {
-                toast.error("Project is deleted by admin and you are no longer member of this");
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-            }
-        };
+  useEffect(() => {
+    const socket = getSocket();
 
-        const onProjectCreated = (data: { projectId: string; project: any; assignedUserIds: string[] }) => {
-            if (data.assignedUserIds && session?.user?.id && data.assignedUserIds.includes(session.user.id)) {
-                toast.success(`You have been assigned to new project: ${data.project.name}`);
-                setTimeout(() => {
-                   window.location.reload();
-                }, 2000);
-            }
-        };
+    const onProjectDeleted = (data: { projectId: string }) => {
+      setMyProjects((prev) => prev.filter((p) => p.id !== data.projectId));
 
-        if (socket) {
-            socket.on("project-deleted", onProjectDeleted);
-            socket.on("project-created", onProjectCreated);
-            return () => {
-                socket.off("project-deleted", onProjectDeleted);
-                socket.off("project-created", onProjectCreated);
-            };
+      if (session?.user?.role !== "admin") {
+        toast.error("Project deleted by admin - you are no longer a member");
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      }
+    };
+
+    const onProjectCreated = (data: {
+      projectId: string;
+      project: Project;
+      assignedUserIds: string[];
+    }) => {
+      if (
+        data.assignedUserIds &&
+        session?.user?.id &&
+        data.assignedUserIds.includes(session.user.id)
+      ) {
+        toast.success(`You have been assigned to: ${data.project.name}`);
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      }
+    };
+
+    if (socket) {
+      socket.on("project-deleted", onProjectDeleted);
+      socket.on("project-created", onProjectCreated);
+      return () => {
+        socket.off("project-deleted", onProjectDeleted);
+        socket.off("project-created", onProjectCreated);
+      };
+    }
+  }, [session]);
+
+  const fetchDashboardData = async () => {
+    if (!session?.user?.id) return;
+
+    setIsLoading(true);
+    try {
+      const userId = session.user.id;
+      const today = getTodayDate();
+      const yesterday = getYesterdayDate();
+
+      // Fetch user's projects, memos, and EODs
+      const [projectsData, memosData, eodsData] = await Promise.all([
+        projectsApi.getAll(),
+        memosApi.getByFilters(userId),
+        eodsApi.getByFilters(userId),
+      ]);
+
+      // Get all user's projects
+      const userProjects = projectsData.data || [];
+
+      // Fetch assignment dates for all projects and filter by is_active
+      const assignmentPromises = userProjects.map(async (project: Project) => {
+        try {
+          const assignmentData = await projectsApi.getAssignment(project.id, userId);
+          return {
+            projectId: project.id,
+            assignedAt: assignmentData.assignedAt,
+            createdAt: project.createdAt || "",
+            isActive: assignmentData.isActive,
+          };
+        } catch (error) {
+          console.error(
+            `Failed to fetch assignment for project ${project.id}`,
+            error
+          );
+          // Fallback: use project creation date if no assignment found
+          return {
+            projectId: project.id,
+            assignedAt: project.createdAt || "",
+            createdAt: project.createdAt || "",
+            isActive: false,
+          };
         }
-    }, [session]);
+      });
 
-    useEffect(() => {
-        if (!session) return;
+      const assignments = await Promise.all(assignmentPromises);
+      setProjectAssignments(assignments);
 
-        const fetchDashboardData = async () => {
-            setIsLoading(true);
-            try {
-                // In a real app, these endpoints would be filtered by the current user
-                const [projectsRes] = await Promise.all([
-                    fetch("/api/projects", { cache: "no-store" }), 
-                ]);
-
-                const projectsData = await projectsRes.json();
-                
-                // Filter for demonstration (assuming API returns all)
-                // In production, API should filter by session.user.id
-                const userProjects = (projectsData.data || []).slice(0, 3); 
-
-                setStats({
-                    myProjects: userProjects.length,
-                    pendingTasks: 12, // Mock data
-                    eodStreak: 5, // Mock data
-                    bugsAssigned: 3 // Mock data
-                });
-
-                setMyProjects(userProjects);
-            } catch (error) {
-                console.error("Failed to fetch dashboard data", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchDashboardData();
-    }, [session]);
-
-    if (isSessionLoading || isLoading) {
-        return (
-            <div className="p-8 space-y-8">
-                <Skeleton className="h-10 w-1/3" />
-                <div className="grid gap-6 sm:grid-cols-4">
-                    {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-40 w-full" />)}
-                </div>
-            </div>
+      // Filter to show only active projects on dashboard
+      const activeProjects = userProjects.filter((project: Project) => {
+        const assignment = assignments.find(
+          (a) => a.projectId === project.id
         );
+        return assignment?.isActive === true;
+      });
+      setMyProjects(activeProjects);
+
+      // Calculate project statuses (only for active projects)
+      const statuses: ProjectStatus[] = activeProjects.map(
+        (project: Project) => {
+          const todayMemos = Array.isArray(memosData)
+            ? memosData.filter((m: Memo) => {
+                const memoDate = m.reportDate
+                  ? getLocalDateString(m.reportDate)
+                  : "";
+                return m.projectId === project.id && memoDate === today;
+              })
+            : [];
+
+          const todayEods = Array.isArray(eodsData)
+            ? eodsData.filter((e: EOD) => {
+                const eodDate = e.reportDate
+                  ? getLocalDateString(e.reportDate)
+                  : "";
+                return e.projectId === project.id && eodDate === today;
+              })
+            : [];
+
+          const yesterdayEods = Array.isArray(eodsData)
+            ? eodsData.filter((e: EOD) => {
+                const eodDate = e.reportDate
+                  ? getLocalDateString(e.reportDate)
+                  : "";
+                return e.projectId === project.id && eodDate === yesterday;
+              })
+            : [];
+
+          return {
+            projectId: project.id,
+            projectName: project.name,
+            hasTodayMemo: todayMemos.length > 0,
+            hasTodayEod: todayEods.length > 0,
+            hasYesterdayEod: yesterdayEods.length > 0,
+            yesterdayEodDate: yesterday,
+          };
+        }
+      );
+
+      setProjectStatuses(statuses);
+
+      // Find missing updates
+      const missing: MissingUpdate[] = [];
+      const daysToCheck = MISSING_UPDATES_DAYS_TO_CHECK;
+
+      for (let i = 1; i <= daysToCheck; i++) {
+        const checkDate = new Date();
+        checkDate.setDate(checkDate.getDate() - i);
+        checkDate.setHours(0, 0, 0, 0);
+        const dateStr = checkDate.toISOString().split("T")[0];
+
+        activeProjects.forEach((project: Project) => {
+          // Get the assignment info for this project
+          const assignment = assignments.find(
+            (a: ProjectAssignment) => a.projectId === project.id
+          );
+
+          if (assignment) {
+            // Calculate valid start date (later of project creation or assignment)
+            const assignedDate = new Date(assignment.assignedAt);
+            assignedDate.setHours(0, 0, 0, 0);
+
+            const createdDate = new Date(assignment.createdAt);
+            createdDate.setHours(0, 0, 0, 0);
+
+            const validStartDate =
+              assignedDate > createdDate ? assignedDate : createdDate;
+
+            // Only check for missing updates if the date is after assignment/creation
+            if (checkDate < validStartDate) {
+              return; // Skip this date for this project
+            }
+          }
+
+          // Check for missing memo
+          const hasMemo =
+            Array.isArray(memosData) &&
+            memosData.some(
+              (m: Memo) =>
+                m.projectId === project.id &&
+                getLocalDateString(m.reportDate) === dateStr
+            );
+
+          if (!hasMemo) {
+            missing.push({
+              id: `${project.id}-${dateStr}-memo`,
+              date: dateStr,
+              projectId: project.id,
+              projectName: project.name,
+              type: "memo",
+            });
+          }
+
+          // Check for missing EOD
+          const hasEod =
+            Array.isArray(eodsData) &&
+            eodsData.some(
+              (e: EOD) =>
+                e.projectId === project.id &&
+                getLocalDateString(e.reportDate) === dateStr
+            );
+
+          if (!hasEod) {
+            missing.push({
+              id: `${project.id}-${dateStr}-eod`,
+              date: dateStr,
+              projectId: project.id,
+              projectName: project.name,
+              type: "eod",
+            });
+          }
+        });
+      }
+
+      // Set all missing updates (will be scrollable in UI)
+      setMissingUpdates(missing);
+    } catch (error) {
+      handleApiError(error, "Dashboard data fetch");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
+
+  const openModal = async (
+    type: "memo" | "eod",
+    projectId: string,
+    date?: string
+  ) => {
+    const targetDate = date || getTodayDate();
+    setInitialModalTab(type);
+    setInitialProjectId(projectId);
+    setInitialDate(targetDate);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  /**
+   * Toggle project active/inactive status
+   */
+  const handleToggleActive = async (
+    projectId: string,
+    currentStatus: boolean
+  ) => {
+    if (!session?.user?.id) return;
+
+    try {
+      await projectsApi.toggleActive(projectId, session.user.id, !currentStatus);
+      toast.success(
+        !currentStatus
+          ? "Project marked as active"
+          : "Project marked as inactive"
+      );
+      // Refetch dashboard data to update UI
+      await fetchDashboardData();
+    } catch (error) {
+      handleApiError(error, "Toggle project status");
+    }
+  };
+
+  /**
+   * Fetch reference data for modal (yesterday's EOD or selected date's memo)
+   */
+  const referenceDataFetcher = async (
+    type: "memo" | "eod",
+    projectId: string,
+    date: string
+  ) => {
+    if (!session?.user?.id) return null;
+
+    try {
+      if (type === "memo") {
+        // Show yesterday's EOD
+        const yesterday = getYesterdayDate();
+        const eods = await eodsApi.getByFilters(session.user.id, projectId) as EOD[];
+        const yesterdayEod = Array.isArray(eods)
+          ? eods.find((e) => getLocalDateString(e.reportDate) === yesterday)
+          : null;
+
+        if (yesterdayEod) {
+          return {
+            type: "Yesterday's EOD",
+            content:
+              yesterdayEod.actualUpdate ||
+              yesterdayEod.clientUpdate ||
+              "No EOD available",
+          };
+        } else {
+          return {
+            type: "Yesterday's EOD",
+            content: "No EOD submitted yesterday",
+          };
+        }
+      } else {
+        // Show memo for the selected date
+        const memos = await memosApi.getByFilters(session.user.id, projectId) as Memo[];
+        const selectedDateMemo = Array.isArray(memos)
+          ? memos.find((m) => getLocalDateString(m.reportDate) === date)
+          : null;
+
+        const isToday = date === getTodayDate();
+        const dateLabel = isToday
+          ? "Today's Memo"
+          : `Memo for ${formatDisplayDate(date).split(",")[0]}`;
+
+        if (selectedDateMemo) {
+          return {
+            type: dateLabel,
+            content: selectedDateMemo.memoContent || "No memo available",
+          };
+        } else {
+          return {
+            type: dateLabel,
+            content: isToday
+              ? "No memo submitted today"
+              : "No memo submitted for this date",
+          };
+        }
+      }
+    } catch (error) {
+      handleApiError(error, "Fetch reference data");
+      return null;
+    }
+  };
+
+  /**
+   * Handle memo/EOD submission from modal
+   */
+  const handleSubmit = async (data: {
+    type: "memo" | "eod";
+    projectId: string;
+    date: string;
+    memoContent?: string;
+    clientUpdate?: string;
+    internalUpdate?: string;
+  }) => {
+    if (!session?.user?.id) {
+      toast.error("You must be logged in to submit updates");
+      router.push("/login");
+      return;
     }
 
-    const kpiCards = [
-        {
-            title: "My Projects",
-            value: stats.myProjects,
-            subtitle: "Active assignments",
-            trend: "+1 new this week",
-            icon: FolderKanban,
-            gradient: "from-blue-500 via-blue-600 to-indigo-600",
-            iconBg: "bg-blue-100",
-            iconColor: "text-blue-600"
-        },
-        {
-            title: "Pending Tasks",
-            value: stats.pendingTasks,
-            subtitle: "To be completed",
-            trend: "Due this week",
-            icon: ClipboardList,
-            gradient: "from-orange-500 via-orange-600 to-red-600",
-            iconBg: "bg-orange-100",
-            iconColor: "text-orange-600"
-        },
-        {
-            title: "EOD Streak",
-            value: `${stats.eodStreak} Days`,
-            subtitle: "Consistent reporting",
-            trend: "Keep it up!",
-            icon: ClipboardCheck,
-            gradient: "from-emerald-500 via-teal-600 to-cyan-600",
-            iconBg: "bg-emerald-100",
-            iconColor: "text-emerald-600"
-        },
-        {
-            title: "Bugs Assigned",
-            value: stats.bugsAssigned,
-            subtitle: "Requiring attention",
-            trend: "-2 vs last week",
-            icon: Bug,
-            gradient: "from-purple-500 via-purple-600 to-pink-600",
-            iconBg: "bg-purple-100",
-            iconColor: "text-purple-600"
+    try {
+      if (data.type === "memo") {
+        if (!data.memoContent?.trim()) {
+          toast.error("Please enter your memo");
+          return;
         }
-    ];
 
-    const quickActions = [
-        {
-            title: "Submit EOD",
-            subtitle: "Daily report",
-            icon: ClipboardCheck,
-            href: "/user/eods/new",
-            bgColor: "bg-emerald-50",
-            iconColor: "text-emerald-600"
-        },
-        {
-            title: "My Tasks",
-            subtitle: "View assignments",
-            icon: ClipboardList,
-            href: "/user/tasks",
-            bgColor: "bg-blue-50",
-            iconColor: "text-blue-600"
-        },
-        {
-            title: "Project Chat",
-            subtitle: "Team discussion",
-            icon: MessageSquare,
-            href: "/user/chat",
-            bgColor: "bg-purple-50",
-            iconColor: "text-purple-600"
-        },
-        {
-            title: "Code Links",
-            subtitle: "Repository links",
-            icon: FileCode2,
-            href: "/user/links",
-            bgColor: "bg-pink-50",
-            iconColor: "text-pink-600"
+        await memosApi.create({
+          memoContent: data.memoContent,
+          projectId: data.projectId,
+          userId: session.user.id,
+          reportDate: data.date,
+        });
+
+        toast.success("Memo saved successfully!");
+        await fetchDashboardData();
+      } else {
+        if (!data.internalUpdate?.trim()) {
+          toast.error("Please enter internal update");
+          return;
         }
-    ];
 
+        await eodsApi.create({
+          clientUpdate: data.clientUpdate || "",
+          actualUpdate: data.internalUpdate,
+          projectId: data.projectId,
+          userId: session.user.id,
+          reportDate: data.date,
+        });
+
+        toast.success("EOD report saved successfully!");
+        await fetchDashboardData();
+      }
+    } catch (error) {
+      handleApiError(error, "Submit update");
+      throw error; // Re-throw to keep modal open on error
+    }
+  };
+
+  if (isSessionLoading || isLoading) {
     return (
-        <div className="space-y-8 animate-in fade-in duration-700">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h2 className="text-2xl md:text-3xl font-black tracking-tight text-[#0f172a]">
-                        Hello, {session?.user.name}!
-                    </h2>
-                    <p className="text-xs md:text-sm text-muted-foreground mt-1 font-medium">Here's your personal overview</p>
-                </div>
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    <div className="relative flex-1 md:flex-initial">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Search projects..." 
-                            className="pl-9 w-full md:w-64 bg-white border-slate-200 rounded-xl h-10 text-sm"
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* KPI Cards */}
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {kpiCards.map((kpi, i) => (
-                    <Card key={i} className="border-none shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
-                        <CardContent className="p-6">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className={cn("p-3 rounded-xl", kpi.iconBg)}>
-                                    <kpi.icon className={cn("h-6 w-6", kpi.iconColor)} />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <div className="text-3xl font-black text-[#0f172a]">{kpi.value}</div>
-                                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{kpi.title}</div>
-                                <div className="text-xs text-muted-foreground">{kpi.subtitle}</div>
-                                <div className="flex items-center gap-1 text-xs font-bold text-emerald-600">
-                                    <TrendingUp className="h-3 w-3" />
-                                    {kpi.trend}
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-
-            {/* Quick Actions */}
-            <div>
-                <h3 className="text-lg font-black uppercase tracking-tight text-[#0f172a] mb-4">Quick Actions</h3>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {quickActions.map((action, i) => (
-                        <Link key={i} href={action.href}>
-                            <Card className="border-none shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer group">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className={cn("p-3 rounded-xl group-hover:scale-110 transition-transform", action.bgColor)}>
-                                            <action.icon className={cn("h-5 w-5", action.iconColor)} />
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-sm text-[#0f172a] group-hover:text-blue-600 transition-colors">{action.title}</h4>
-                                            <p className="text-xs text-muted-foreground mt-0.5">{action.subtitle}</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </Link>
-                    ))}
-                </div>
-            </div>
-
-            {/* Recent Assignemnts */}
-            <Card className="border-none shadow-xl">
-                <CardHeader className="border-b bg-slate-50/50 px-4 md:px-6 py-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <CardTitle className="text-base md:text-lg font-black uppercase tracking-tight">My Recent Projects</CardTitle>
-                        <Button variant="link" className="text-blue-600 font-bold text-xs md:text-sm self-start sm:self-auto" asChild>
-                            <Link href="/user/projects">
-                                View All <ArrowRight className="ml-2 h-3 md:h-4 w-3 md:w-4" />
-                            </Link>
-                        </Button>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader className="bg-slate-50/50">
-                                <TableRow>
-                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Project Name</TableHead>
-                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Client</TableHead>
-                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                                    <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Your Tasks</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {myProjects.map((project) => (
-                                    <TableRow key={project.id} className="hover:bg-slate-50/50 transition-colors group">
-                                        <TableCell className="px-6 py-4">
-                                            <Link href={`/user/projects/${project.id}`} className="font-bold text-sm text-[#0f172a] hover:text-blue-600 transition-colors">
-                                                {project.name}
-                                            </Link>
-                                            <p className="text-xs text-muted-foreground mt-0.5">{project.clientName || "Direct Client"}</p>
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4">
-                                            <span className="text-sm text-slate-600">{project.clientName || "—"}</span>
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4">
-                                            <Badge className={cn(
-                                                "font-bold text-xs uppercase",
-                                                project.status === "active" && "bg-emerald-100 text-emerald-700 border-emerald-200",
-                                                project.status === "completed" && "bg-blue-100 text-blue-700 border-blue-200",
-                                                project.status === "on-hold" && "bg-amber-100 text-amber-700 border-amber-200"
-                                            )}>
-                                                {project.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                {(() => {
-                                                    const total = parseFloat(project.totalTime || "0");
-                                                    const completed = parseFloat(project.completedTime || "0");
-                                                    const progress = total > 0 ? Math.min(Math.round((completed / total) * 100), 100) : 0;
-                                                    return (
-                                                        <>
-                                                            <Progress value={progress} className="h-2 w-24" />
-                                                            <span className="text-xs font-black text-slate-500">{progress}%</span>
-                                                        </>
-                                                    );
-                                                })()}
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                    </div>
-                </CardContent>
-            </Card>
+      <div className="p-4 md:p-6 space-y-5">
+        <Skeleton className="h-10 w-1/3" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[1, 2].map((i) => (
+            <Skeleton key={i} className="h-28 w-full" />
+          ))}
         </div>
+        <Skeleton className="h-56 w-full" />
+      </div>
     );
+  }
+
+  const todayMemoCount = projectStatuses.filter((p) => p.hasTodayMemo).length;
+  const todayEodCount = projectStatuses.filter((p) => p.hasTodayEod).length;
+  const totalProjects = myProjects.length;
+
+  return (
+    <ErrorBoundary>
+      <div className="p-4 md:p-6 space-y-5 max-w-300">
+        {/* Header */}
+        <div className="space-y-0.5">
+          <h1 className="text-xl md:text-2xl font-semibold text-slate-900">
+            Hello, {session?.user.name} 👋
+          </h1>
+          <p className="text-xs text-slate-500">
+            {formatDisplayDate(getTodayDate())}
+          </p>
+        </div>
+
+        {/* Stats Grid */}
+        <StatsCards
+          todayMemoCount={todayMemoCount}
+          todayEodCount={todayEodCount}
+          totalProjects={totalProjects}
+        />
+
+        {/* Projects Section */}
+        <ProjectsSection
+          projects={myProjects}
+          projectStatuses={projectStatuses}
+          onOpenModal={openModal}
+          onToggleActive={handleToggleActive}
+        />
+
+        {/* Missing Updates */}
+        <MissingUpdatesSection
+          missingUpdates={missingUpdates}
+          onOpenModal={openModal}
+        />
+
+      {/* Update Modal */}
+      <UpdateModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        projects={myProjects}
+        showDatePicker={true}
+        maxDate={getTodayDate()}
+        showProjectSelect={true}
+        initialTab={initialModalTab}
+        initialProjectId={initialProjectId}
+        initialDate={initialDate}
+        referenceDataFetcher={referenceDataFetcher}
+        onSubmit={handleSubmit}
+      />
+      </div>
+    </ErrorBoundary>
+  );
 }

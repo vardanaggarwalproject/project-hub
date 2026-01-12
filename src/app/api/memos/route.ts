@@ -1,17 +1,14 @@
 import { db } from "@/lib/db";
 import { memos, user } from "@/lib/db/schema";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { auth } from "@/lib/auth"; // Need session for userId
+import { memoSchema } from "@/lib/validations/reports";
+import { dateComparisonClause } from "@/lib/db/utils";
 
-const memoSchema = z.object({
-    memoContent: z.string().max(140, "Max 140 characters").min(1),
-    projectId: z.string().uuid().or(z.string()),
-    userId: z.string().uuid().or(z.string()), // Passed from client or extracted from session
-    reportDate: z.string().or(z.date()), // Expecting ISO date string
-});
-
+/**
+ * GET /api/memos
+ * Fetch memos filtered by projectId and/or userId
+ */
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
@@ -31,6 +28,8 @@ export async function GET(req: Request) {
         const allMemos = await db.select({
             id: memos.id,
             memoContent: memos.memoContent,
+            projectId: memos.projectId,
+            userId: memos.userId,
             reportDate: memos.reportDate,
             createdAt: memos.createdAt,
             user: {
@@ -51,6 +50,10 @@ export async function GET(req: Request) {
     }
 }
 
+/**
+ * POST /api/memos
+ * Create a new memo with duplicate checking
+ */
 export async function POST(req: Request) {
     try {
         const body = await req.json();
@@ -62,19 +65,16 @@ export async function POST(req: Request) {
 
         const { memoContent, projectId, userId, reportDate } = validation.data;
 
-        // Convert reportDate to Date object and strip time for comparison
+        // Convert to Date object - this preserves the date in local timezone
         const dateObj = new Date(reportDate);
         dateObj.setHours(0, 0, 0, 0);
 
-        // Check if memo exists for this user+project+date
-        // Complex checking might require 'sql' operator to match date part if stored as timestamp
-        // For now trusting simple comparison or we query range
-
+        // Check if memo exists for this user+project+date - compare date parts at UTC
         const existing = await db.select().from(memos)
             .where(and(
                 eq(memos.userId, userId),
                 eq(memos.projectId, projectId),
-                sql`DATE(${memos.reportDate}) = DATE(${dateObj.toISOString()})`
+                dateComparisonClause(memos.reportDate, dateObj)
             ));
 
         if (existing.length > 0) {
@@ -84,11 +84,9 @@ export async function POST(req: Request) {
         const newMemo = await db.insert(memos).values({
             id: crypto.randomUUID(),
             projectId,
-            reportDate: new Date(reportDate).toISOString(),
+            reportDate: dateObj.toISOString(),
             memoContent,
-            userId,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            userId
         }).returning();
 
         return NextResponse.json(newMemo[0], { status: 201 });

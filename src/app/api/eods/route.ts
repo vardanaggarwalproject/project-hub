@@ -1,18 +1,15 @@
 
 import { db } from "@/lib/db";
 import { eodReports, user } from "@/lib/db/schema";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { eodSchema } from "@/lib/validations/reports";
+import { dateComparisonClause } from "@/lib/db/utils";
 
-const eodSchema = z.object({
-    clientUpdate: z.string().optional(),
-    actualUpdate: z.string().min(1, "Internal update required"),
-    projectId: z.string().uuid().or(z.string()),
-    userId: z.string().uuid().or(z.string()),
-    reportDate: z.string().or(z.date()),
-});
-
+/**
+ * GET /api/eods
+ * Fetch EOD reports filtered by projectId and/or userId
+ */
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
@@ -31,6 +28,8 @@ export async function GET(req: Request) {
 
         const reports = await db.select({
             id: eodReports.id,
+            projectId: eodReports.projectId,
+            userId: eodReports.userId,
             clientUpdate: eodReports.clientUpdate,
             actualUpdate: eodReports.actualUpdate,
             reportDate: eodReports.reportDate,
@@ -53,6 +52,10 @@ export async function GET(req: Request) {
     }
 }
 
+/**
+ * POST /api/eods
+ * Create a new EOD report with duplicate checking
+ */
 export async function POST(req: Request) {
     try {
         const body = await req.json();
@@ -63,15 +66,17 @@ export async function POST(req: Request) {
         }
 
         const { clientUpdate, actualUpdate, projectId, userId, reportDate } = validation.data;
+
+        // Convert to Date object - this preserves the date in local timezone
         const dateObj = new Date(reportDate);
         dateObj.setHours(0, 0, 0, 0);
 
-        // Check duplicate
+        // Check duplicate - compare date parts at UTC
         const existing = await db.select().from(eodReports)
             .where(and(
                 eq(eodReports.userId, userId),
                 eq(eodReports.projectId, projectId),
-                sql`DATE(${eodReports.reportDate}) = DATE(${dateObj.toISOString()})`
+                dateComparisonClause(eodReports.reportDate, dateObj)
             ));
 
         if (existing.length > 0) {
@@ -81,12 +86,10 @@ export async function POST(req: Request) {
         const newReport = await db.insert(eodReports).values({
             id: crypto.randomUUID(),
             projectId,
-            reportDate: new Date(reportDate).toISOString(),
+            reportDate: dateObj.toISOString(),
             clientUpdate,
             actualUpdate,
-            userId,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            userId
         }).returning();
 
         return NextResponse.json(newReport[0], { status: 201 });

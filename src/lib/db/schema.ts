@@ -96,6 +96,7 @@ export const projects = pgTable("projects", {
     completedTime: text("completed_time"),
     status: text("status"),
     description: text("description"),
+    isMemoRequired: boolean("is_memo_required").default(false).notNull(),
     createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
@@ -114,7 +115,7 @@ export const userProjectAssignments = pgTable("user_project_assignments", {
     lastReadAt: timestamp("last_read_at", { mode: 'string' }).defaultNow().notNull(),
     createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull(),
-    isActive: boolean("is_active").default(true).notNull(),
+    isActive: boolean("is_active").default(false).notNull(),
 }, (table) => [
     foreignKey({
         columns: [table.projectId],
@@ -211,9 +212,16 @@ export const memos = pgTable("memos", {
     userId: text("user_id").notNull(),
     projectId: text("project_id").notNull(),
     reportDate: timestamp("report_date", { mode: 'string' }).notNull(),
+    memoType: text("memo_type").default('short').notNull(),
     createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
+    unique("memos_user_id_project_id_report_date_memo_type_unique").on(
+        table.userId,
+        table.projectId,
+        table.reportDate,
+        table.memoType
+    ),
     foreignKey({
         columns: [table.projectId],
         foreignColumns: [projects.id],
