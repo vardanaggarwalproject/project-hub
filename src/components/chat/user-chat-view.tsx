@@ -21,9 +21,10 @@ interface ChatGroup {
 
 interface UserChatViewProps {
     initialGroupId?: string | null;
+    initialProjectId?: string | null;
 }
 
-export function UserChatView({ initialGroupId }: UserChatViewProps) {
+export function UserChatView({ initialGroupId, initialProjectId }: UserChatViewProps) {
     const router = useRouter();
     const { data: session } = authClient.useSession();
     const [chats, setChats] = useState<ChatGroup[]>([]);
@@ -58,15 +59,19 @@ export function UserChatView({ initialGroupId }: UserChatViewProps) {
         fetchData();
     }, [fetchData]);
 
-    // Set initial selection from URL after chats are loaded
+    // Set initial selection from URL or props after chats are loaded
     useEffect(() => {
-        if (initialGroupId && chats.length > 0 && !selectedProjectId) {
-            const chat = chats.find(c => c.id === initialGroupId);
-            if (chat) {
-                setSelectedProjectId(chat.projectId);
+        if (chats.length > 0 && !selectedProjectId) {
+            if (initialGroupId) {
+                const chat = chats.find(c => c.id === initialGroupId);
+                if (chat) {
+                    setSelectedProjectId(chat.projectId);
+                }
+            } else if (initialProjectId) {
+                setSelectedProjectId(initialProjectId);
             }
         }
-    }, [initialGroupId, chats, selectedProjectId]);
+    }, [initialGroupId, initialProjectId, chats, selectedProjectId]);
 
     // Clear unread for initially selected project and set active project
     useEffect(() => {
