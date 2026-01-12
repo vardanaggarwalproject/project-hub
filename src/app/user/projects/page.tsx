@@ -107,14 +107,6 @@ export default function UserProjectsPage() {
     useEffect(() => {
         const socket = getSocket();
 
-        const joinAllRooms = () => {
-            if (projects.length > 0) {
-                const projectIds = projects.map(p => p.id);
-                console.log("📥 [UserProjects] Joining rooms:", projectIds.length);
-                socket.emit("join-rooms", projectIds);
-            }
-        };
-
         const onProjectDeleted = (data: { projectId: string }) => {
             console.log("🗑️ Project deleted event received for:", data.projectId);
             setProjects(prev => prev.filter(p => p.id !== data.projectId));
@@ -136,18 +128,14 @@ export default function UserProjectsPage() {
             }
         };
 
-        if (socket.connected) joinAllRooms();
-
-        socket.on("connect", joinAllRooms);
         socket.on("project-deleted", onProjectDeleted);
         socket.on("project-created", onProjectCreated);
 
         return () => {
-            socket.off("connect", joinAllRooms);
             socket.off("project-deleted", onProjectDeleted);
             socket.off("project-created", onProjectCreated);
         };
-    }, [projects.length, session]); // Re-join if project list changes (e.g. after search/pagination)
+    }, [session]);
 
     if (isLoading && projects.length === 0) return (
         <div className="space-y-4">

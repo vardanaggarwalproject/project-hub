@@ -99,10 +99,48 @@ export default function AdminDashboardPage() {
 
     if (isSessionLoading || isLoading) {
         return (
-            <div className="p-8 space-y-8">
-                <Skeleton className="h-10 w-1/3" />
-                <div className="grid gap-6 sm:grid-cols-4">
-                    {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-40 w-full" />)}
+            <div className="space-y-8 animate-in fade-in duration-500">
+                {/* Header Skeleton */}
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="space-y-2">
+                        <Skeleton className="h-10 w-80" />
+                        <Skeleton className="h-4 w-56" />
+                    </div>
+                    <Skeleton className="h-10 w-64 rounded-xl" />
+                </div>
+
+                {/* KPI Cards Skeleton */}
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    {[...Array(4)].map((_, i) => (
+                        <Card key={i} className="border-none shadow-lg">
+                            <CardContent className="p-6">
+                                <Skeleton className="h-12 w-12 rounded-xl mb-4" />
+                                <div className="space-y-2">
+                                    <Skeleton className="h-8 w-16" />
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-4 w-32" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+
+                {/* Quick Actions Skeleton */}
+                <div className="space-y-4">
+                    <Skeleton className="h-6 w-32" />
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {[...Array(4)].map((_, i) => (
+                            <Card key={i} className="border-none shadow-md">
+                                <CardContent className="p-6 flex items-center gap-4">
+                                    <Skeleton className="h-11 w-11 rounded-xl" />
+                                    <div className="space-y-2">
+                                        <Skeleton className="h-4 w-24" />
+                                        <Skeleton className="h-3 w-32" />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
                 </div>
             </div>
         );

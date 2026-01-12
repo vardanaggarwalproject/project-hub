@@ -37,77 +37,101 @@ app.prepare().then(() => {
   io.on("connection", (socket) => {
     console.log("✅ Client connected:", socket.id);
 
-    socket.on("join-room", (projectId) => {
-      socket.join(projectId);
-      console.log(`📥 Socket ${socket.id} joined room ${projectId}`);
+    // 1. Private User Room (for notifications, unread counts, etc.)
+    socket.on("register-user", (userId) => {
+      if (!userId) return;
+      const userRoom = `user:${userId}`;
+      socket.join(userRoom);
+      console.log(`👤 User ${userId} registered to private room: ${userRoom}`);
+      console.log(`📋 Socket ${socket.id} is now in rooms:`, Array.from(socket.rooms));
     });
 
-    socket.on("join-rooms", (projectIds) => {
-      if (Array.isArray(projectIds)) {
-        projectIds.forEach(id => socket.join(id));
-        console.log(`📥 Socket ${socket.id} joined multiple rooms:`, projectIds);
-      }
+    // 2. On-Demand Group Joins
+    socket.on("join-group", (projectId) => {
+      if (!projectId) return;
+      const groupRoom = `group:${projectId}`;
+      socket.join(groupRoom);
+      console.log(`📥 Socket ${socket.id} joined group: ${groupRoom}`);
+      console.log(`📋 Socket ${socket.id} is now in rooms:`, Array.from(socket.rooms));
+      
+      // Log all sockets in this room
+      io.in(groupRoom).fetchSockets().then(sockets => {
+        console.log(`👥 Total sockets in ${groupRoom}: ${sockets.length}`);
+      });
     });
 
-    socket.on("leave-room", (projectId) => {
-      socket.leave(projectId);
-      console.log(`📤 Socket ${socket.id} left room ${projectId}`);
+    socket.on("leave-group", (projectId) => {
+      if (!projectId) return;
+      const groupRoom = `group:${projectId}`;
+      socket.leave(groupRoom);
+      console.log(`📤 Socket ${socket.id} left group: ${groupRoom}`);
+      console.log(`📋 Socket ${socket.id} is now in rooms:`, Array.from(socket.rooms));
     });
 
+    // 3. Optimized Message Broadcasting
     socket.on("send-message", (data) => {
-      console.log(`📤 Broadcasting message to room ${data.projectId}:`, data.content);
-      // Broadcast to everyone in the room
-      io.to(data.projectId).emit("message", data);
+      const { projectId, content, senderId } = data;
+      if (!projectId) return;
+
+      const groupRoom = `group:${projectId}`;
+      console.log(`📤 Broadcasting message to group ${groupRoom}`);
+
+      // Broadcast to everyone currently in the active chat room
+      io.to(groupRoom).emit("message", data);
+
+      // Note: Unread counts for users NOT in the room are handled by the API 
+      // or can be triggered here. For now, we'll emit a global signal 
+      // to user rooms if the architecture requires server-side pushes.
     });
 
-    // New events for assignment management
+    // 4. Team & Assignment Events (Targeted)
     socket.on("assignment-added", (data) => {
-      io.emit("user-assigned-to-project", {
-        projectId: data.projectId,
-        userId: data.userId,
-        userName: data.userName,
+      // Notify the specific user via their private room
+      io.to(`user:${data.userId}`).emit("user-assigned-to-project", {
+        ...data,
         action: "added"
       });
       
-      io.to(data.projectId).emit("team-member-added", {
+      // Notify the project group
+      io.to(`group:${data.projectId}`).emit("team-member-added", {
         userId: data.userId,
         userName: data.userName
       });
     });
 
     socket.on("assignment-removed", (data) => {
-      io.emit("user-removed-from-project", {
-        projectId: data.projectId,
-        userId: data.userId,
-        userName: data.userName,
+      io.to(`user:${data.userId}`).emit("user-removed-from-project", {
+        ...data,
         action: "removed"
       });
       
-      io.to(data.projectId).emit("team-member-removed", {
+      io.to(`group:${data.projectId}`).emit("team-member-removed", {
         userId: data.userId,
         userName: data.userName
       });
     });
 
+    // 5. Read Status Synchronization
     socket.on("mark-read", (data) => {
-      console.log(`👁️ Broadcasting read status for room ${data.projectId} by user ${data.userId}`);
-      io.to(data.projectId).emit("messages-read", data);
+      const { projectId, userId } = data;
+      const groupRoom = `group:${projectId}`;
+      console.log(`👁️ Read status sync for ${groupRoom} by ${userId}`);
+      io.to(groupRoom).emit("messages-read", data);
     });
 
+    // 6. Global System Events (Broadcast to all)
     socket.on("project-deleted", (data) => {
       console.log(`🗑️ Project deleted: ${data.projectId}`);
-      // Broadcast to ALL clients so they can remove it from lists/redirect
       io.emit("project-deleted", { projectId: data.projectId });
     });
 
     socket.on("project-created", (data) => {
-      console.log(`🆕 SERVER RECEIVED project-created: ${data.projectId}. Broadcasting to all clients...`);
-      // Broadcast to ALL clients so assigned users can be notified
+      console.log(`🆕 Project created: ${data.projectId}`);
       io.emit("project-created", data);
     });
 
     socket.on("disconnect", () => {
-      // console.log("❌ Client disconnected:", socket.id);
+      // Cleanup handled by Socket.IO automatically
     });
   });
 

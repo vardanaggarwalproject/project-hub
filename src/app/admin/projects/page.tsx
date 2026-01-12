@@ -116,9 +116,56 @@ export default function AdminProjectsPage() {
     const canManageProjects = hasPermission(userRole, "CAN_MANAGE_PROJECTS");
 
     if (isLoading && projects.length === 0) return (
-        <div className="space-y-4">
-            <Skeleton className="h-10 w-[250px]" />
-            <Skeleton className="h-[500px] w-full" />
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="space-y-2">
+                    <Skeleton className="h-10 w-48" />
+                    <Skeleton className="h-4 w-64" />
+                </div>
+                <div className="flex gap-3">
+                    <Skeleton className="h-10 w-full sm:w-80 rounded-lg" />
+                    <Skeleton className="h-10 w-32 rounded-lg" />
+                    <Skeleton className="h-10 w-32 rounded-lg" />
+                </div>
+            </div>
+
+            <Card className="border-none shadow-md overflow-hidden">
+                <div className="border-b-2 border-slate-200">
+                    <div className="grid grid-cols-6 gap-4 p-4">
+                        {[...Array(6)].map((_, i) => (
+                            <Skeleton key={i} className="h-4 w-full" />
+                        ))}
+                    </div>
+                </div>
+                <div className="p-0">
+                    {[...Array(8)].map((_, i) => (
+                        <div key={i} className="grid grid-cols-6 gap-4 p-6 border-b border-slate-100 items-center">
+                            <Skeleton className="h-4 w-8" />
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="h-10 w-10 rounded-xl" />
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-32" />
+                                    <Skeleton className="h-2 w-20" />
+                                </div>
+                            </div>
+                            <div className="flex -space-x-3">
+                                {[...Array(3)].map((_, j) => (
+                                    <Skeleton key={j} className="h-9 w-9 rounded-full border-2 border-white" />
+                                ))}
+                            </div>
+                            <Skeleton className="h-6 w-20 rounded-full" />
+                            <div className="flex items-center gap-2">
+                                <Skeleton className="h-2 w-24 rounded-full" />
+                                <Skeleton className="h-2 w-8" />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <Skeleton className="h-8 w-8 rounded-lg" />
+                                <Skeleton className="h-8 w-8 rounded-lg" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </Card>
         </div>
     );
 

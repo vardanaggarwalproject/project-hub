@@ -117,8 +117,24 @@ export default function AdminAssetsPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {isLoading ? (
-                        <div className="p-8 space-y-4">
-                            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
+                        <div className="p-0">
+                            {[...Array(6)].map((_, i) => (
+                                <div key={i} className="flex items-center justify-between p-6 border-b border-slate-50 last:border-0">
+                                    <div className="flex items-center gap-4">
+                                        <Skeleton className="h-10 w-10 rounded-xl" />
+                                        <div className="space-y-2">
+                                            <Skeleton className="h-4 w-40" />
+                                            <Skeleton className="h-3 w-20" />
+                                        </div>
+                                    </div>
+                                    <Skeleton className="h-5 w-16" />
+                                    <Skeleton className="h-4 w-12" />
+                                    <div className="flex gap-2">
+                                        <Skeleton className="h-9 w-9 rounded-xl" />
+                                        <Skeleton className="h-9 w-9 rounded-xl" />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     ) : filteredAssets.length > 0 ? (
                         <div className="p-0">

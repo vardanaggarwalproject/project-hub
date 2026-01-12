@@ -112,9 +112,20 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
   // Socket connection
   // Move onMessage logic outside the useEffect to memoize it properly
   const onMessage = useCallback((data: any) => {
-    if (data.projectId !== projectId) return;
+    console.log(`📨 [ChatWindow] Received message event:`, data);
+    console.log(`📨 [ChatWindow] Current projectId: ${projectId}, Message projectId: ${data.projectId}`);
     
-    if (processedIds.current.has(data.id)) return;
+    if (data.projectId !== projectId) {
+      console.log(`⏭️ [ChatWindow] Ignoring message for different project`);
+      return;
+    }
+    
+    if (processedIds.current.has(data.id)) {
+      console.log(`⏭️ [ChatWindow] Message already processed: ${data.id}`);
+      return;
+    }
+    
+    console.log(`✅ [ChatWindow] Processing new message: ${data.id}`);
     processedIds.current.add(data.id);
 
     setMessages(prev => {
@@ -123,16 +134,19 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
                 m.id.startsWith("temp-") && m.content === data.content
             );
             if (tempIndex !== -1) {
+                console.log(`🔄 [ChatWindow] Replacing temp message with real one`);
                 const nextMsgs = [...prev];
                 nextMsgs[tempIndex] = { ...data, senderName: session?.user.name || "Me" };
                 return nextMsgs;
             }
         }
+        console.log(`➕ [ChatWindow] Adding new message to list`);
         return [...prev, { ...data, senderName: data.senderName || "User" }];
     });
     
     // Only mark as read if it's from someone else
     if (data.senderId !== session?.user.id) {
+        console.log(`👁️ [ChatWindow] Marking as read (from other user)`);
         handleMarkRead();
     }
   }, [projectId, session?.user?.id, session?.user?.name, handleMarkRead]);
@@ -141,6 +155,9 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
   useEffect(() => {
     const socket = getSocket();
     if (!socket) return;
+    const groupRoom = projectId; 
+    // Actually our server.js uses `group:${projectId}` as the room ID internally.
+    // So the client just needs to emit "join-group", projectId.
 
     const onVisibilityChange = () => {
         if (document.visibilityState === "visible") {
@@ -148,11 +165,14 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
         }
     };
 
-    socket.emit("join-room", projectId);
+    console.log(`🔌 ChatWindow: Joining group:${projectId}`);
+    socket.emit("join-group", projectId);
     socket.on("message", onMessage);
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
+        console.log(`🔌 ChatWindow: Leaving group:${projectId}`);
+        socket.emit("leave-group", projectId);
         socket.off("message", onMessage);
         document.removeEventListener("visibilitychange", onVisibilityChange);
     };
