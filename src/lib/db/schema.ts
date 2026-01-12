@@ -245,13 +245,13 @@ export const eodReports = pgTable(
     id: text("id").primaryKey().notNull(),
     userId: text("user_id").notNull(),
     projectId: text("project_id").notNull(),
-    reportDate: timestamp("report_date", { withTimezone: true }).notNull(),
+    reportDate: timestamp("report_date", { withTimezone: true, mode: "string" }).notNull(),
     clientUpdate: text("client_update"),
     actualUpdate: text("actual_update"),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
       .defaultNow()
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
       .defaultNow()
       .notNull(),
   },
@@ -298,11 +298,11 @@ export const memos = pgTable(
     memoContent: text("memo_content"),
     userId: text("user_id").notNull(),
     projectId: text("project_id").notNull(),
-    reportDate: timestamp("report_date", { withTimezone: true }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    reportDate: timestamp("report_date", { withTimezone: true, mode: "string" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
       .defaultNow()
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
       .defaultNow()
       .notNull(),
   },
