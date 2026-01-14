@@ -12,6 +12,7 @@ interface ProjectsSectionProps {
   projectStatuses: ProjectStatus[];
   onOpenModal: (type: "memo" | "eod", projectId: string) => void;
   onToggleActive: (projectId: string, currentStatus: boolean) => void;
+  onHistoryClick: (projectId: string) => void;
 }
 
 /**
@@ -22,6 +23,7 @@ export const ProjectsSection = React.memo(function ProjectsSection({
   projectStatuses,
   onOpenModal,
   onToggleActive,
+  onHistoryClick,
 }: ProjectsSectionProps) {
   return (
     <div>
@@ -87,11 +89,6 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                           </Badge>
                         )}
 
-                        {!status?.hasYesterdayEod && (
-                          <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100 text-xs">
-                            ✗ Yesterday's EOD
-                          </Badge>
-                        )}
                       </div>
                     </div>
 
@@ -105,18 +102,15 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
-                      <Link
-                        href={`/user/projects/${project.id}/updates-history`}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                        title="History"
+                        onClick={() => onHistoryClick(project.id)}
                       >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                          title="History"
-                        >
-                          <History className="h-4 w-4" />
-                        </Button>
-                      </Link>
+                        <History className="h-4 w-4" />
+                      </Button>
                       <Link href={`/user/projects/${project.id}`}>
                         <Button
                           variant="ghost"

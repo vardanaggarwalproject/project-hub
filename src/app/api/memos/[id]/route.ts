@@ -59,8 +59,8 @@ export async function PUT(
       .set({
         memoContent,
         projectId,
-        reportDate: dateObj.toISOString(),
-        updatedAt: new Date().toISOString(),
+        reportDate: dateObj,
+        updatedAt: new Date(),
       })
       .where(eq(memos.id, id))
       .returning();

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { ProjectsSection } from "@/components/dashboard/ProjectsSection";
+import { ProjectHistoryDialog } from "@/components/project/ProjectHistoryDialog";
 import { MissingUpdatesSection } from "@/components/dashboard/MissingUpdatesSection";
 import type { Project, ProjectStatus, ProjectAssignment } from "@/types/project";
 import type { MissingUpdate, Memo, EOD } from "@/types/report";
@@ -38,6 +39,8 @@ export default function UserDashboardPage() {
   );
   const [initialProjectId, setInitialProjectId] = useState<string>("");
   const [initialDate, setInitialDate] = useState<string>("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   useEffect(() => {
     const socket = getSocket();
@@ -87,7 +90,6 @@ export default function UserDashboardPage() {
     try {
       const userId = session.user.id;
       const today = getTodayDate();
-      const yesterday = getYesterdayDate();
 
       // Fetch user's projects, memos, and EODs
       const [projectsData, memosData, eodsData] = await Promise.all([
@@ -157,22 +159,12 @@ export default function UserDashboardPage() {
               })
             : [];
 
-          const yesterdayEods = Array.isArray(eodsData)
-            ? eodsData.filter((e: EOD) => {
-                const eodDate = e.reportDate
-                  ? getLocalDateString(e.reportDate)
-                  : "";
-                return e.projectId === project.id && eodDate === yesterday;
-              })
-            : [];
 
           return {
             projectId: project.id,
             projectName: project.name,
             hasTodayMemo: todayMemos.length > 0,
             hasTodayEod: todayEods.length > 0,
-            hasYesterdayEod: yesterdayEods.length > 0,
-            yesterdayEodDate: new Date(yesterday),
           };
         }
       );
@@ -197,16 +189,16 @@ export default function UserDashboardPage() {
 
           if (assignment) {
             // Calculate valid start date (later of project creation or assignment)
-            const assignedDate = assignment.assignedAt;
+            const assignedDate = new Date(assignment.assignedAt);
             assignedDate.setHours(0, 0, 0, 0);
 
-            const createdDate = assignment.createdAt;
+            const createdDate = new Date(assignment.createdAt);
             createdDate.setHours(0, 0, 0, 0);
 
             const validStartDate =
               assignedDate > createdDate ? assignedDate : createdDate;
 
-            // Only check for missing updates if the date is after assignment/creation
+            // Only check for missing updates if the date is after or on assignment/creation
             if (checkDate < validStartDate) {
               return; // Skip this date for this project
             }
@@ -266,7 +258,7 @@ export default function UserDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
 
-  const openModal = async (
+  const handleOpenModal = async (
     type: "memo" | "eod",
     projectId: string,
     date?: string
@@ -373,7 +365,7 @@ export default function UserDashboardPage() {
   /**
    * Handle memo/EOD submission from modal
    */
-  const handleSubmit = async (data: {
+  const handleUpdateSubmit = async (data: {
     type: "memo" | "eod";
     projectId: string;
     date: string;
@@ -468,14 +460,18 @@ export default function UserDashboardPage() {
         <ProjectsSection
           projects={myProjects}
           projectStatuses={projectStatuses}
-          onOpenModal={openModal}
+          onOpenModal={handleOpenModal}
           onToggleActive={handleToggleActive}
+          onHistoryClick={(pid) => {
+            setSelectedProjectId(pid);
+            setIsHistoryOpen(true);
+          }}
         />
 
         {/* Missing Updates */}
         <MissingUpdatesSection
           missingUpdates={missingUpdates}
-          onOpenModal={openModal}
+          onOpenModal={handleOpenModal}
         />
 
       {/* Update Modal */}
@@ -485,14 +481,33 @@ export default function UserDashboardPage() {
         projects={myProjects}
         showDatePicker={true}
         maxDate={getTodayDate()}
+        minDate={(() => {
+          if (!initialProjectId) return undefined;
+          const assignment = projectAssignments.find(a => a.projectId === initialProjectId);
+          if (!assignment) return undefined;
+          
+          // Use the later of assignedAt or createdAt to be strict
+          const assignedDate = new Date(assignment.assignedAt);
+          const createdDate = new Date(assignment.createdAt);
+          const validStart = assignedDate > createdDate ? assignedDate : createdDate;
+          
+          return getLocalDateString(validStart);
+        })()}
         showProjectSelect={true}
         initialTab={initialModalTab}
         initialProjectId={initialProjectId}
         initialDate={initialDate}
         referenceDataFetcher={referenceDataFetcher}
-        onSubmit={handleSubmit}
+        onSubmit={handleUpdateSubmit}
       />
-      </div>
+
+      <ProjectHistoryDialog
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        projectId={selectedProjectId || ""}
+        userId={session?.user?.id || ""}
+      />
+    </div>
     </ErrorBoundary>
   );
 }

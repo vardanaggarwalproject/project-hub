@@ -46,7 +46,7 @@ export async function PATCH(
             .update(userProjectAssignments)
             .set({
                 isActive: isActive,
-                updatedAt: new Date().toISOString(),
+                updatedAt: new Date(),
             })
             .where(
                 and(
@@ -67,10 +67,14 @@ export async function PATCH(
             success: true,
             isActive: updated[0].isActive
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error toggling assignment:", error);
         return NextResponse.json(
-            { error: "Failed to update assignment" },
+            {
+                error: "Failed to update assignment",
+                detail: error.message,
+                code: error.code
+            },
             { status: 500 }
         );
     }

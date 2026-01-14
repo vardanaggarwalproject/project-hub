@@ -26,8 +26,6 @@ export interface ProjectStatus {
   projectName: string;
   hasTodayMemo: boolean;
   hasTodayEod: boolean;
-  hasYesterdayEod: boolean;
-  yesterdayEodDate?: Date;
 }
 
 export interface ProjectAssignment {

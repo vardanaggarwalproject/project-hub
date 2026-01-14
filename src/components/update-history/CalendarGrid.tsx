@@ -1,6 +1,7 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import type { DayStatus } from "@/types/report";
 
 interface CalendarGridProps {
@@ -42,44 +43,37 @@ export const CalendarGrid = React.memo(function CalendarGrid({
               {format(day.date, "d")}
             </div>
             <div className="space-y-1.5">
-              {!day.isOtherMonth && day.isValidDate && (
+              {!day.isOtherMonth && (day.isValidDate || day.hasMemo || day.hasEOD) && (
                 <>
-                  {day.hasMemo ? (
+                  {(day.hasMemo || day.isValidDate) && (
                     <Badge
-                      className="w-full justify-center bg-green-100 text-green-700 border-green-200 hover:bg-green-200 text-xs cursor-pointer"
+                      className={cn(
+                        "w-full justify-center text-xs cursor-pointer border-none transition-all",
+                        day.hasMemo 
+                          ? "bg-green-100 text-green-700 hover:bg-green-200" 
+                          : day.isToday
+                            ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                            : "bg-red-100 text-red-700 hover:bg-red-200"
+                      )}
                       onClick={() => onDayClick(day, "memo")}
                     >
-                      ✓ Memo
-                    </Badge>
-                  ) : (
-                    <Badge
-                      className="w-full justify-center bg-red-100 text-red-700 border-red-200 hover:bg-red-200 text-xs cursor-pointer"
-                      onClick={() => onDayClick(day, "memo")}
-                    >
-                      ✗ Memo
+                      {day.hasMemo ? "✓ Memo" : day.isToday ? "⏳ Memo" : "✗ Memo"}
                     </Badge>
                   )}
 
-                  {day.hasEOD ? (
+                  {(day.hasEOD || day.isValidDate) && (
                     <Badge
-                      className="w-full justify-center bg-green-100 text-green-700 border-green-200 hover:bg-green-200 text-xs cursor-pointer"
+                      className={cn(
+                        "w-full justify-center text-xs cursor-pointer border-none transition-all",
+                        day.hasEOD 
+                          ? "bg-green-100 text-green-700 hover:bg-green-200" 
+                          : day.isToday 
+                            ? "bg-amber-100 text-amber-700 hover:bg-amber-200" 
+                            : "bg-red-100 text-red-700 hover:bg-red-200"
+                      )}
                       onClick={() => onDayClick(day, "eod")}
                     >
-                      ✓ EOD
-                    </Badge>
-                  ) : day.isToday ? (
-                    <Badge
-                      className="w-full justify-center bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 text-xs cursor-pointer"
-                      onClick={() => onDayClick(day, "eod")}
-                    >
-                      ⏳ EOD
-                    </Badge>
-                  ) : (
-                    <Badge
-                      className="w-full justify-center bg-red-100 text-red-700 border-red-200 hover:bg-red-200 text-xs cursor-pointer"
-                      onClick={() => onDayClick(day, "eod")}
-                    >
-                      ✗ EOD
+                      {day.hasEOD ? "✓ EOD" : day.isToday ? "⏳ EOD" : "✗ EOD"}
                     </Badge>
                   )}
                 </>

@@ -10,7 +10,7 @@ import {
     TableRow
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, Eye, FolderKanban, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
+import { Search, Eye, FolderKanban, ChevronLeft, ChevronRight, MessageSquare, History } from "lucide-react";
 import {
     Select,
     SelectContent,
@@ -30,6 +30,7 @@ import { getSocket } from "@/lib/socket";
 import { useUnreadCounts } from "@/components/chat/unread-count-provider";
 import { toast } from "sonner";
 import { projectsApi } from "@/lib/api/client";
+import { ProjectHistoryDialog } from "@/components/project/ProjectHistoryDialog";
 import type { Project } from "@/types/project";
 import type { Session } from "@/types";
 
@@ -48,6 +49,8 @@ export default function UserProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [meta, setMeta] = useState<Meta | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
     // Filters
     const [search, setSearch] = useState("");
@@ -244,6 +247,7 @@ export default function UserProjectsPage() {
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Progress</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Actively Working</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Project Chat</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">History</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">View</TableHead>
                                     <TableHead className="text-center font-bold text-muted-foreground uppercase text-[10px] tracking-wider pr-6">Files</TableHead>
                                 </TableRow>
@@ -316,6 +320,21 @@ export default function UserProjectsPage() {
                                                 </Link>
                                             </TableCell>
                                             <TableCell className="text-center">
+                                                <div 
+                                                    className="inline-flex items-center justify-center p-2 rounded-lg bg-white border border-purple-100 text-purple-600 hover:bg-purple-50 transition-colors cursor-pointer group/history relative"
+                                                    onClick={() => {
+                                                        setSelectedProjectId(project.id);
+                                                        setIsHistoryOpen(true);
+                                                    }}
+                                                >
+                                                    <History className="h-5 w-5" />
+                                                    <span className="sr-only">Updates History</span>
+                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover/history:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                                                        Updates History
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-center">
                                                 <Link href={`/user/projects/${project.id}`} className="inline-flex items-center justify-center">
                                                     <div className="relative p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer group/view">
                                                         <Eye className="h-5 w-5" />
@@ -384,6 +403,14 @@ export default function UserProjectsPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* History Dialog */}
+            <ProjectHistoryDialog 
+                isOpen={isHistoryOpen}
+                onClose={() => setIsHistoryOpen(false)}
+                projectId={selectedProjectId || ""}
+                userId={session?.user?.id || ""}
+            />
         </div>
     );
 }
