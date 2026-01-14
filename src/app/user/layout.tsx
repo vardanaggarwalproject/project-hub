@@ -1,25 +1,15 @@
-
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { 
-    LayoutDashboard, 
-    FolderOpen, 
-    ClipboardList,
-    LinkIcon,
-    MessageSquare,
-    Settings,
-    ShieldCheck,
-    FileText,
-    FileCode2,
-    Search,
-    Bell
-} from "lucide-react";
-import { LogoutButton } from "@/components/logout-button";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { UserMainContent } from "@/components/user-main-content";
+import type { UserRole } from "@/types";
 
+/**
+ * Layout component for user-facing pages
+ * Handles authentication, role-based routing, and sidebar configuration
+ */
 export default async function UserLayout({
     children,
 }: {
@@ -37,7 +27,7 @@ export default async function UserLayout({
         redirect("/admin/dashboard");
     }
 
-    const userRole = session.user.role;
+    const userRole = session.user.role as UserRole;
 
     let mainItems = [
         { name: "Dashboard", href: "/user/dashboard", icon: "LayoutDashboard" },
@@ -46,7 +36,6 @@ export default async function UserLayout({
     ];
 
     let managementItems = [
-        { name: "EOD Reports", href: "/user/eods", icon: "ClipboardList" },
         { name: "Code Links", href: "/user/links", icon: "LinkIcon" },
         { name: "Project Chat", href: "/user/chat", icon: "MessageSquare" },
     ];
@@ -62,7 +51,6 @@ export default async function UserLayout({
         ];
         managementItems = [
             { name: "Bugs & Issues", href: "/user/bugs", icon: "ShieldCheck" },
-            { name: "Test Reports", href: "/user/eods", icon: "FileText" },
             { name: "Project Chat", href: "/user/chat", icon: "MessageSquare" },
         ];
         sectionLabel = "Testing";

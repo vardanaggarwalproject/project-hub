@@ -22,27 +22,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { getSocket } from "@/lib/socket";
 import { useUnreadCounts } from "@/components/chat/unread-count-provider";
 import { toast } from "sonner";
-
-interface Project {
-    id: string;
-    name: string;
-    status: string;
-    clientName: string | null;
-    updatedAt: string;
-    progress?: number;
-    team?: Array<{
-        id: string;
-        name: string;
-        image: string | null;
-        role: string;
-    }>;
-}
+import type { Project } from "@/types/project";
+import type { Session } from "@/types";
 
 interface Meta {
     total: number;
@@ -52,7 +40,8 @@ interface Meta {
 }
 
 export default function UserProjectsPage() {
-    const { data: session } = authClient.useSession();
+    const { data: sessionData } = authClient.useSession();
+    const session = sessionData as Session | null;
     const { unreadCounts } = useUnreadCounts();
 
     const [projects, setProjects] = useState<Project[]>([]);
@@ -67,6 +56,8 @@ export default function UserProjectsPage() {
 
 
     const fetchProjects = useCallback(() => {
+        if (!session?.user?.id) return;
+
         setIsLoading(true);
         const params = new URLSearchParams({
             page: page.toString(),
@@ -77,17 +68,39 @@ export default function UserProjectsPage() {
 
         fetch(`/api/projects?${params.toString()}`, { cache: "no-store" })
             .then((res) => res.json())
-            .then((resData) => {
-                const dataWithProgress = resData.data.map((p: any) => ({
-                    ...p,
-                    progress: p.progress || Math.floor(Math.random() * 100)
-                }));
-                // Filter client side if needed, assuming API returns all for now.
-                // Or API might already handle filtering by user.
-                setProjects(dataWithProgress);
-                setMeta(resData.meta);
+            .then(async (resData) => {
+                const userProjects = resData.data || [];
 
-                setProjects(dataWithProgress);
+                // Fetch assignment data for each project
+                const projectsWithAssignments = await Promise.all(
+                    userProjects.map(async (project: Project) => {
+                        try {
+                            const assignmentRes = await fetch(
+                                `/api/projects/${project.id}/assignment?userId=${session.user.id}`,
+                                { cache: "no-store" }
+                            );
+
+                            if (assignmentRes.ok) {
+                                const assignmentData = await assignmentRes.json();
+                                return {
+                                    ...project,
+                                    progress: project.progress || Math.floor(Math.random() * 100),
+                                    isActive: assignmentData.isActive || false,
+                                };
+                            }
+                        } catch (error) {
+                            console.error(`Failed to fetch assignment for project ${project.id}`, error);
+                        }
+
+                        return {
+                            ...project,
+                            progress: project.progress || Math.floor(Math.random() * 100),
+                            isActive: false,
+                        };
+                    })
+                );
+
+                setProjects(projectsWithAssignments);
                 setMeta(resData.meta);
                 setIsLoading(false);
             })
@@ -95,7 +108,7 @@ export default function UserProjectsPage() {
                 console.error(err);
                 setIsLoading(false);
             });
-    }, [page, search, statusFilter]);
+    }, [page, search, statusFilter, session?.user?.id]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -110,8 +123,8 @@ export default function UserProjectsPage() {
         const onProjectDeleted = (data: { projectId: string }) => {
             console.log("🗑️ Project deleted event received for:", data.projectId);
             setProjects(prev => prev.filter(p => p.id !== data.projectId));
-            
-            if ((session?.user as any)?.role !== "admin") {
+
+            if (session?.user?.role !== "admin") {
                 toast.error("Project is deleted by admin and you are no longer member of this");
                 setTimeout(() => {
                     window.location.reload();
@@ -119,7 +132,7 @@ export default function UserProjectsPage() {
             }
         };
 
-        const onProjectCreated = (data: { projectId: string; project: any; assignedUserIds: string[] }) => {
+        const onProjectCreated = (data: { projectId: string; project: Project; assignedUserIds: string[] }) => {
             if (data.assignedUserIds && session?.user?.id && data.assignedUserIds.includes(session.user.id)) {
                 toast.success(`You have been assigned to new project: ${data.project.name}`);
                 setTimeout(() => {
@@ -135,7 +148,41 @@ export default function UserProjectsPage() {
             socket.off("project-deleted", onProjectDeleted);
             socket.off("project-created", onProjectCreated);
         };
-    }, [session]);
+    }, [projects.length, session]);
+
+    const handleToggleActive = async (projectId: string, currentStatus: boolean) => {
+        if (!session?.user?.id) return;
+
+        try {
+            const res = await fetch(`/api/projects/${projectId}/assignment/toggle-active`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: session.user.id,
+                    isActive: !currentStatus,
+                }),
+            });
+
+            if (res.ok) {
+                toast.success(!currentStatus ? "Project activated" : "Project deactivated");
+
+                // Update local state
+                setProjects(prev =>
+                    prev.map(p =>
+                        p.id === projectId
+                            ? { ...p, isActive: !currentStatus }
+                            : p
+                    )
+                );
+            } else {
+                const error = await res.json();
+                toast.error(error.error || "Failed to update project status");
+            }
+        } catch (error) {
+            console.error("Failed to toggle active status", error);
+            toast.error("Failed to update project status");
+        }
+    };
 
     if (isLoading && projects.length === 0) return (
         <div className="space-y-4">
@@ -152,7 +199,7 @@ export default function UserProjectsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight text-[#0f172a]">My Projects</h2>
-                    <p className="text-muted-foreground">View your assigned projects</p>
+                    <p className="text-muted-foreground">View and manage your assigned projects</p>
                 </div>
             </div>
 
@@ -201,6 +248,7 @@ export default function UserProjectsPage() {
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Project Information</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Status</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Progress</TableHead>
+                                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Actively Working</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Project Chat</TableHead>
                                     <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">View</TableHead>
                                     <TableHead className="text-center font-bold text-muted-foreground uppercase text-[10px] tracking-wider pr-6">Files</TableHead>
@@ -249,6 +297,15 @@ export default function UserProjectsPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-center">
+                                                <div className="flex items-center justify-center">
+                                                    <Switch
+                                                        checked={project.isActive || false}
+                                                        onCheckedChange={() => handleToggleActive(project.id, project.isActive || false)}
+                                                        className="scale-75"
+                                                    />
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-center">
                                                 <Link href={`/user/chat/${project.id}`} className="inline-flex items-center justify-center">
                                                     <div className="relative p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors cursor-pointer group/chat">
                                                         <MessageSquare className="h-5 w-5" />
@@ -290,7 +347,7 @@ export default function UserProjectsPage() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-32 text-center text-muted-foreground italic">
+                                        <TableCell colSpan={8} className="h-32 text-center text-muted-foreground italic">
                                             {isLoading ? "Fetching projects..." : "No projects assigned to you."}
                                         </TableCell>
                                     </TableRow>
