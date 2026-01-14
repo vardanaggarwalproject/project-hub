@@ -46,8 +46,8 @@ import {
 interface Memo {
     id: string;
     memoContent: string;
-    reportDate: string;
-    createdAt: string;
+    reportDate: Date;
+    createdAt: Date;
     projectName: string;
     user: {
         id: string;
@@ -85,7 +85,12 @@ export default function AdminMemosPage() {
 
             const res = await fetch(`/api/memos?${params.toString()}`);
             const resData = await res.json();
-            setMemos(resData.data);
+            const transformedData = resData.data.map((memo: any) => ({
+                ...memo,
+                reportDate: new Date(memo.reportDate),
+                createdAt: new Date(memo.createdAt)
+            }));
+            setMemos(transformedData);
             setMeta(resData.meta);
         } catch (error) {
             console.error("Failed to fetch memos", error);

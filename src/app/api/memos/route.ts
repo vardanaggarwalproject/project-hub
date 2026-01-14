@@ -110,7 +110,7 @@ export async function POST(req: Request) {
         const newMemo = await db.insert(memos).values({
             id: crypto.randomUUID(),
             projectId,
-            reportDate: dateObj.toISOString(),
+            reportDate: dateObj,
             memoContent,
             userId
         }).returning();

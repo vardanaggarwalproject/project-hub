@@ -30,7 +30,7 @@ interface Project {
     status: string;
     clientName: string | null;
     description: string | null;
-    updatedAt: string;
+    updatedAt: Date;
     progress?: number;
     team?: Array<{
         id: string;
@@ -46,7 +46,7 @@ interface SharedLink {
     url: string;
     description: string | null;
     projectId: string;
-    createdAt: string;
+    createdAt: Date;
 }
 
 export default function AdminProjectDetailPage() {

@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1767433380569,
-      "tag": "0000_loose_spot",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1767436453876,
-      "tag": "0001_fine_invaders",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1767787491492,
-      "tag": "0002_fresh_landau",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1768199915932,
-      "tag": "0003_green_dust",
+      "when": 1768385306445,
+      "tag": "0000_volatile_gorgon",
       "breakpoints": true
     }
   ]

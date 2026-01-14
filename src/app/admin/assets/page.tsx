@@ -28,7 +28,7 @@ interface Asset {
     fileSize: string;
     projectId: string;
     projectName?: string;
-    createdAt: string;
+    createdAt: Date;
 }
 
 export default function AdminAssetsPage() {
@@ -43,7 +43,11 @@ export default function AdminAssetsPage() {
             try {
                 const res = await fetch("/api/assets");
                 const data = await res.json();
-                setAssets(data.map((a: any) => ({ ...a, projectName: "Core Assets" })));
+                setAssets(data.map((a: any) => ({ 
+                    ...a, 
+                    createdAt: new Date(a.createdAt),
+                    projectName: "Core Assets" 
+                })));
             } catch (error) {
                 console.error("Failed to fetch assets", error);
             } finally {

@@ -64,6 +64,7 @@ export async function GET(req: Request) {
             totalTime: projects.totalTime,
             completedTime: projects.completedTime,
             description: projects.description,
+            createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
         })
             .from(projects)
@@ -90,12 +91,25 @@ export async function GET(req: Request) {
                 .where(inArray(userProjectAssignments.projectId, projectIds))
             : [];
 
-        const projectsWithTeam = projectList.map(project => ({
-            ...project,
-            team: allAssignments
-                .filter(a => a.projectId === project.id)
-                .map(a => a.user)
-        }));
+        const projectsWithTeam = projectList.map(project => {
+            // Calculate progress based on completedTime and totalTime
+            let progress = 0;
+            if (project.totalTime && project.completedTime) {
+                const total = parseFloat(project.totalTime);
+                const completed = parseFloat(project.completedTime);
+                if (total > 0) {
+                    progress = Math.min(Math.round((completed / total) * 100), 100);
+                }
+            }
+
+            return {
+                ...project,
+                progress,
+                team: allAssignments
+                    .filter(a => a.projectId === project.id)
+                    .map(a => a.user)
+            };
+        });
 
         const totalResult = await db.select({ count: sql<number>`count(*)` })
             .from(projects)

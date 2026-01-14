@@ -1,5 +1,5 @@
 {
-  "id": "7b478426-15e3-41c9-a08f-b3201e41a31f",
+  "id": "d85841cb-8b88-41a1-b629-ae18676a1857",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -178,19 +178,6 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "assets_project_id_projects_id_fk": {
-          "name": "assets_project_id_projects_id_fk",
-          "tableFrom": "assets",
-          "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "assets_client_id_clients_id_fk": {
           "name": "assets_client_id_clients_id_fk",
           "tableFrom": "assets",
@@ -202,6 +189,19 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "assets_project_id_projects_id_fk": {
+          "name": "assets_project_id_projects_id_fk",
+          "tableFrom": "assets",
+          "tableTo": "projects",
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "assets_uploaded_by_user_id_fk": {
@@ -273,7 +273,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -342,6 +342,76 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.eod_files": {
+      "name": "eod_files",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "eod_id": {
+          "name": "eod_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_url": {
+          "name": "file_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_type": {
+          "name": "file_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_size": {
+          "name": "file_size",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uploaded_at": {
+          "name": "uploaded_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "eod_files_eod_id_eod_reports_id_fk": {
+          "name": "eod_files_eod_id_eod_reports_id_fk",
+          "tableFrom": "eod_files",
+          "tableTo": "eod_reports",
+          "columnsFrom": [
+            "eod_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.eod_reports": {
       "name": "eod_reports",
       "schema": "",
@@ -366,7 +436,7 @@
         },
         "report_date": {
           "name": "report_date",
-          "type": "timestamp",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
@@ -384,14 +454,14 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
@@ -399,25 +469,25 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "eod_reports_user_id_user_id_fk": {
-          "name": "eod_reports_user_id_user_id_fk",
-          "tableFrom": "eod_reports",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "eod_reports_project_id_projects_id_fk": {
           "name": "eod_reports_project_id_projects_id_fk",
           "tableFrom": "eod_reports",
           "tableTo": "projects",
           "columnsFrom": [
             "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "eod_reports_user_id_user_id_fk": {
+          "name": "eod_reports_user_id_user_id_fk",
+          "tableFrom": "eod_reports",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
           ],
           "columnsTo": [
             "id"
@@ -472,6 +542,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "added_by": {
+          "name": "added_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -489,12 +565,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "links_project_id_projects_id_fk": {
-          "name": "links_project_id_projects_id_fk",
+        "links_added_by_user_id_fk": {
+          "name": "links_added_by_user_id_fk",
           "tableFrom": "links",
-          "tableTo": "projects",
+          "tableTo": "user",
           "columnsFrom": [
-            "project_id"
+            "added_by"
           ],
           "columnsTo": [
             "id"
@@ -513,6 +589,19 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "links_project_id_projects_id_fk": {
+          "name": "links_project_id_projects_id_fk",
+          "tableFrom": "links",
+          "tableTo": "projects",
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -552,20 +641,27 @@
         },
         "report_date": {
           "name": "report_date",
-          "type": "timestamp",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
+        "memo_type": {
+          "name": "memo_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'short'"
+        },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
@@ -573,6 +669,19 @@
       },
       "indexes": {},
       "foreignKeys": {
+        "memos_project_id_projects_id_fk": {
+          "name": "memos_project_id_projects_id_fk",
+          "tableFrom": "memos",
+          "tableTo": "projects",
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "memos_user_id_user_id_fk": {
           "name": "memos_user_id_user_id_fk",
           "tableFrom": "memos",
@@ -585,23 +694,21 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "memos_project_id_projects_id_fk": {
-          "name": "memos_project_id_projects_id_fk",
-          "tableFrom": "memos",
-          "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "memos_user_id_project_id_report_date_memo_type_unique": {
+          "name": "memos_user_id_project_id_report_date_memo_type_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id",
+            "project_id",
+            "report_date",
+            "memo_type"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -651,25 +758,25 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "messages_sender_id_user_id_fk": {
-          "name": "messages_sender_id_user_id_fk",
-          "tableFrom": "messages",
-          "tableTo": "user",
-          "columnsFrom": [
-            "sender_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "messages_group_id_chat_groups_id_fk": {
           "name": "messages_group_id_chat_groups_id_fk",
           "tableFrom": "messages",
           "tableTo": "chat_groups",
           "columnsFrom": [
             "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "messages_sender_id_user_id_fk": {
+          "name": "messages_sender_id_user_id_fk",
+          "tableFrom": "messages",
+          "tableTo": "user",
+          "columnsFrom": [
+            "sender_id"
           ],
           "columnsTo": [
             "id"
@@ -724,6 +831,19 @@
           "primaryKey": false,
           "notNull": false
         },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_memo_required": {
+          "name": "is_memo_required",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -751,7 +871,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -773,7 +893,8 @@
         },
         "name": {
           "name": "name",
-          "type": "text",
+          "type": "role_enum",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -970,7 +1091,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1025,10 +1146,31 @@
           "type": "timestamp",
           "primaryKey": false,
           "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "role_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "user_role_roles_name_fk": {
+          "name": "user_role_roles_name_fk",
+          "tableFrom": "user",
+          "tableTo": "roles",
+          "columnsFrom": [
+            "role"
+          ],
+          "columnsTo": [
+            "name"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "user_email_unique": {
@@ -1072,6 +1214,13 @@
           "notNull": true,
           "default": "now()"
         },
+        "last_read_at": {
+          "name": "last_read_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -1085,23 +1234,17 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "user_project_assignments_user_id_user_id_fk": {
-          "name": "user_project_assignments_user_id_user_id_fk",
-          "tableFrom": "user_project_assignments",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "user_project_assignments_project_id_projects_id_fk": {
           "name": "user_project_assignments_project_id_projects_id_fk",
           "tableFrom": "user_project_assignments",
@@ -1112,81 +1255,15 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.user_roles": {
-      "name": "user_roles",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
         },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role_id": {
-          "name": "role_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "assigned_at": {
-          "name": "assigned_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "user_roles_user_id_user_id_fk": {
-          "name": "user_roles_user_id_user_id_fk",
-          "tableFrom": "user_roles",
+        "user_project_assignments_user_id_user_id_fk": {
+          "name": "user_project_assignments_user_id_user_id_fk",
+          "tableFrom": "user_project_assignments",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "user_roles_role_id_roles_id_fk": {
-          "name": "user_roles_role_id_roles_id_fk",
-          "tableFrom": "user_roles",
-          "tableTo": "roles",
-          "columnsFrom": [
-            "role_id"
           ],
           "columnsTo": [
             "id"
@@ -1247,25 +1324,25 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "user_task_assignments_user_id_user_id_fk": {
-          "name": "user_task_assignments_user_id_user_id_fk",
-          "tableFrom": "user_task_assignments",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "user_task_assignments_task_id_tasks_id_fk": {
           "name": "user_task_assignments_task_id_tasks_id_fk",
           "tableFrom": "user_task_assignments",
           "tableTo": "tasks",
           "columnsFrom": [
             "task_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "user_task_assignments_user_id_user_id_fk": {
+          "name": "user_task_assignments_user_id_user_id_fk",
+          "tableFrom": "user_task_assignments",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
           ],
           "columnsTo": [
             "id"
@@ -1330,7 +1407,18 @@
       "isRLSEnabled": false
     }
   },
-  "enums": {},
+  "enums": {
+    "public.role_enum": {
+      "name": "role_enum",
+      "schema": "public",
+      "values": [
+        "admin",
+        "developer",
+        "tester",
+        "designer"
+      ]
+    }
+  },
   "schemas": {},
   "sequences": {},
   "roles": {},

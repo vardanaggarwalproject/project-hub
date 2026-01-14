@@ -28,7 +28,7 @@ interface Project {
     status: string;
     clientName: string | null;
     description: string | null;
-    updatedAt: string;
+    updatedAt: Date;
     progress?: number;
     team?: Array<{
         id: string;
@@ -44,7 +44,7 @@ interface SharedLink {
     url: string;
     description: string | null;
     projectId: string;
-    createdAt: string;
+    createdAt: Date;
 }
 
 import { useRouter } from "next/navigation";
@@ -58,7 +58,7 @@ export default function UserProjectDetailPage() {
     const defaultTab = searchParams.get("tab") || "overview";
     const router = useRouter();
 
-    const { data: session } = authClient.useSession();
+    const { data: session, isPending } = authClient.useSession();
     const [project, setProject] = useState<Project | null>(null);
     const [links, setLinks] = useState<SharedLink[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -97,7 +97,8 @@ export default function UserProjectDetailPage() {
                     const projectData = await projectRes.json();
                     setProject({
                         ...projectData,
-                        progress: projectData.progress || Math.floor(Math.random() * 100)
+                        updatedAt: new Date(projectData.updatedAt),
+                        progress: projectData.progress || 0
                     });
                 } else if (projectRes.status === 404) {
                    setProject(null);
@@ -107,7 +108,10 @@ export default function UserProjectDetailPage() {
                 const linksRes = await fetch(`/api/links?projectId=${projectId}`);
                 if (linksRes.ok) {
                     const linksData = await linksRes.json();
-                    setLinks(linksData);
+                    setLinks(linksData.map((l: any) => ({
+                        ...l,
+                        createdAt: new Date(l.createdAt)
+                    })));
                 }
             } catch (error) {
                 console.error("Failed to fetch project data", error);
@@ -118,15 +122,18 @@ export default function UserProjectDetailPage() {
 
         if (session && projectId) {
             fetchProjectData();
+        } else if (!isPending && !session) {
+            // Session loaded but user is not authenticated
+            setIsLoading(false);
         }
-    }, [session, projectId]);
+    }, [session, projectId, isPending]);
 
     const filteredLinks = links.filter(link =>
         link.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (link.description?.toLowerCase() || "").includes(searchQuery.toLowerCase())
     );
 
-    if (isLoading) {
+    if (isPending || isLoading) {
         return (
             <div className="space-y-6">
                 <Skeleton className="h-10 w-full" />

@@ -22,7 +22,7 @@ interface DeveloperDetails {
     name: string;
     email: string;
     role: string;
-    createdAt: string;
+    createdAt: Date;
 }
 
 export default function DeveloperDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -35,7 +35,10 @@ export default function DeveloperDetailsPage({ params }: { params: Promise<{ id:
         fetch(`/api/users/${id}`)
             .then(res => res.json())
             .then(data => {
-                setDeveloper(data);
+                setDeveloper({
+                    ...data,
+                    createdAt: new Date(data.createdAt)
+                });
                 setIsLoading(false);
             })
             .catch(err => {

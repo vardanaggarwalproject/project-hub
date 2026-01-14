@@ -37,9 +37,7 @@ export async function POST(req: NextRequest) {
             id: crypto.randomUUID(),
             content,
             senderId: session.user.id,
-            groupId: group.id,
-            createdAt: sql`NOW()`,
-            updatedAt: sql`NOW()`
+            groupId: group.id
         }).returning();
 
         // Emit socket event from server-side using global io instance

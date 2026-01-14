@@ -33,7 +33,7 @@ interface Developer {
     name: string;
     email: string;
     role: string;
-    createdAt: string;
+    createdAt: Date;
 }
 
 interface Meta {
@@ -66,7 +66,11 @@ export default function DevelopersPage() {
         fetch(`/api/users?${params.toString()}`)
             .then(res => res.json())
             .then(resData => {
-                setDevelopers(resData.data);
+                const transformedData = resData.data.map((dev: any) => ({
+                    ...dev,
+                    createdAt: new Date(dev.createdAt)
+                }));
+                setDevelopers(transformedData);
                 setMeta(resData.meta);
                 setIsLoading(false);
             })

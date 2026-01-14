@@ -5,10 +5,10 @@
 export interface Memo {
   id: string;
   memoContent: string;
-  reportDate: string;
+  reportDate: Date;
   projectId: string;
   userId: string;
-  createdAt?: string;
+  createdAt?: Date;
   user?: {
     id: string;
     name: string;
@@ -20,10 +20,10 @@ export interface EOD {
   id: string;
   clientUpdate: string;
   actualUpdate: string;
-  reportDate: string;
+  reportDate: Date;
   projectId: string;
   userId: string;
-  createdAt?: string;
+  createdAt?: Date;
   user?: {
     id: string;
     name: string;
@@ -33,7 +33,7 @@ export interface EOD {
 
 export interface MissingUpdate {
   id: string;
-  date: string;
+  date: Date;
   projectId: string;
   projectName: string;
   type: "memo" | "eod";

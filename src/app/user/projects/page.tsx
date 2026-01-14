@@ -29,6 +29,7 @@ import { authClient } from "@/lib/auth-client";
 import { getSocket } from "@/lib/socket";
 import { useUnreadCounts } from "@/components/chat/unread-count-provider";
 import { toast } from "sonner";
+import { projectsApi } from "@/lib/api/client";
 import type { Project } from "@/types/project";
 import type { Session } from "@/types";
 
@@ -40,7 +41,7 @@ interface Meta {
 }
 
 export default function UserProjectsPage() {
-    const { data: sessionData } = authClient.useSession();
+    const { data: sessionData, isPending } = authClient.useSession();
     const session = sessionData as Session | null;
     const { unreadCounts } = useUnreadCounts();
 
@@ -55,59 +56,52 @@ export default function UserProjectsPage() {
     const limit = 10;
 
 
-    const fetchProjects = useCallback(() => {
-        if (!session?.user?.id) return;
+    const fetchProjects = useCallback(async () => {
+        if (!session?.user?.id) {
+            setIsLoading(false);
+            return;
+        }
 
         setIsLoading(true);
-        const params = new URLSearchParams({
-            page: page.toString(),
-            limit: limit.toString(),
-        });
-        if (search) params.append("search", search);
-        if (statusFilter !== "all") params.append("status", statusFilter);
+        try {
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: limit.toString(),
+            });
+            if (search) params.append("search", search);
+            if (statusFilter !== "all") params.append("status", statusFilter);
 
-        fetch(`/api/projects?${params.toString()}`, { cache: "no-store" })
-            .then((res) => res.json())
-            .then(async (resData) => {
-                const userProjects = resData.data || [];
+            const resData = await projectsApi.getAll(params);
+            const userProjects = resData.data || [];
 
-                // Fetch assignment data for each project
-                const projectsWithAssignments = await Promise.all(
-                    userProjects.map(async (project: Project) => {
-                        try {
-                            const assignmentRes = await fetch(
-                                `/api/projects/${project.id}/assignment?userId=${session.user.id}`,
-                                { cache: "no-store" }
-                            );
-
-                            if (assignmentRes.ok) {
-                                const assignmentData = await assignmentRes.json();
-                                return {
-                                    ...project,
-                                    progress: project.progress || Math.floor(Math.random() * 100),
-                                    isActive: assignmentData.isActive || false,
-                                };
-                            }
-                        } catch (error) {
-                            console.error(`Failed to fetch assignment for project ${project.id}`, error);
-                        }
-
+            // Fetch assignment data for each project
+            const projectsWithAssignments = await Promise.all(
+                userProjects.map(async (project: Project) => {
+                    try {
+                        const assignmentData = await projectsApi.getAssignment(project.id, session.user.id);
                         return {
                             ...project,
-                            progress: project.progress || Math.floor(Math.random() * 100),
+                            isActive: assignmentData.isActive || false,
+                        };
+                    } catch (error) {
+                        console.error(`Failed to fetch assignment for project ${project.id}`, error);
+                        // Return default project object on error
+                        return {
+                            ...project,
                             isActive: false,
                         };
-                    })
-                );
+                    }
+                })
+            );
 
-                setProjects(projectsWithAssignments);
-                setMeta(resData.meta);
-                setIsLoading(false);
-            })
-            .catch((err) => {
-                console.error(err);
-                setIsLoading(false);
-            });
+            setProjects(projectsWithAssignments);
+            setMeta(resData.meta || null);
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to fetch projects");
+        } finally {
+            setIsLoading(false);
+        }
     }, [page, search, statusFilter, session?.user?.id]);
 
     useEffect(() => {
@@ -184,7 +178,7 @@ export default function UserProjectsPage() {
         }
     };
 
-    if (isLoading && projects.length === 0) return (
+    if ((isPending || isLoading) && projects.length === 0) return (
         <div className="space-y-4">
             <div className="flex justify-between">
                 <Skeleton className="h-10 w-[250px]" />

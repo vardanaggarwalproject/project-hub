@@ -112,7 +112,7 @@ export async function POST(req: Request) {
         const newReport = await db.insert(eodReports).values({
             id: crypto.randomUUID(),
             projectId,
-            reportDate: dateObj.toISOString(),
+            reportDate: dateObj,
             clientUpdate,
             actualUpdate,
             userId

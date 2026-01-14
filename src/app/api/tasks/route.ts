@@ -80,10 +80,8 @@ export async function POST(req: Request) {
             name,
             description,
             status: status || "todo",
-            deadline: deadline ? new Date(deadline).toISOString() : null,
+            deadline: deadline ? new Date(deadline) : null,
             projectId,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
         }).returning();
 
         if (assignedUserIds && assignedUserIds.length > 0) {
@@ -91,10 +89,7 @@ export async function POST(req: Request) {
                 assignedUserIds.map(userId => ({
                     id: crypto.randomUUID(),
                     userId,
-                    taskId: newTask.id,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    assignedAt: new Date().toISOString(),
+                    taskId: newTask.id
                 }))
             );
         }

@@ -51,8 +51,8 @@ interface EODReport {
     id: string;
     clientUpdate: string | null;
     actualUpdate: string | null;
-    reportDate: string;
-    createdAt: string;
+    reportDate: Date;
+    createdAt: Date;
     projectName: string;
     user: {
         id: string;
@@ -90,7 +90,12 @@ export default function AdminEODPage() {
 
             const res = await fetch(`/api/eods?${params.toString()}`);
             const resData = await res.json();
-            setReports(resData.data);
+            const transformedData = resData.data.map((report: any) => ({
+                ...report,
+                reportDate: new Date(report.reportDate),
+                createdAt: new Date(report.createdAt)
+            }));
+            setReports(transformedData);
             setMeta(resData.meta);
         } catch (error) {
             console.error("Failed to fetch reports", error);

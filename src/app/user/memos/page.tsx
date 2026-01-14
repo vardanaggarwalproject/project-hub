@@ -23,8 +23,8 @@ import { cn } from "@/lib/utils";
 interface Memo {
     id: string;
     memoContent: string;
-    reportDate: string;
-    createdAt: string;
+    reportDate: Date;
+    createdAt: Date;
     user: {
         id: string;
         name: string;
@@ -49,6 +49,8 @@ export default function UserMemosPage() {
                 
                 setMemos(data.map((m: any) => ({
                     ...m,
+                    reportDate: new Date(m.reportDate),
+                    createdAt: new Date(m.createdAt),
                     projectName: "Sample Project" 
                 })));
             } catch (error) {

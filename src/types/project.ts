@@ -14,8 +14,8 @@ export interface Project {
   name: string;
   clientName: string | null;
   status: string;
-  createdAt: string;
-  updatedAt?: string;
+  createdAt: Date;
+  updatedAt?: Date;
   progress?: number;
   isActive?: boolean;
   team?: TeamMember[];
@@ -27,12 +27,12 @@ export interface ProjectStatus {
   hasTodayMemo: boolean;
   hasTodayEod: boolean;
   hasYesterdayEod: boolean;
-  yesterdayEodDate?: string;
+  yesterdayEodDate?: Date;
 }
 
 export interface ProjectAssignment {
   projectId: string;
-  assignedAt: string;
-  createdAt: string;
+  assignedAt: Date;
+  createdAt: Date;
   isActive: boolean;
 }

@@ -18,7 +18,7 @@ interface Message {
   senderId: string;
   senderName: string;
   content: string;
-  createdAt: string | Date;
+  createdAt: Date;
 }
 
 interface ChatWindowProps {
@@ -198,7 +198,7 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
         senderId: session.user.id,
         senderName: session.user.name || "Me",
         content: content,
-        createdAt: new Date().toISOString()
+        createdAt: new Date()
     };
 
     setMessages(prev => [...prev, optimisticMsg]);

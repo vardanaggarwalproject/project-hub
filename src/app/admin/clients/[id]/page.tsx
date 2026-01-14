@@ -23,7 +23,7 @@ interface ClientDetails {
     name: string;
     email: string | null;
     description: string | null;
-    createdAt: string;
+    createdAt: Date;
 }
 
 export default function ClientDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -37,7 +37,10 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
         fetch(`/api/clients/${id}`)
             .then(res => res.json())
             .then(data => {
-                setClient(data);
+                setClient({
+                    ...data,
+                    createdAt: new Date(data.createdAt)
+                });
                 setIsLoading(false);
             })
             .catch(err => {

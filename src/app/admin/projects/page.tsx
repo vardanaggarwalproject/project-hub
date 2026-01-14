@@ -47,7 +47,7 @@ interface Project {
     name: string;
     status: string;
     clientName: string | null;
-    updatedAt: string;
+    updatedAt: Date;
     progress?: number;
     team?: Array<{
         id: string;
@@ -94,7 +94,8 @@ export default function AdminProjectsPage() {
                 // Use actual progress from DB, default to 0 if not set
                 const dataWithProgress = resData.data.map((p: any) => ({ 
                     ...p, 
-                    progress: p.progress ?? 0
+                    progress: p.progress ?? 0,
+                    updatedAt: new Date(p.updatedAt)
                 }));
                 setProjects(dataWithProgress);
                 setMeta(resData.meta);

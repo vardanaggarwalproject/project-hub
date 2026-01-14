@@ -9,6 +9,8 @@ import type {
   EODsResponse,
   EODResponse,
 } from "@/types/api";
+import type { Project } from "@/types/project";
+import type { Memo, EOD } from "@/types/report";
 
 /**
  * Centralized API client for consistent data fetching across the application
@@ -59,6 +61,40 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 /**
+ * Helper to map project dates from string to Date
+ */
+function mapProject(project: any): Project {
+  return {
+    ...project,
+    createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
+    updatedAt: project.updatedAt ? new Date(project.updatedAt) : undefined,
+    yesterdayEodDate: project.yesterdayEodDate ? new Date(project.yesterdayEodDate) : undefined,
+  };
+}
+
+/**
+ * Helper to map memo dates from string to Date
+ */
+function mapMemo(memo: any): Memo {
+  return {
+    ...memo,
+    reportDate: new Date(memo.reportDate),
+    createdAt: memo.createdAt ? new Date(memo.createdAt) : undefined,
+  };
+}
+
+/**
+ * Helper to map EOD dates from string to Date
+ */
+function mapEOD(eod: any): EOD {
+  return {
+    ...eod,
+    reportDate: new Date(eod.reportDate),
+    createdAt: eod.createdAt ? new Date(eod.createdAt) : undefined,
+  };
+}
+
+/**
  * Projects API methods
  */
 export const projectsApi = {
@@ -73,7 +109,11 @@ export const projectsApi = {
     const response = await fetch(url, {
       next: { revalidate: CACHE_REVALIDATE.NONE },
     });
-    return handleResponse<ProjectsResponse>(response);
+    const result = await handleResponse<ProjectsResponse>(response);
+    return {
+      ...result,
+      data: result.data.map(mapProject)
+    };
   },
 
   /**
@@ -83,7 +123,8 @@ export const projectsApi = {
     const response = await fetch(`/api/projects/${id}`, {
       next: { revalidate: CACHE_REVALIDATE.NONE },
     });
-    return handleResponse<ProjectResponse>(response);
+    const data = await handleResponse<any>(response);
+    return mapProject(data);
   },
 
   /**
@@ -128,7 +169,8 @@ export const memosApi = {
     const response = await fetch(`/api/memos?${params.toString()}`, {
       next: { revalidate: CACHE_REVALIDATE.NONE },
     });
-    return handleResponse<MemosResponse>(response);
+    const result = await handleResponse<any>(response);
+    return result.data.map(mapMemo);
   },
 
   /**
@@ -145,7 +187,8 @@ export const memosApi = {
       headers: API_CONFIG.headers,
       body: JSON.stringify(data),
     });
-    return handleResponse<MemoResponse>(response);
+    const result = await handleResponse<any>(response);
+    return mapMemo(result);
   },
 
   /**
@@ -162,7 +205,8 @@ export const memosApi = {
       headers: API_CONFIG.headers,
       body: JSON.stringify(data),
     });
-    return handleResponse<MemoResponse>(response);
+    const result = await handleResponse<any>(response);
+    return mapMemo(result);
   },
 };
 
@@ -181,7 +225,8 @@ export const eodsApi = {
     const response = await fetch(`/api/eods?${params.toString()}`, {
       next: { revalidate: CACHE_REVALIDATE.NONE },
     });
-    return handleResponse<EODsResponse>(response);
+    const result = await handleResponse<any>(response);
+    return result.data.map(mapEOD);
   },
 
   /**
@@ -199,7 +244,8 @@ export const eodsApi = {
       headers: API_CONFIG.headers,
       body: JSON.stringify(data),
     });
-    return handleResponse<EODResponse>(response);
+    const result = await handleResponse<any>(response);
+    return mapEOD(result);
   },
 
   /**
@@ -217,6 +263,7 @@ export const eodsApi = {
       headers: API_CONFIG.headers,
       body: JSON.stringify(data),
     });
-    return handleResponse<EODResponse>(response);
+    const result = await handleResponse<any>(response);
+    return mapEOD(result);
   },
 };

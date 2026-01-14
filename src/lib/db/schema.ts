@@ -20,12 +20,8 @@ export const roles = pgTable(
   {
     id: text("id").primaryKey().notNull(),
     name: roleEnum("name").notNull(),
-    createdAt: timestamp("created_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [unique("roles_name_unique").on(table.name)]
 );
@@ -38,8 +34,8 @@ export const user = pgTable(
     email: text("email").notNull(),
     emailVerified: boolean("email_verified").notNull(),
     image: text("image"),
-    createdAt: timestamp("created_at", { mode: "string" }).notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" }).notNull(),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
     role: roleEnum("role"),
   },
   (table) => [
@@ -56,10 +52,10 @@ export const session = pgTable(
   "session",
   {
     id: text("id").primaryKey().notNull(),
-    expiresAt: timestamp("expires_at", { mode: "string" }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
     token: text("token").notNull(),
-    createdAt: timestamp("created_at", { mode: "string" }).notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" }).notNull(),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
     userId: text("user_id").notNull(),
@@ -84,16 +80,12 @@ export const account = pgTable(
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", {
-      mode: "string",
-    }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
-      mode: "string",
-    }),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
     scope: text("scope"),
     password: text("password"),
-    createdAt: timestamp("created_at", { mode: "string" }).notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" }).notNull(),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
   },
   (table) => [
     foreignKey({
@@ -108,9 +100,9 @@ export const verification = pgTable("verification", {
   id: text("id").primaryKey().notNull(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
-  expiresAt: timestamp("expires_at", { mode: "string" }).notNull(),
-  createdAt: timestamp("created_at", { mode: "string" }),
-  updatedAt: timestamp("updated_at", { mode: "string" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at"),
+  updatedAt: timestamp("updated_at"),
 });
 
 export const clients = pgTable("clients", {
@@ -118,8 +110,8 @@ export const clients = pgTable("clients", {
   name: text("name").notNull(),
   email: text("email"),
   description: text("description"),
-  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const projects = pgTable(
@@ -133,12 +125,8 @@ export const projects = pgTable(
     status: text("status"),
     description: text("description"),
     isMemoRequired: boolean("is_memo_required").default(false).notNull(),
-    createdAt: timestamp("created_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     foreignKey({
@@ -155,18 +143,10 @@ export const userProjectAssignments = pgTable(
     id: text("id").primaryKey().notNull(),
     userId: text("user_id").notNull(),
     projectId: text("project_id").notNull(),
-    assignedAt: timestamp("assigned_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    lastReadAt: timestamp("last_read_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+    lastReadAt: timestamp("last_read_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
     isActive: boolean("is_active").default(false).notNull(),
   },
   (table) => [
@@ -190,16 +170,12 @@ export const tasks = pgTable(
     name: text("name").notNull(),
     description: text("description"),
     status: text("status"),
-    deadline: timestamp("deadline", { mode: "string" }),
+    deadline: timestamp("deadline"),
     estimatedTime: text("estimated_time"),
     completedTime: text("completed_time"),
     projectId: text("project_id").notNull(),
-    createdAt: timestamp("created_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     foreignKey({
@@ -216,15 +192,9 @@ export const userTaskAssignments = pgTable(
     id: text("id").primaryKey().notNull(),
     userId: text("user_id").notNull(),
     taskId: text("task_id").notNull(),
-    assignedAt: timestamp("assigned_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     foreignKey({
@@ -246,13 +216,13 @@ export const eodReports = pgTable(
     id: text("id").primaryKey().notNull(),
     userId: text("user_id").notNull(),
     projectId: text("project_id").notNull(),
-    reportDate: timestamp("report_date", { withTimezone: true, mode: "string" }).notNull(),
+    reportDate: timestamp("report_date", { withTimezone: true }).notNull(),
     clientUpdate: text("client_update"),
     actualUpdate: text("actual_update"),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+    createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
@@ -279,9 +249,7 @@ export const eodFiles = pgTable(
     fileUrl: text("file_url").notNull(),
     fileType: text("file_type").notNull(),
     fileSize: text("file_size"),
-    uploadedAt: timestamp("uploaded_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
+    uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   },
   (table) => [
     foreignKey({
@@ -299,21 +267,21 @@ export const memos = pgTable(
     memoContent: text("memo_content"),
     userId: text("user_id").notNull(),
     projectId: text("project_id").notNull(),
-    reportDate: timestamp("report_date", { withTimezone: true, mode: "string" }).notNull(),
+    reportDate: timestamp("report_date", { withTimezone: true }).notNull(),
     memoType: text("memo_type").default('short').notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+    createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
   (table) => [
     unique("memos_user_id_project_id_report_date_memo_type_unique").on(
-        table.userId,
-        table.projectId,
-        table.reportDate,
-        table.memoType
+      table.userId,
+      table.projectId,
+      table.reportDate,
+      table.memoType
     ),
     foreignKey({
       columns: [table.projectId],
@@ -338,12 +306,8 @@ export const links = pgTable(
     projectId: text("project_id").notNull(),
     clientId: text("client_id"),
     addedBy: text("added_by"),
-    createdAt: timestamp("created_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     foreignKey({
@@ -375,12 +339,8 @@ export const assets = pgTable(
     projectId: text("project_id").notNull(),
     clientId: text("client_id"),
     uploadedBy: text("uploaded_by").notNull(),
-    createdAt: timestamp("created_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     foreignKey({
@@ -407,12 +367,8 @@ export const chatGroups = pgTable(
     id: text("id").primaryKey().notNull(),
     name: text("name").notNull(),
     projectId: text("project_id").notNull(),
-    createdAt: timestamp("created_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     unique("chat_groups_project_id_unique").on(table.projectId),
@@ -431,12 +387,8 @@ export const messages = pgTable(
     senderId: text("sender_id").notNull(),
     groupId: text("group_id").notNull(),
     content: text("content"),
-    createdAt: timestamp("created_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { mode: "string" })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     foreignKey({

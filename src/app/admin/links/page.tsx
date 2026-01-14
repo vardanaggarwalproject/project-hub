@@ -25,7 +25,7 @@ interface SharedLink {
     description: string | null;
     projectId: string;
     projectName?: string;
-    createdAt: string;
+    createdAt: Date;
 }
 
 export default function AdminLinksPage() {
@@ -40,7 +40,11 @@ export default function AdminLinksPage() {
             try {
                 const res = await fetch("/api/links");
                 const data = await res.json();
-                setLinks(data.map((l: any) => ({ ...l, projectName: "Direct Base" })));
+                setLinks(data.map((l: any) => ({ 
+                    ...l, 
+                    createdAt: new Date(l.createdAt),
+                    projectName: "Direct Base" 
+                })));
             } catch (error) {
                 console.error("Failed to fetch links", error);
             } finally {

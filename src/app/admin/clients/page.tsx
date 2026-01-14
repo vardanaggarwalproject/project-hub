@@ -31,7 +31,7 @@ interface Client {
     id: string;
     name: string;
     email: string | null;
-    createdAt: string;
+    createdAt: Date;
 }
 
 interface Meta {
@@ -63,7 +63,11 @@ export default function ClientsPage() {
         fetch(`/api/clients?${params.toString()}`)
             .then(res => res.json())
             .then(resData => {
-                setClients(resData.data);
+                const transformedData = resData.data.map((c: any) => ({
+                    ...c,
+                    createdAt: new Date(c.createdAt)
+                }));
+                setClients(transformedData);
                 setMeta(resData.meta);
                 setIsLoading(false);
             })

@@ -43,7 +43,7 @@ export async function GET(req: Request) {
             count: countDistinct(session.userId)
         })
             .from(session)
-            .where(gt(session.expiresAt, new Date().toISOString()));
+            .where(gt(session.expiresAt, new Date()));
 
         return NextResponse.json({
             data: userList,

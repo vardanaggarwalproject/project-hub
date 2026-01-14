@@ -23,8 +23,8 @@ interface EODReport {
     id: string;
     clientUpdate: string | null;
     actualUpdate: string | null;
-    reportDate: string;
-    createdAt: string;
+    reportDate: Date;
+    createdAt: Date;
     user: {
         id: string;
         name: string;
@@ -51,6 +51,8 @@ export default function UserEODPage() {
                 // Assuming currently API returns all or filtered by server.
                 setReports(data.map((r: any) => ({
                     ...r,
+                    reportDate: new Date(r.reportDate),
+                    createdAt: new Date(r.createdAt),
                     projectName: "Active Project"
                 })));
             } catch (error) {

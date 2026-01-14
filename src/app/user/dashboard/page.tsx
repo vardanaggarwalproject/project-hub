@@ -103,12 +103,12 @@ export default function UserDashboardPage() {
       const assignmentPromises = userProjects.map(async (project: Project) => {
         try {
           const assignmentData = await projectsApi.getAssignment(project.id, userId);
-          return {
-            projectId: project.id,
-            assignedAt: assignmentData.assignedAt,
-            createdAt: project.createdAt || "",
-            isActive: assignmentData.isActive,
-          };
+            return {
+              projectId: project.id,
+              assignedAt: new Date(assignmentData.assignedAt),
+              createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
+              isActive: assignmentData.isActive,
+            };
         } catch (error) {
           console.error(
             `Failed to fetch assignment for project ${project.id}`,
@@ -117,8 +117,8 @@ export default function UserDashboardPage() {
           // Fallback: use project creation date if no assignment found
           return {
             projectId: project.id,
-            assignedAt: project.createdAt || "",
-            createdAt: project.createdAt || "",
+            assignedAt: project.createdAt ? new Date(project.createdAt) : new Date(),
+            createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
             isActive: false,
           };
         }
@@ -172,7 +172,7 @@ export default function UserDashboardPage() {
             hasTodayMemo: todayMemos.length > 0,
             hasTodayEod: todayEods.length > 0,
             hasYesterdayEod: yesterdayEods.length > 0,
-            yesterdayEodDate: yesterday,
+            yesterdayEodDate: new Date(yesterday),
           };
         }
       );
@@ -197,10 +197,10 @@ export default function UserDashboardPage() {
 
           if (assignment) {
             // Calculate valid start date (later of project creation or assignment)
-            const assignedDate = new Date(assignment.assignedAt);
+            const assignedDate = assignment.assignedAt;
             assignedDate.setHours(0, 0, 0, 0);
 
-            const createdDate = new Date(assignment.createdAt);
+            const createdDate = assignment.createdAt;
             createdDate.setHours(0, 0, 0, 0);
 
             const validStartDate =
@@ -224,7 +224,7 @@ export default function UserDashboardPage() {
           if (!hasMemo) {
             missing.push({
               id: `${project.id}-${dateStr}-memo`,
-              date: dateStr,
+              date: new Date(dateStr),
               projectId: project.id,
               projectName: project.name,
               type: "memo",
@@ -243,7 +243,7 @@ export default function UserDashboardPage() {
           if (!hasEod) {
             missing.push({
               id: `${project.id}-${dateStr}-eod`,
-              date: dateStr,
+              date: new Date(dateStr),
               projectId: project.id,
               projectName: project.name,
               type: "eod",

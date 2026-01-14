@@ -53,8 +53,20 @@ export async function GET(
             .innerJoin(user, eq(userProjectAssignments.userId, user.id))
             .where(eq(userProjectAssignments.projectId, id));
 
+        // Calculate progress based on completedTime and totalTime
+        const project = projectData[0];
+        let progress = 0;
+        if (project.totalTime && project.completedTime) {
+            const total = parseFloat(project.totalTime);
+            const completed = parseFloat(project.completedTime);
+            if (total > 0) {
+                progress = Math.min(Math.round((completed / total) * 100), 100);
+            }
+        }
+
         return NextResponse.json({
-            ...projectData[0],
+            ...project,
+            progress,
             team
         });
     } catch (error) {

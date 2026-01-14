@@ -34,22 +34,25 @@ export function getYesterdayDate(): string {
 }
 
 /**
- * Convert UTC timestamp to local date string (YYYY-MM-DD)
- * @param utcTimestamp - UTC timestamp string
+ * Convert timestamp to local date string (YYYY-MM-DD)
+ * @param dateInput - Date object or UTC timestamp string
  * @returns Local date string in YYYY-MM-DD format
  */
-export function getLocalDateString(utcTimestamp: string): string {
-  const date = new Date(utcTimestamp);
+export function getLocalDateString(dateInput: Date | string): string {
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
   return formatDateToYYYYMMDD(date);
 }
 
 /**
  * Format date for display (e.g., "Mon, Jan 15, 2026")
- * @param dateStr - Date string in YYYY-MM-DD format
+ * @param dateInput - Date object or string in YYYY-MM-DD format
  * @returns Formatted display date
  */
-export function formatDisplayDate(dateStr: string): string {
-  const date = new Date(dateStr + "T00:00:00");
+export function formatDisplayDate(dateInput: Date | string): string {
+  const date = typeof dateInput === "string"
+    ? new Date(dateInput + "T00:00:00")
+    : dateInput;
+
   return date.toLocaleDateString("en-US", {
     weekday: "short",
     year: "numeric",
