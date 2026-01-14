@@ -70,21 +70,27 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {status?.hasTodayMemo ? (
-                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 text-xs">
+                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 text-xs cursor-default">
                             ✓ Memo
                           </Badge>
                         ) : (
-                          <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">
+                          <Badge
+                            className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-50 text-xs cursor-pointer transition-colors"
+                            onClick={() => onOpenModal("memo", project.id)}
+                          >
                             ⏳ Memo Pending
                           </Badge>
                         )}
 
                         {status?.hasTodayEod ? (
-                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 text-xs">
+                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 text-xs cursor-default">
                             ✓ EOD
                           </Badge>
                         ) : (
-                          <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">
+                          <Badge
+                            className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-50 text-xs cursor-pointer transition-colors"
+                            onClick={() => onOpenModal("eod", project.id)}
+                          >
                             ⏳ EOD Pending
                           </Badge>
                         )}
