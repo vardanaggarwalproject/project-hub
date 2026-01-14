@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
 import type { Project } from "@/types/project";
 import { MEMO_MAX_LENGTH } from "@/lib/constants";
+import { toast } from "sonner";
 
 /**
  * Props for UpdateModal component
@@ -33,6 +34,7 @@ interface UpdateModalProps {
   projects: Project[];
   showDatePicker?: boolean;
   maxDate?: string;
+  minDate?: string;
   showProjectSelect?: boolean;
   mode?: "view" | "edit";
   onEditClick?: () => void;
@@ -67,6 +69,7 @@ export function UpdateModal({
   projects,
   showDatePicker = false,
   maxDate,
+  minDate,
   showProjectSelect = true,
   mode = "edit",
   onEditClick,
@@ -141,6 +144,12 @@ export function UpdateModal({
   ]);
 
   const handleSubmit = async () => {
+    // Authority check for date manually entered or selected
+    if (minDate && selectedDate && selectedDate < minDate) {
+        toast.error(`Access Denied: You cannot submit updates for dates before your project allocation (${minDate}).`);
+        return;
+    }
+
     setIsSubmitting(true);
     try {
       await onSubmit({
@@ -240,6 +249,7 @@ export function UpdateModal({
                       type="date"
                       value={selectedDate}
                       max={maxDate}
+                      min={minDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
                       className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />

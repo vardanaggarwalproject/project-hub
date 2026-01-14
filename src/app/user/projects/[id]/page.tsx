@@ -18,9 +18,11 @@ import {
     Users,
     Calendar,
     Building2,
+    History,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { ProjectHistoryDialog } from "@/components/project/ProjectHistoryDialog";
 
 interface Project {
     id: string;
@@ -63,6 +65,7 @@ export default function UserProjectDetailPage() {
     const [links, setLinks] = useState<SharedLink[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
     useEffect(() => {
         const socket = getSocket();
@@ -179,7 +182,17 @@ export default function UserProjectDetailPage() {
                         <p className="text-muted-foreground text-sm mt-1">Project Details & Resources</p>
                     </div>
                 </div>
-                <Badge className={cn(
+                <div className="flex items-center gap-2">
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-9 border-purple-200 hover:bg-purple-50 hover:text-purple-700 text-purple-600 font-bold"
+                        onClick={() => setIsHistoryOpen(true)}
+                    >
+                        <History className="h-4 w-4 mr-2" />
+                        Updates History
+                    </Button>
+                    <Badge className={cn(
                     "border-none px-3 py-1.5 font-bold text-xs uppercase shadow-none",
                     project.status === "active" ? "bg-emerald-100 text-emerald-700" :
                         project.status === "completed" ? "bg-blue-100 text-blue-700" :
@@ -192,6 +205,7 @@ export default function UserProjectDetailPage() {
                     )} />
                     {project.status}
                 </Badge>
+                </div>
             </div>
 
             {/* Tabs */}
@@ -361,6 +375,14 @@ export default function UserProjectDetailPage() {
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            {/* History Dialog */}
+            <ProjectHistoryDialog 
+                isOpen={isHistoryOpen}
+                onClose={() => setIsHistoryOpen(false)}
+                projectId={projectId}
+                userId={session?.user?.id || ""}
+            />
         </div>
     );
 }

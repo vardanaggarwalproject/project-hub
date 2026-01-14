@@ -161,10 +161,11 @@ export const memosApi = {
   /**
    * Get memos filtered by userId and/or projectId
    */
-  async getByFilters(userId?: string, projectId?: string): Promise<MemosResponse> {
+  async getByFilters(userId?: string, projectId?: string, limit: number = 100): Promise<MemosResponse> {
     const params = new URLSearchParams();
     if (userId) params.append("userId", userId);
     if (projectId) params.append("projectId", projectId);
+    params.append("limit", limit.toString());
 
     const response = await fetch(`/api/memos?${params.toString()}`, {
       next: { revalidate: CACHE_REVALIDATE.NONE },
@@ -217,10 +218,11 @@ export const eodsApi = {
   /**
    * Get EODs filtered by userId and/or projectId
    */
-  async getByFilters(userId?: string, projectId?: string): Promise<EODsResponse> {
+  async getByFilters(userId?: string, projectId?: string, limit: number = 100): Promise<EODsResponse> {
     const params = new URLSearchParams();
     if (userId) params.append("userId", userId);
     if (projectId) params.append("projectId", projectId);
+    params.append("limit", limit.toString());
 
     const response = await fetch(`/api/eods?${params.toString()}`, {
       next: { revalidate: CACHE_REVALIDATE.NONE },

@@ -61,8 +61,8 @@ export async function PUT(
         clientUpdate: clientUpdate || "",
         actualUpdate,
         projectId,
-        reportDate: dateObj.toISOString(),
-        updatedAt: new Date().toISOString(),
+        reportDate: dateObj,
+        updatedAt: new Date(),
       })
       .where(eq(eodReports.id, id))
       .returning();

@@ -12,6 +12,7 @@ interface ProjectsSectionProps {
   projectStatuses: ProjectStatus[];
   onOpenModal: (type: "memo" | "eod", projectId: string) => void;
   onToggleActive: (projectId: string, currentStatus: boolean) => void;
+  onHistoryClick: (projectId: string) => void;
 }
 
 /**
@@ -22,6 +23,7 @@ export const ProjectsSection = React.memo(function ProjectsSection({
   projectStatuses,
   onOpenModal,
   onToggleActive,
+  onHistoryClick,
 }: ProjectsSectionProps) {
   return (
     <div>
@@ -68,30 +70,31 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {status?.hasTodayMemo ? (
-                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 text-xs">
+                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 text-xs cursor-default">
                             ✓ Memo
                           </Badge>
                         ) : (
-                          <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">
+                          <Badge
+                            className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-50 text-xs cursor-pointer transition-colors"
+                            onClick={() => onOpenModal("memo", project.id)}
+                          >
                             ⏳ Memo Pending
                           </Badge>
                         )}
 
                         {status?.hasTodayEod ? (
-                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 text-xs">
+                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 text-xs cursor-default">
                             ✓ EOD
                           </Badge>
                         ) : (
-                          <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">
+                          <Badge
+                            className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-50 text-xs cursor-pointer transition-colors"
+                            onClick={() => onOpenModal("eod", project.id)}
+                          >
                             ⏳ EOD Pending
                           </Badge>
                         )}
 
-                        {!status?.hasYesterdayEod && (
-                          <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100 text-xs">
-                            ✗ Yesterday's EOD
-                          </Badge>
-                        )}
                       </div>
                     </div>
 
@@ -105,18 +108,15 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
-                      <Link
-                        href={`/user/projects/${project.id}/updates-history`}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                        title="History"
+                        onClick={() => onHistoryClick(project.id)}
                       >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                          title="History"
-                        >
-                          <History className="h-4 w-4" />
-                        </Button>
-                      </Link>
+                        <History className="h-4 w-4" />
+                      </Button>
                       <Link href={`/user/projects/${project.id}`}>
                         <Button
                           variant="ghost"

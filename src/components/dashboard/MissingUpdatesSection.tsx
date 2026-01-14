@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle } from "lucide-react";
 import type { MissingUpdate } from "@/types/report";
-import { formatDisplayDate } from "@/lib/utils/date";
+import { formatDisplayDate, getLocalDateString } from "@/lib/utils/date";
 
 interface MissingUpdatesSectionProps {
   missingUpdates: MissingUpdate[];
@@ -55,7 +55,7 @@ export const MissingUpdatesSection = React.memo(function MissingUpdatesSection({
                 size="sm"
                 className="border border-slate-200 hover:border-slate-300"
                 onClick={() =>
-                  onOpenModal(missing.type, missing.projectId, missing.date)
+                  onOpenModal(missing.type, missing.projectId, getLocalDateString(missing.date))
                 }
               >
                 Add Now
