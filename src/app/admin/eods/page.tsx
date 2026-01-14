@@ -154,7 +154,7 @@ export default function AdminEODPage() {
     );
 
     return (
-        <TooltipProvider anonymousId="eods-tooltip">
+        <TooltipProvider>
             <div className="space-y-6 pb-10">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div>
