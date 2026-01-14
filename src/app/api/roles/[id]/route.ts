@@ -47,7 +47,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         }
 
         const updatedRole = await db.update(roles)
-            .set({ name, updatedAt: new Date().toISOString() })
+            .set({ name, updatedAt: new Date() })
             .where(eq(roles.id, id))
             .returning();
 

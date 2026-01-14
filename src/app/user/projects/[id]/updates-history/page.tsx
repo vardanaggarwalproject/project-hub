@@ -266,7 +266,7 @@ export default function UpdatesHistoryPage() {
         // Show the memo for this date
         const memosData = await memosApi.getByFilters(session.user.id, projectId) as Memo[];
         const memo = Array.isArray(memosData)
-          ? memosData.find((m) => m.reportDate?.startsWith(date))
+          ? memosData.find((m) => getLocalDateString(m.reportDate) === date)
           : null;
 
         if (memo) {
@@ -284,7 +284,7 @@ export default function UpdatesHistoryPage() {
         // Show the EOD for this date
         const eodsData = await eodsApi.getByFilters(session.user.id, projectId) as EOD[];
         const eod = Array.isArray(eodsData)
-          ? eodsData.find((e) => e.reportDate?.startsWith(date))
+          ? eodsData.find((e) => getLocalDateString(e.reportDate) === date)
           : null;
 
         if (eod) {
@@ -428,24 +428,24 @@ export default function UpdatesHistoryPage() {
           />
         </Card>
 
-      {/* Modal */}
-      <UpdateModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        projects={project ? [project] : []}
-        mode={modalMode}
-        initialTab={initialModalTab}
-        initialDate={initialDate ? format(initialDate, "yyyy-MM-dd") : ""}
-        initialMemoContent={initialMemoContent}
-        initialClientUpdate={initialClientUpdate}
-        initialInternalUpdate={initialInternalUpdate}
-        onSubmit={handleSubmit}
-        showDatePicker={true}
-        maxDate={format(new Date(), "yyyy-MM-dd")}
-        showProjectSelect={false}
-        onEditClick={() => setModalMode("edit")}
-        referenceDataFetcher={referenceDataFetcher}
-      />
+        {/* Modal */}
+        <UpdateModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          projects={project ? [project] : []}
+          mode={modalMode}
+          initialTab={initialModalTab}
+          initialDate={initialDate ? format(initialDate, "yyyy-MM-dd") : ""}
+          initialMemoContent={initialMemoContent}
+          initialClientUpdate={initialClientUpdate}
+          initialInternalUpdate={initialInternalUpdate}
+          onSubmit={handleSubmit}
+          showDatePicker={true}
+          maxDate={format(new Date(), "yyyy-MM-dd")}
+          showProjectSelect={false}
+          onEditClick={() => setModalMode("edit")}
+          referenceDataFetcher={referenceDataFetcher}
+        />
       </div>
     </ErrorBoundary>
   );
