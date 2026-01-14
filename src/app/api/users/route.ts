@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { user } from "@/lib/db/schema";
-import { sql, desc, ilike, or } from "drizzle-orm";
+import { user, session } from "@/lib/db/schema";
+import { sql, desc, ilike, or, eq, count, gt, countDistinct } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
@@ -27,19 +27,36 @@ export async function GET(req: Request) {
             .offset(offset)
             .orderBy(desc(user.createdAt));
 
-        const totalResult = await db.select({ count: sql<number>`count(*)` })
+        // Get total count for pagination
+        const totalResult = await db.select({ count: count() })
             .from(user)
             .where(whereClause);
-        
-        const total = totalResult[0].count;
+
+        const totalPagination = Number(totalResult[0]?.count || 0);
+
+        // Get overall stats (not just for search)
+        const totalUsersResult = await db.select({ count: count() }).from(user);
+        const adminUsersResult = await db.select({ count: count() }).from(user).where(eq(user.role, "admin"));
+
+        // Active users = unique users with non-expired sessions
+        const activeUsersResult = await db.select({
+            count: countDistinct(session.userId)
+        })
+            .from(session)
+            .where(gt(session.expiresAt, new Date().toISOString()));
 
         return NextResponse.json({
             data: userList,
+            stats: {
+                total: Number(totalUsersResult[0]?.count || 0),
+                active: Number(activeUsersResult[0]?.count || 0),
+                admins: Number(adminUsersResult[0]?.count || 0)
+            },
             meta: {
-                total,
+                total: totalPagination,
                 page,
                 limit,
-                totalPages: Math.ceil(total / limit)
+                totalPages: Math.ceil(totalPagination / limit)
             }
         });
     } catch (error) {

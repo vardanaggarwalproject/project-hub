@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Eye, EyeOff, User, Mail, Lock, Shield } from "lucide-react";
 import { toast } from "sonner";
 
-export function AdminCreateUserForm() {
+export function AdminCreateUserForm({ onSuccess }: { onSuccess?: () => void }) {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -38,6 +38,7 @@ export function AdminCreateUserForm() {
             setEmail("");
             setPassword("");
             setRole("developer");
+            onSuccess?.();
         } catch (error: any) {
             toast.error("Failed to create user", {
                 description: error.message,
@@ -53,15 +54,15 @@ export function AdminCreateUserForm() {
                 {/* Full Name */}
                 <div className="space-y-2">
                     <Label htmlFor="name" className="text-sm font-semibold text-slate-700">Full Name</Label>
-                    <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <div className="relative group">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
                         <Input 
                             id="name" 
                             value={name} 
                             onChange={(e) => setName(e.target.value)} 
                             placeholder="Jane Doe" 
                             required 
-                            className="pl-10 h-11 border-slate-200 focus-visible:ring-blue-500"
+                            className="pl-10 h-11 bg-white border-slate-200 focus-visible:ring-blue-500 rounded-xl"
                         />
                     </div>
                 </div>
@@ -69,8 +70,8 @@ export function AdminCreateUserForm() {
                 {/* Email */}
                 <div className="space-y-2">
                     <Label htmlFor="email" className="text-sm font-semibold text-slate-700">Email Address</Label>
-                    <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <div className="relative group">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
                         <Input 
                             id="email" 
                             type="email" 
@@ -78,7 +79,7 @@ export function AdminCreateUserForm() {
                             onChange={(e) => setEmail(e.target.value)} 
                             placeholder="jane@example.com" 
                             required 
-                            className="pl-10 h-11 border-slate-200 focus-visible:ring-blue-500"
+                            className="pl-10 h-11 bg-white border-slate-200 focus-visible:ring-blue-500 rounded-xl"
                         />
                     </div>
                 </div>
@@ -87,9 +88,9 @@ export function AdminCreateUserForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Password */}
                 <div className="space-y-2">
-                    <Label htmlFor="password" className="text-sm font-semibold text-slate-700">Initial Password</Label>
-                    <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                    <Label htmlFor="password" className="text-sm font-semibold text-slate-700">Password</Label>
+                    <div className="relative group">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-600 transition-colors z-10" />
                         <Input 
                             id="password" 
                             type={showPassword ? "text" : "password"} 
@@ -97,7 +98,7 @@ export function AdminCreateUserForm() {
                             onChange={(e) => setPassword(e.target.value)} 
                             placeholder="••••••••" 
                             required 
-                            className="pl-10 pr-10 h-11 border-slate-200 focus-visible:ring-blue-500"
+                            className="pl-10 pr-10 h-11 bg-white border-slate-200 focus-visible:ring-blue-500 rounded-xl"
                         />
                         <Button
                             type="button"
@@ -107,25 +108,24 @@ export function AdminCreateUserForm() {
                             onClick={() => setShowPassword(!showPassword)}
                         >
                             {showPassword ? (
-                                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                <EyeOff className="h-4 w-4 text-slate-400" />
                             ) : (
-                                <Eye className="h-4 w-4 text-muted-foreground" />
+                                <Eye className="h-4 w-4 text-slate-400" />
                             )}
                         </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">User can change this after first login</p>
                 </div>
 
                 {/* Role */}
                 <div className="space-y-2">
                     <Label htmlFor="role" className="text-sm font-semibold text-slate-700">User Role</Label>
-                    <div className="relative">
-                        <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                    <div className="relative group">
+                        <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-600 transition-colors z-10" />
                         <Select value={role} onValueChange={setRole}>
-                            <SelectTrigger className="pl-10 h-11 border-slate-200">
+                            <SelectTrigger className="pl-10 h-11 bg-white border-slate-200 rounded-xl">
                                 <SelectValue placeholder="Select a role" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="rounded-xl border-slate-200 shadow-lg">
                                 <SelectItem value="admin">
                                     <div className="flex items-center gap-2">
                                         <div className="h-2 w-2 rounded-full bg-amber-500"></div>
@@ -156,14 +156,14 @@ export function AdminCreateUserForm() {
                 </div>
             </div>
 
-            <div className="pt-4">
+            <div className="pt-2">
                 <Button 
                     type="submit" 
-                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-md transition-all hover:shadow-lg" 
+                    className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm transition-all rounded-xl" 
                     disabled={isLoading}
                 >
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isLoading ? "Creating User..." : "Create User Account"}
+                    {isLoading ? "PROVISIONING..." : "CREATE USER ACCOUNT"}
                 </Button>
             </div>
         </form>

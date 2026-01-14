@@ -1,155 +1,195 @@
+"use client";
 
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState, useCallback } from "react";
+import { authClient } from "@/lib/auth-client";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { 
+    UserPlus, 
+    Shield, 
+    Users, 
+    CheckCircle2,
+    UserCircle,
+    Info,
+    ArrowRight
+} from "lucide-react";
 import { AdminCreateUserForm } from "./create-user-form";
-import { UserPlus, Shield, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export default async function AdminUsersPage() {
-    const session = await auth.api.getSession({
-        headers: await headers()
-    });
+interface Stats {
+    total: number;
+    active: number;
+    admins: number;
+}
 
-    if (!session || session.user.role !== "admin") {
-        redirect("/user/dashboard");
-    }
+export default function AdminUsersPage() {
+    const { data: session } = authClient.useSession();
+    const [stats, setStats] = useState<Stats>({ total: 0, active: 0, admins: 0 });
+    const [isLoading, setIsLoading] = useState(true);
+
+    const fetchStats = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const res = await fetch(`/api/users?limit=1`);
+            const resData = await res.json();
+            setStats(resData.stats);
+        } catch (error) {
+            console.error("Failed to fetch stats", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (session) {
+            fetchStats();
+        }
+    }, [session, fetchStats]);
+
+    if (isLoading && stats.total === 0) return (
+        <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="space-y-2">
+                    <Skeleton className="h-10 w-48" />
+                    <Skeleton className="h-4 w-64" />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                    <Skeleton className="h-[500px] w-full rounded-3xl" />
+                </div>
+                <Skeleton className="h-[400px] w-full rounded-3xl" />
+            </div>
+        </div>
+    );
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 pb-10">
             {/* Page Header */}
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600 shadow-md">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200/50">
                         <Shield className="h-6 w-6" />
                     </div>
                     <div>
-                        <h2 className="text-3xl font-bold tracking-tight text-[#0f172a]">User Management</h2>
-                        <p className="text-muted-foreground mt-1">Create and manage system users with admin authority</p>
+                        <h2 className="text-3xl font-bold tracking-tight text-[#0f172a] uppercase">User Management</h2>
+                        <p className="text-muted-foreground mt-1 text-sm font-medium">Provision system access & administrative controls</p>
                     </div>
                 </div>
             </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="border-none shadow-md bg-gradient-to-br from-blue-50 to-indigo-50">
+                <Card className="border-none shadow-sm bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border border-blue-100/20 group hover:shadow-md transition-all rounded-2xl overflow-hidden relative">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                        <Users className="h-16 w-16 text-blue-600" />
+                    </div>
                     <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Users</p>
-                                <p className="text-3xl font-bold text-blue-700 mt-2">—</p>
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 rounded-xl bg-blue-100 text-blue-600 shadow-inner">
+                                <Users className="h-6 w-6" />
                             </div>
-                            <div className="p-3 rounded-full bg-blue-100">
-                                <Users className="h-6 w-6 text-blue-600" />
+                            <div>
+                                <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Total Workforce</p>
+                                <p className="text-3xl font-bold text-[#0f172a] mt-1">{stats.total}</p>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-md bg-gradient-to-br from-emerald-50 to-green-50">
+                <Card className="border-none shadow-sm bg-gradient-to-br from-emerald-50/50 to-teal-50/30 border border-emerald-100/20 group hover:shadow-md transition-all rounded-2xl overflow-hidden relative">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                        <UserCircle className="h-16 w-16 text-emerald-600" />
+                    </div>
                     <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Active Users</p>
-                                <p className="text-3xl font-bold text-emerald-700 mt-2">—</p>
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 rounded-xl bg-emerald-100 text-emerald-600 shadow-inner">
+                                <CheckCircle2 className="h-6 w-6" />
                             </div>
-                            <div className="p-3 rounded-full bg-emerald-100">
-                                <UserPlus className="h-6 w-6 text-emerald-600" />
+                            <div>
+                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Active Sessions</p>
+                                <p className="text-3xl font-bold text-[#0f172a] mt-1">{stats.active}</p>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-md bg-gradient-to-br from-purple-50 to-pink-50">
+                <Card className="border-none shadow-sm bg-gradient-to-br from-amber-50/50 to-orange-50/30 border border-amber-100/20 group hover:shadow-md transition-all rounded-2xl overflow-hidden relative">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                        <Shield className="h-16 w-16 text-amber-600" />
+                    </div>
                     <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Admins</p>
-                                <p className="text-3xl font-bold text-purple-700 mt-2">—</p>
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 rounded-xl bg-amber-100 text-amber-600 shadow-inner">
+                                <Shield className="h-6 w-6" />
                             </div>
-                            <div className="p-3 rounded-full bg-purple-100">
-                                <Shield className="h-6 w-6 text-purple-600" />
+                            <div>
+                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-[0.2em]">Administrative</p>
+                                <p className="text-3xl font-bold text-[#0f172a] mt-1">{stats.admins}</p>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Create User Form */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                    <Card className="border-none shadow-lg overflow-hidden">
-                        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+                {/* Create User Form Section */}
+                <div className="lg:col-span-2 flex">
+                    <Card className="border-none shadow-md rounded-2xl overflow-hidden bg-white w-full flex flex-col">
+                        <CardHeader className="bg-slate-50/50 px-8 py-6 border-b border-slate-100">
+                            <div className="flex items-center gap-4">
+                                <div className="p-2.5 rounded-xl bg-blue-100 text-blue-600">
                                     <UserPlus className="h-5 w-5" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-xl">Create New User</CardTitle>
-                                    <CardDescription className="mt-1">Register a new user directly into the system with assigned role</CardDescription>
+                                    <CardTitle className="text-xl font-bold text-[#0f172a] uppercase tracking-tight">Identity Provisioning</CardTitle>
+                                    <CardDescription className="text-slate-500 font-medium">Onboard new team members with secure credentials</CardDescription>
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="p-6">
-                            <AdminCreateUserForm />
+                        <CardContent className="p-8 flex-grow">
+                            <AdminCreateUserForm onSuccess={() => fetchStats()} />
                         </CardContent>
                     </Card>
                 </div>
 
-                {/* Info Panel */}
-                <div className="space-y-6">
-                    {/* <Card className="border-none shadow-md bg-gradient-to-br from-amber-50 to-orange-50">
-                        <CardHeader>
-                            <CardTitle className="text-lg text-amber-900">Quick Tips</CardTitle>
+                {/* Authority Matrix Panel */}
+                <div className="flex">
+                    <Card className="border-none shadow-md rounded-2xl bg-white border border-slate-100 overflow-hidden w-full flex flex-col">
+                        <CardHeader className="p-6 border-b border-slate-50 bg-slate-50/30">
+                            <div className="flex items-center gap-3">
+                                <Shield className="h-4 w-4 text-slate-400" />
+                                <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-400">Authority Matrix</CardTitle>
+                            </div>
                         </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="flex gap-3">
-                                <div className="h-2 w-2 rounded-full bg-amber-500 mt-2 shrink-0"></div>
-                                <p className="text-sm text-amber-900">Users will receive their credentials via email</p>
-                            </div>
-                            <div className="flex gap-3">
-                                <div className="h-2 w-2 rounded-full bg-amber-500 mt-2 shrink-0"></div>
-                                <p className="text-sm text-amber-900">Assign appropriate roles based on responsibilities</p>
-                            </div>
-                            <div className="flex gap-3">
-                                <div className="h-2 w-2 rounded-full bg-amber-500 mt-2 shrink-0"></div>
-                                <p className="text-sm text-amber-900">Users can update their profile after first login</p>
-                            </div>
-                        </CardContent>
-                    </Card> */}
-
-                    <Card className="border-none shadow-md bg-gradient-to-br from-slate-50 to-gray-50">
-                        <CardHeader>
-                            <CardTitle className="text-lg text-slate-900">Available Roles</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="flex items-center gap-3 p-2 rounded-lg bg-white">
-                                <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700">A</div>
-                                <div>
-                                    <p className="font-semibold text-sm">Admin</p>
-                                    <p className="text-xs text-muted-foreground">Full system access</p>
+                        <CardContent className="p-6 space-y-3 flex-grow">
+                            {[
+                                { role: "Admin", color: "bg-amber-500", desc: "Full System Authority" },
+                                { role: "Developer", color: "bg-blue-500", desc: "Development & Deployment" },
+                                { role: "Tester", color: "bg-purple-500", desc: "QA & Verification" },
+                                { role: "Designer", color: "bg-pink-500", desc: "UI/UX & Visual Assets" }
+                            ].map((r) => (
+                                <div key={r.role} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn("h-2 w-2 rounded-full", r.color)} />
+                                        <span className="text-sm font-semibold text-slate-700">{r.role}</span>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{r.desc}</span>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-3 p-2 rounded-lg bg-white">
-                                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700">D</div>
-                                <div>
-                                    <p className="font-semibold text-sm">Developer</p>
-                                    <p className="text-xs text-muted-foreground">Code & development</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3 p-2 rounded-lg bg-white">
-                                <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-700">T</div>
-                                <div>
-                                    <p className="font-semibold text-sm">Tester</p>
-                                    <p className="text-xs text-muted-foreground">QA & testing</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3 p-2 rounded-lg bg-white">
-                                <div className="h-8 w-8 rounded-full bg-pink-100 flex items-center justify-center text-xs font-bold text-pink-700">D</div>
-                                <div>
-                                    <p className="font-semibold text-sm">Designer</p>
-                                    <p className="text-xs text-muted-foreground">UI/UX design</p>
-                                </div>
+                            ))}
+                            
+                            <div className="mt-6 p-4 rounded-xl bg-blue-50/50 border border-blue-100/50">
+                                <p className="text-[11px] text-blue-600/70 font-medium leading-relaxed italic text-center">
+                                    "Selecting the appropriate role ensures the user has access to necessary tools and modules."
+                                </p>
                             </div>
                         </CardContent>
                     </Card>

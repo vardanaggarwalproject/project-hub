@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { memos, user } from "@/lib/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { memos, user, projects } from "@/lib/db/schema";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { memoSchema } from "@/lib/validations/reports";
 import { dateComparisonClause } from "@/lib/db/utils";
@@ -14,12 +14,19 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const projectId = searchParams.get("projectId");
         const userId = searchParams.get("userId");
+        const search = searchParams.get("search");
+        const page = parseInt(searchParams.get("page") || "1");
+        const limit = parseInt(searchParams.get("limit") || "10");
+        const offset = (page - 1) * limit;
 
         let whereClause = undefined;
         const conditions = [];
 
         if (projectId) conditions.push(eq(memos.projectId, projectId));
         if (userId) conditions.push(eq(memos.userId, userId));
+        if (search) {
+            conditions.push(sql`(${memos.memoContent} ILIKE ${`%${search}%`} OR ${user.name} ILIKE ${`%${search}%`})`);
+        }
 
         if (conditions.length > 0) {
             whereClause = and(...conditions);
@@ -32,18 +39,37 @@ export async function GET(req: Request) {
             userId: memos.userId,
             reportDate: memos.reportDate,
             createdAt: memos.createdAt,
+            projectName: projects.name,
             user: {
                 id: user.id,
                 name: user.name,
-                image: user.image
+                image: user.image,
+                role: user.role
             }
         })
             .from(memos)
             .leftJoin(user, eq(memos.userId, user.id))
+            .leftJoin(projects, eq(memos.projectId, projects.id))
             .where(whereClause)
+            .limit(limit)
+            .offset(offset)
             .orderBy(desc(memos.reportDate));
 
-        return NextResponse.json(allMemos);
+        const totalResult = await db.select({ count: sql<number>`count(*)` })
+            .from(memos)
+            .where(whereClause);
+
+        const total = Number(totalResult[0]?.count || 0);
+
+        return NextResponse.json({
+            data: allMemos,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         console.error(error);
         return NextResponse.json({ error: "Failed to fetch memos" }, { status: 500 });
