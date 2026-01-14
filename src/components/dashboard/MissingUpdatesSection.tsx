@@ -30,7 +30,6 @@ export const MissingUpdatesSection = React.memo(function MissingUpdatesSection({
           Missing Updates
         </h2>
       </div>
-
       <Card className="border border-slate-200 rounded-xl overflow-hidden">
         <div className="max-h-112.5 overflow-y-auto divide-y divide-slate-100 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-50 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-slate-300">
           {missingUpdates.map((missing) => (
