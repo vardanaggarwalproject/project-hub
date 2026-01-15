@@ -42,11 +42,12 @@ export function getLocalDateString(dateInput: Date | string): string {
   const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
   if (isNaN(date.getTime())) return "";
 
-  // Use UTC methods to get the absolute date the database intended, 
-  // preventing Western shifts where 00:00 UTC becomes 19:00 Previous Day
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
+  // Use local methods to get the date parts. 
+  // This ensures that if a Date object represents "Today at 00:00 Local", 
+  // it returns "Today's" date string, regardless of UTC offset.
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 

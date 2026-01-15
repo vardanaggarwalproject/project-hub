@@ -13,6 +13,7 @@ const projectSchema = z.object({
     totalTime: z.string().optional(),
     description: z.string().optional(),
     assignedUserIds: z.array(z.string()).optional(),
+    isMemoRequired: z.boolean().optional(),
 });
 
 
@@ -64,6 +65,7 @@ export async function GET(req: Request) {
             totalTime: projects.totalTime,
             completedTime: projects.completedTime,
             description: projects.description,
+            isMemoRequired: projects.isMemoRequired,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
         })
@@ -152,6 +154,7 @@ export async function POST(req: Request) {
             totalTime: totalTime || null,
             completedTime: null, // explicit null
             description: description || null, // explicit null
+            isMemoRequired: body.isMemoRequired ?? false,
         }).returning();
 
         // Handle assignments

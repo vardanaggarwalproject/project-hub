@@ -16,13 +16,15 @@ export function dateComparisonClause(
   dateColumn: Column | SQL,
   dateObj: Date
 ): SQL {
-  // Extract date in yyyy-MM-dd format without timezone conversion
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  const dateString = `${year}-${month}-${day}`;
+  // Create a range for the entire day in UTC (or the intended timezone)
+  // Robust approach: Check if the timestamp is between 00:00:00 and 23:59:59 of that day
+  const targetDate = new Date(dateObj);
+  targetDate.setHours(0, 0, 0, 0);
 
-  return sql`DATE(${dateColumn}) = DATE(${dateString})`;
+  const nextDate = new Date(targetDate);
+  nextDate.setDate(targetDate.getDate() + 1);
+
+  return sql`${dateColumn} >= ${targetDate} AND ${dateColumn} < ${nextDate}`;
 }
 
 /**

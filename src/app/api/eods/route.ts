@@ -120,8 +120,8 @@ export async function POST(req: Request) {
         const { clientUpdate, actualUpdate, projectId, userId, reportDate } = validation.data;
 
         // Convert to Date object - this preserves the date in local timezone
-        const dateObj = new Date(reportDate);
-        dateObj.setHours(0, 0, 0, 0);
+        // We append T00:00:00 to ensure it's treated as a local date at midnight
+        const dateObj = new Date(reportDate + "T00:00:00");
 
         // Check duplicate - compare date parts at UTC
         const existing = await db.select().from(eodReports)

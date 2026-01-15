@@ -10,6 +10,7 @@ const updateProjectSchema = z.object({
     status: z.enum(["active", "completed", "on-hold"]).optional(),
     clientId: z.string().optional(),
     assignedUserIds: z.array(z.string()).optional(),
+    isMemoRequired: z.boolean().optional(),
 });
 
 
@@ -29,6 +30,7 @@ export async function GET(
             status: projects.status,
             totalTime: projects.totalTime,
             completedTime: projects.completedTime,
+            isMemoRequired: projects.isMemoRequired,
             updatedAt: projects.updatedAt,
             clientId: projects.clientId,
             clientName: clients.name,
@@ -97,6 +99,7 @@ export async function PATCH(
                 description,
                 status,
                 clientId,
+                isMemoRequired: body.isMemoRequired,
                 updatedAt: sql`NOW()`,
             })
             .where(eq(projects.id, id));

@@ -79,36 +79,12 @@ export function ProjectHistoryDialog({
 
       setProject(projectData);
       setUserAssignment(assignmentData);
-      
+
       const allMemos = Array.isArray(memosData) ? memosData : [];
       const allEods = Array.isArray(eodsData) ? eodsData : [];
 
-      // Calculate valid start date for this specific fetch context to ensure strict rendering
-      let currentValidStart = new Date();
-      if (assignmentData?.assignedAt) {
-          currentValidStart = new Date(assignmentData.assignedAt);
-      } else if (projectData?.createdAt) {
-          currentValidStart = new Date(projectData.createdAt);
-      }
-      currentValidStart.setHours(0, 0, 0, 0);
-      const validStartStr = getLocalDateString(currentValidStart);
-
-      // Filter by projectId and userId locally (Strict ownership + date check)
-      const filteredMemos = allMemos.filter(m => {
-          const match = String(m.projectId) === String(projectId) && String(m.userId) === String(userId);
-          const dateStr = getLocalDateString(m.reportDate);
-          // HIDE reports that are before project creation/assignment
-          return match && dateStr >= validStartStr;
-      });
-      const filteredEods = allEods.filter(e => {
-          const match = String(e.projectId) === String(projectId) && String(e.userId) === String(userId);
-          const dateStr = getLocalDateString(e.reportDate);
-          // HIDE reports that are before project creation/assignment
-          return match && dateStr >= validStartStr;
-      });
-      
-      setMemos(filteredMemos);
-      setEods(filteredEods);
+      setMemos(allMemos.filter(m => String(m.projectId) === String(projectId) && String(m.userId) === String(userId)));
+      setEods(allEods.filter(e => String(e.projectId) === String(projectId) && String(e.userId) === String(userId)));
     } catch (error) {
       handleApiError(error, "Fetch project history");
     } finally {
@@ -123,27 +99,20 @@ export function ProjectHistoryDialog({
   }, [isOpen, userId, projectId]);
 
   const validStartDate = useMemo(() => {
-    // If we have an assignment date, that is the ONLY valid start date for authority
-    if (userAssignment?.assignedAt) {
-        const assignedDate = new Date(userAssignment.assignedAt);
-        assignedDate.setHours(0, 0, 0, 0);
-        console.log(`🔍 [HistoryDialog] SETTING validStartDate to Assignment Date: ${format(assignedDate, "yyyy-MM-dd")}`);
-        return assignedDate;
-    }
-    
-    // Fallback ONLY if loading or not found
-    if (isLoading) {
-        return new Date(); // Restricted while loading
+    // Standardize: Earlier of assignment and project creation
+    // This ensure we catch all days the user might be responsible for
+    const assignedDate = userAssignment?.assignedAt ? new Date(userAssignment.assignedAt) : null;
+    const projectCreatedDate = project?.createdAt ? new Date(project.createdAt) : null;
+
+    let validStart: Date;
+    if (assignedDate && projectCreatedDate) {
+      validStart = assignedDate < projectCreatedDate ? assignedDate : projectCreatedDate;
+    } else {
+      validStart = assignedDate || projectCreatedDate || new Date();
     }
 
-    if (project?.createdAt) {
-        const createdDate = new Date(project.createdAt);
-        createdDate.setHours(0, 0, 0, 0);
-        console.log(`🔍 [HistoryDialog] SETTING validStartDate to Project Creation: ${format(createdDate, "yyyy-MM-dd")}`);
-        return createdDate;
-    }
-
-    return new Date();
+    validStart.setHours(0, 0, 0, 0);
+    return validStart;
   }, [project, userAssignment, isLoading]);
 
   const calendarDays = useMemo(() => {
@@ -165,13 +134,13 @@ export function ProjectHistoryDialog({
       const dateStr = format(date, "yyyy-MM-dd");
       const memo = memos.find((m) => getLocalDateString(m.reportDate) === dateStr);
       const eod = eods.find((e) => getLocalDateString(e.reportDate) === dateStr);
-      
+
       const dateTime = new Date(date);
       dateTime.setHours(0, 0, 0, 0);
       // Valid date for "Missing/Pending" indicators ONLY if project is active
-      const isValidDate = dateTime >= validStartDate && 
-                         dateTime <= today && 
-                         (userAssignment ? userAssignment.isActive : true);
+      const isValidDate = dateTime >= validStartDate &&
+        dateTime <= today &&
+        (userAssignment ? userAssignment.isActive : true);
 
       days.push({
         date,
@@ -196,45 +165,62 @@ export function ProjectHistoryDialog({
   }, [currentMonth, memos, eods, validStartDate]);
 
   const stats = useMemo(() => {
-    // Current month/year for filtering (using string slice for absolute match with dateStr)
+    // Current month/year for filtering
     const targetMonthStr = format(currentMonth, "yyyy-MM");
-    
+
     // Today's date string for range capping
     const todayStr = getLocalDateString(new Date());
     const validStartStr = getLocalDateString(validStartDate);
 
-    // Filter updates that actually belong to this month AND are within valid project period
-    const memosThisMonth = memos.filter((m) => {
-      const dateStr = getLocalDateString(m.reportDate);
-      return (
-        dateStr.startsWith(targetMonthStr) &&
-        dateStr >= validStartStr &&
-        dateStr <= todayStr
-      );
-    }).length;
+    // Use Sets to count unique days with updates (ignoring legacy duplicates)
+    const uniqueMemoDays = new Set<string>();
+    const uniqueEodDays = new Set<string>();
 
-    const eodsThisMonth = eods.filter((e) => {
+    memos.forEach(m => {
+      const dateStr = getLocalDateString(m.reportDate);
+      if (dateStr.startsWith(targetMonthStr) && dateStr <= todayStr) {
+        uniqueMemoDays.add(dateStr);
+      }
+    });
+
+    eods.forEach(e => {
       const dateStr = getLocalDateString(e.reportDate);
-      return (
-        dateStr.startsWith(targetMonthStr) &&
-        dateStr >= validStartStr &&
-        dateStr <= todayStr
-      );
-    }).length;
+      if (dateStr.startsWith(targetMonthStr) && dateStr <= todayStr) {
+        uniqueEodDays.add(dateStr);
+      }
+    });
+
+    const memosThisMonth = uniqueMemoDays.size;
+    const eodsThisMonth = uniqueEodDays.size;
 
     // Count theoretical working days in this month within assignment period
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-    
-    const validDays = eachDayOfInterval({ start: monthStart, end: monthEnd }).filter((date) => {
+
+    const validDaysList = eachDayOfInterval({ start: monthStart, end: monthEnd }).filter((date) => {
       const dateStr = getLocalDateString(date);
       return dateStr >= validStartStr && dateStr <= todayStr;
-    }).length;
+    });
+    const validDaysCount = validDaysList.length;
 
-    // Completion rate should represent the percentage of days in the period that were completed.
-    // Cap at 100% to ensure statistical accuracy
-    const completionRate = validDays > 0 
-      ? Math.min(100, Math.round((eodsThisMonth / validDays) * 100)) 
+    // Completion rate refinement:
+    // If project isMemoRequired: day is complete if BOTH uniqueMemoDays and uniqueEodDays have it.
+    // If not isMemoRequired: day is complete if uniqueEodDays has it.
+    let completedDaysCount = 0;
+    validDaysList.forEach(day => {
+      const dateStr = getLocalDateString(day);
+      const hasMemo = uniqueMemoDays.has(dateStr);
+      const hasEod = uniqueEodDays.has(dateStr);
+
+      if (project?.isMemoRequired) {
+        if (hasMemo && hasEod) completedDaysCount++;
+      } else {
+        if (hasEod) completedDaysCount++;
+      }
+    });
+
+    const completionRate = validDaysCount > 0
+      ? Math.min(100, Math.round((completedDaysCount / validDaysCount) * 100))
       : 0;
 
     return {
@@ -242,7 +228,7 @@ export function ProjectHistoryDialog({
       eodsThisMonth,
       completionRate,
     };
-  }, [memos, eods, currentMonth, validStartDate]);
+  }, [memos, eods, currentMonth, validStartDate, project]);
 
   const handleDayClick = (day: DayStatus, type: "memo" | "eod") => {
     if (day.isOtherMonth || isLoading) return;
@@ -254,20 +240,20 @@ export function ProjectHistoryDialog({
 
     // If it's a future date, block everything
     if (day.date > today) {
-        toast.error("Cannot add or view updates for future dates");
-        return;
+      toast.error("Cannot add or view updates for future dates");
+      return;
     }
 
     // AUTH CHECK: If no existing update AND date is before assignment, block addition
     if (!hasExistingUpdate && day.date < validStartDate) {
-        toast.error(`Access Denied: You were assigned to this project on ${format(validStartDate, "MMM d, yyyy")}. You cannot add backdated updates.`);
-        return;
+      toast.error(`Access Denied: You were assigned to this project on ${format(validStartDate, "MMM d, yyyy")}. You cannot add backdated updates.`);
+      return;
     }
 
     // PROJECT ACTIVITY CHECK: If project is inactive, block adding new updates
     if (!hasExistingUpdate && userAssignment && !userAssignment.isActive) {
-        toast.error("Access Denied: This project is currently inactive for you. You cannot add new updates.");
-        return;
+      toast.error("Access Denied: This project is currently inactive for you. You cannot add new updates.");
+      return;
     }
 
     setInitialDate(day.date);
@@ -295,18 +281,18 @@ export function ProjectHistoryDialog({
   };
 
   const handleEditClick = () => {
-      if (!initialDate) return;
-      
-      if (initialDate < validStartDate) {
-          toast.error("This update is from before your allocation date and is Read-Only.");
-          return;
-      }
+    if (!initialDate) return;
 
-      if (userAssignment && !userAssignment.isActive) {
-          toast.error("Access Denied: You cannot edit updates for an inactive project.");
-          return;
-      }
-      setModalMode("edit");
+    if (initialDate < validStartDate) {
+      toast.error("This update is from before your allocation date and is Read-Only.");
+      return;
+    }
+
+    if (userAssignment && !userAssignment.isActive) {
+      toast.error("Access Denied: You cannot edit updates for an inactive project.");
+      return;
+    }
+    setModalMode("edit");
   };
 
   const referenceDataFetcher = async (type: "memo" | "eod", pid: string, date: string) => {
