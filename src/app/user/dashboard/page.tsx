@@ -41,10 +41,13 @@ export default function UserDashboardPage() {
   const [initialDate, setInitialDate] = useState<string>("");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-
-  /* New State for duplicate checking */
   const [allMemos, setAllMemos] = useState<Memo[]>([]);
   const [allEods, setAllEods] = useState<EOD[]>([]);
+  
+  // Update Modal State
+  const [initialMemoContent, setInitialMemoContent] = useState("");
+  const [initialClientUpdate, setInitialClientUpdate] = useState("");
+  const [initialInternalUpdate, setInitialInternalUpdate] = useState("");
 
   useEffect(() => {
     const socket = getSocket();
@@ -98,8 +101,8 @@ export default function UserDashboardPage() {
       // Fetch user's projects, memos, and EODs
       const [projectsData, memosData, eodsData] = await Promise.all([
         projectsApi.getAll(),
-        memosApi.getByFilters(userId),
-        eodsApi.getByFilters(userId),
+        memosApi.getByFilters(userId, undefined, 1000),
+        eodsApi.getByFilters(userId, undefined, 1000),
       ]);
       
       // Store raw data for duplicate checking
@@ -268,13 +271,15 @@ export default function UserDashboardPage() {
 
   const handleOpenModal = async (
     type: "memo" | "eod",
-    projectId: string,
-    date?: string
+    projectId: string
   ) => {
-    const targetDate = date || getTodayDate();
+    const targetDate = getTodayDate();
     setInitialModalTab(type);
     setInitialProjectId(projectId);
     setInitialDate(targetDate);
+    setInitialMemoContent("");
+    setInitialClientUpdate("");
+    setInitialInternalUpdate("");
     setIsModalOpen(true);
   };
 
@@ -320,7 +325,7 @@ export default function UserDashboardPage() {
         // Find the most recent memo before this date
         const memos = await memosApi.getByFilters(session.user.id, projectId) as Memo[];
         const previousMemos = Array.isArray(memos)
-          ? memos.filter((m) => getLocalDateString(m.reportDate) < date)
+          ? memos.filter((m) => getLocalDateString(m.reportDate) <= date)
           : [];
 
         // Sort by date descending
@@ -330,9 +335,9 @@ export default function UserDashboardPage() {
 
         if (latestMemo) {
           const memoDateStr = getLocalDateString(latestMemo.reportDate);
-          const isYesterday = memoDateStr === getYesterdayDate();
+          const isSameDay = memoDateStr === date;
           return {
-            type: isYesterday ? "Yesterday's Memo" : `Latest Memo (${formatDisplayDate(memoDateStr).split(',')[0]})`,
+            type: isSameDay ? `Current Memo (${formatDisplayDate(memoDateStr).split(',')[0]})` : `Latest Memo (${formatDisplayDate(memoDateStr).split(',')[0]})`,
             content: latestMemo.memoContent || "No content",
           };
         } else {
@@ -345,7 +350,7 @@ export default function UserDashboardPage() {
         // Find the most recent EOD before this date
         const eods = await eodsApi.getByFilters(session.user.id, projectId) as EOD[];
         const previousEods = Array.isArray(eods)
-          ? eods.filter((e) => getLocalDateString(e.reportDate) < date)
+          ? eods.filter((e) => getLocalDateString(e.reportDate) <= date)
           : [];
 
         // Sort by date descending
@@ -355,9 +360,9 @@ export default function UserDashboardPage() {
 
         if (latestEod) {
           const eodDateStr = getLocalDateString(latestEod.reportDate);
-          const isYesterday = eodDateStr === getYesterdayDate();
+          const isSameDay = eodDateStr === date;
           return {
-            type: isYesterday ? "Yesterday's EOD" : `Latest EOD (${formatDisplayDate(eodDateStr).split(',')[0]})`,
+             type: isSameDay ? `Current EOD (${formatDisplayDate(eodDateStr).split(',')[0]})` : `Latest EOD (${formatDisplayDate(eodDateStr).split(',')[0]})`,
             content: latestEod.actualUpdate || latestEod.clientUpdate || "No content",
           };
         } else {
@@ -428,6 +433,51 @@ export default function UserDashboardPage() {
       throw error; // Re-throw to keep modal open on error
     }
   };
+  
+  const handleUpdateSubmitWrapper = async (data: {
+    type: "memo" | "eod";
+    projectId: string;
+    date: string;
+    memoContent?: string;
+    clientUpdate?: string;
+    internalUpdate?: string;
+  }) => {
+    // Check if entry exists to determine update vs create
+    let existingId: string | undefined;
+    if (data.type === "memo") {
+        const existing = allMemos.find(m => m.projectId === data.projectId && getLocalDateString(m.reportDate) === data.date);
+        existingId = existing?.id;
+    } else {
+        const existing = allEods.find(e => e.projectId === data.projectId && getLocalDateString(e.reportDate) === data.date);
+        existingId = existing?.id;
+    }
+
+    if (existingId) {
+         if (data.type === "memo") {
+            await memosApi.update(existingId, {
+                memoContent: data.memoContent,
+                projectId: data.projectId,
+                userId: session?.user?.id || "",
+                reportDate: data.date
+            });
+            toast.success("Memo updated successfully!");
+         } else {
+             await eodsApi.update(existingId, {
+                 clientUpdate: data.clientUpdate || "",
+                 actualUpdate: data.internalUpdate,
+                 projectId: data.projectId,
+                 userId: session?.user?.id || "",
+                 reportDate: data.date
+             });
+             toast.success("EOD Report updated successfully!");
+         }
+         await fetchDashboardData();
+         return;
+    }
+
+    // Proceed to Create
+    await handleUpdateSubmit(data);
+  };
 
   if (isSessionLoading || isLoading) {
     return (
@@ -467,11 +517,10 @@ export default function UserDashboardPage() {
           totalProjects={totalProjects}
         />
 
-        {/* Projects Section */}
         <ProjectsSection
           projects={myProjects}
           projectStatuses={projectStatuses}
-          onOpenModal={handleOpenModal}
+          onOpenModal={(type, pid) => handleOpenModal(type, pid)}
           onToggleActive={handleToggleActive}
           onHistoryClick={(pid) => {
             setSelectedProjectId(pid);
@@ -482,7 +531,7 @@ export default function UserDashboardPage() {
         {/* Missing Updates */}
         <MissingUpdatesSection
           missingUpdates={missingUpdates}
-          onOpenModal={handleOpenModal}
+          onOpenModal={(type, pid) => handleOpenModal(type, pid)} 
         />
 
         {/* Update Modal */}
@@ -509,9 +558,13 @@ export default function UserDashboardPage() {
           initialProjectId={initialProjectId}
           initialDate={initialDate}
           referenceDataFetcher={referenceDataFetcher}
-          onSubmit={handleUpdateSubmit}
+          onSubmit={handleUpdateSubmitWrapper}
           existingMemos={allMemos}
           existingEods={allEods}
+
+          initialMemoContent={initialMemoContent}
+          initialClientUpdate={initialClientUpdate}
+          initialInternalUpdate={initialInternalUpdate}
         />
 
         <ProjectHistoryDialog

@@ -360,14 +360,14 @@ export function ProjectHistoryDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-0">
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="text-xl font-bold uppercase tracking-tight flex items-center gap-2">
-            Update History: <span className="text-blue-600">{project?.name}</span>
+      <DialogContent className="max-w-[95vw] md:max-w-5xl max-h-[90vh] flex flex-col gap-0 p-0 rounded-2xl overflow-hidden border-0 shadow-2xl">
+        <DialogHeader className="px-8 py-6 border-b border-slate-100 bg-white sticky top-0 z-10">
+          <DialogTitle className="text-2xl font-bold tracking-tight flex items-center gap-3 text-slate-900">
+            Update History <span className="text-slate-300 font-light">|</span> <span className="text-blue-600 font-semibold">{project?.name}</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="p-6 pt-4 space-y-6">
+        <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8 bg-slate-50/30 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-24 w-full" />
