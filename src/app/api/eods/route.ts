@@ -25,8 +25,18 @@ export async function GET(req: Request) {
 
         if (projectId) conditions.push(eq(eodReports.projectId, projectId));
         if (userId) conditions.push(eq(eodReports.userId, userId));
+
+        // Handle date filtering using createdAt (Submission Date)
+        const dateParam = searchParams.get("date");
+        if (dateParam) {
+            const filterDate = new Date(dateParam);
+            if (!isNaN(filterDate.getTime())) {
+                conditions.push(dateComparisonClause(eodReports.createdAt, filterDate));
+            }
+        }
+
         if (search) {
-            conditions.push(sql`(${eodReports.clientUpdate} ILIKE ${`%${search}%`} OR ${eodReports.actualUpdate} ILIKE ${`%${search}%`} OR ${user.name} ILIKE ${`%${search}%`})`);
+            conditions.push(sql`${user.name} ILIKE ${`%${search}%`}`);
         }
 
         if (conditions.length > 0) {
@@ -55,10 +65,12 @@ export async function GET(req: Request) {
             .where(whereClause)
             .limit(limit)
             .offset(offset)
-            .orderBy(desc(eodReports.reportDate));
+            .orderBy(desc(eodReports.createdAt));
 
         const totalResult = await db.select({ count: sql<number>`count(*)` })
             .from(eodReports)
+            .leftJoin(user, eq(eodReports.userId, user.id))
+            .leftJoin(projects, eq(eodReports.projectId, projects.id))
             .where(whereClause);
 
         const total = Number(totalResult[0]?.count || 0);

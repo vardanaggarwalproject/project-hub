@@ -5,7 +5,7 @@ import { sql, type SQL, type Column } from "drizzle-orm";
  */
 
 /**
- * Create SQL clause for date comparison in UTC timezone
+ * Create SQL clause for date comparison
  * Used to compare dates regardless of time component
  *
  * @param dateColumn - The database date column
@@ -16,6 +16,11 @@ export function dateComparisonClause(
   dateColumn: Column | SQL,
   dateObj: Date
 ): SQL {
-  const isoString = dateObj.toISOString();
-  return sql`DATE(${dateColumn} AT TIME ZONE 'UTC') = DATE(${isoString}::timestamp AT TIME ZONE 'UTC')`;
+  // Extract date in yyyy-MM-dd format without timezone conversion
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const dateString = `${year}-${month}-${day}`;
+
+  return sql`DATE(${dateColumn}) = DATE(${dateString})`;
 }

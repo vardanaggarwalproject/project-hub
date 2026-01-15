@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import {
   format,
   startOfMonth,
@@ -164,7 +165,10 @@ export function ProjectHistoryDialog({
       
       const dateTime = new Date(date);
       dateTime.setHours(0, 0, 0, 0);
-      const isValidDate = dateTime >= validStartDate && dateTime <= today;
+      // Valid date for "Missing/Pending" indicators ONLY if project is active
+      const isValidDate = dateTime >= validStartDate && 
+                         dateTime <= today && 
+                         (userAssignment ? userAssignment.isActive : true);
 
       days.push({
         date,
@@ -239,6 +243,12 @@ export function ProjectHistoryDialog({
         return;
     }
 
+    // PROJECT ACTIVITY CHECK: If project is inactive, block adding new updates
+    if (!hasExistingUpdate && userAssignment && !userAssignment.isActive) {
+        toast.error("Access Denied: This project is currently inactive for you. You cannot add new updates.");
+        return;
+    }
+
     setInitialDate(day.date);
     setInitialModalTab(type);
 
@@ -268,6 +278,11 @@ export function ProjectHistoryDialog({
       
       if (initialDate < validStartDate) {
           toast.error("This update is from before your allocation date and is Read-Only.");
+          return;
+      }
+
+      if (userAssignment && !userAssignment.isActive) {
+          toast.error("Access Denied: You cannot edit updates for an inactive project.");
           return;
       }
       setModalMode("edit");
@@ -364,6 +379,11 @@ export function ProjectHistoryDialog({
         <DialogHeader className="px-8 py-6 border-b border-slate-100 bg-white sticky top-0 z-10">
           <DialogTitle className="text-2xl font-bold tracking-tight flex items-center gap-3 text-slate-900">
             Update History <span className="text-slate-300 font-light">|</span> <span className="text-blue-600 font-semibold">{project?.name}</span>
+            {userAssignment && !userAssignment.isActive && (
+              <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-slate-200 uppercase text-[10px] font-bold py-0.5 px-2">
+                Inactive / Read-Only
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
 

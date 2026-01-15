@@ -24,8 +24,18 @@ export async function GET(req: Request) {
 
         if (projectId) conditions.push(eq(memos.projectId, projectId));
         if (userId) conditions.push(eq(memos.userId, userId));
+
+        // Handle date filtering using createdAt (Submission Date)
+        const dateParam = searchParams.get("date");
+        if (dateParam) {
+            const filterDate = new Date(dateParam);
+            if (!isNaN(filterDate.getTime())) {
+                conditions.push(dateComparisonClause(memos.createdAt, filterDate));
+            }
+        }
+
         if (search) {
-            conditions.push(sql`(${memos.memoContent} ILIKE ${`%${search}%`} OR ${user.name} ILIKE ${`%${search}%`})`);
+            conditions.push(sql`${user.name} ILIKE ${`%${search}%`}`);
         }
 
         if (conditions.length > 0) {
@@ -53,10 +63,12 @@ export async function GET(req: Request) {
             .where(whereClause)
             .limit(limit)
             .offset(offset)
-            .orderBy(desc(memos.reportDate));
+            .orderBy(desc(memos.createdAt));
 
         const totalResult = await db.select({ count: sql<number>`count(*)` })
             .from(memos)
+            .leftJoin(user, eq(memos.userId, user.id))
+            .leftJoin(projects, eq(memos.projectId, projects.id))
             .where(whereClause);
 
         const total = Number(totalResult[0]?.count || 0);
@@ -71,8 +83,11 @@ export async function GET(req: Request) {
             }
         });
     } catch (error) {
-        console.error(error);
-        return NextResponse.json({ error: "Failed to fetch memos" }, { status: 500 });
+        console.error("Error fetching memos:", error);
+        return NextResponse.json({
+            error: "Failed to fetch memos",
+            details: error instanceof Error ? error.message : String(error)
+        }, { status: 500 });
     }
 }
 
