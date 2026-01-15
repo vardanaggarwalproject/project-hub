@@ -26,17 +26,11 @@ import {
     X
 } from "lucide-react";
 
+import { ProjectSelect } from "@/components/admin/ProjectSelect";
+import { DateSelect } from "@/components/admin/DateSelect";
 import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover as DatePopover,
-  PopoverContent as DatePopoverContent,
-  PopoverTrigger as DatePopoverTrigger,
-} from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
-
-import { ProjectSelect } from "@/components/admin/ProjectSelect";
 import {
     Table,
     TableBody,
@@ -240,12 +234,11 @@ export default function AdminEODPage() {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
-                        <div className="h-6 w-px bg-slate-200 hidden sm:block" />
-                        <div className="flex items-center gap-3 w-full sm:w-auto px-2">
+                        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 lg:ml-auto">
                             <ProjectSelect value={selectedProject} onValueChange={setSelectedProject} />
-                             <DatePicker
+                             <DateSelect
                                 date={selectedDate}
-                                setDate={setSelectedDate}
+                                onDateChange={setSelectedDate}
                                 placeholder="Filter by submitted date..."
                             />
                             <Button
@@ -256,10 +249,10 @@ export default function AdminEODPage() {
                                     setSelectedProject("");
                                     setSelectedDate(undefined);
                                 }}
-                                className="h-10 px-4 text-xs font-semibold whitespace-nowrap"
+                                className="h-10 px-4 text-xs font-semibold whitespace-nowrap bg-white border-slate-200 hover:bg-slate-50"
                             >
                                 <X className="h-4 w-4 mr-2" />
-                                Clear Filters
+                                Clear
                             </Button>
                         </div>
                     </div>
@@ -507,31 +500,4 @@ export default function AdminEODPage() {
     );
 }
 
-// Helper DatePicker Component (Local for now, or could be shared)
-function DatePicker({ date, setDate, placeholder }: { date: Date | undefined, setDate: (d: Date | undefined) => void, placeholder: string }) {
-  return (
-    <DatePopover>
-      <DatePopoverTrigger asChild>
-        <Button
-          variant={"outline"}
-          className={cn(
-            "w-[240px] h-10 justify-start text-left font-normal",
-            !date && "text-muted-foreground"
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "PPP") : <span>{placeholder}</span>}
-        </Button>
-      </DatePopoverTrigger>
-      <DatePopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={setDate}
-          initialFocus
-        />
-      </DatePopoverContent>
-    </DatePopover>
-  )
-}
 

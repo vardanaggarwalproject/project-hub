@@ -24,3 +24,22 @@ export function dateComparisonClause(
 
   return sql`DATE(${dateColumn}) = DATE(${dateString})`;
 }
+
+/**
+ * Create SQL clause for date range comparison
+ *
+ * @param dateColumn - The database date column
+ * @param from - Start date
+ * @param to - End date
+ * @returns SQL comparison clause
+ */
+export function dateRangeComparisonClause(
+  dateColumn: Column | SQL,
+  from: Date,
+  to: Date
+): SQL {
+  const fromStr = from.toISOString().split('T')[0];
+  const toStr = to.toISOString().split('T')[0];
+
+  return sql`DATE(${dateColumn}) BETWEEN DATE(${fromStr}) AND DATE(${toStr})`;
+}

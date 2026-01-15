@@ -4,7 +4,7 @@ import { eodReports, user, projects } from "@/lib/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { eodSchema } from "@/lib/validations/reports";
-import { dateComparisonClause } from "@/lib/db/utils";
+import { dateComparisonClause, dateRangeComparisonClause } from "@/lib/db/utils";
 
 /**
  * GET /api/eods
@@ -26,12 +26,26 @@ export async function GET(req: Request) {
         if (projectId) conditions.push(eq(eodReports.projectId, projectId));
         if (userId) conditions.push(eq(eodReports.userId, userId));
 
-        // Handle date filtering using createdAt (Submission Date)
+        // Handle date range or single date filtering using createdAt (Submission Date)
+        const fromDate = searchParams.get("fromDate");
+        const toDate = searchParams.get("toDate");
         const dateParam = searchParams.get("date");
-        if (dateParam) {
+
+        if (fromDate && toDate) {
+            const start = new Date(fromDate);
+            const end = new Date(toDate);
+            if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                conditions.push(dateRangeComparisonClause(eodReports.createdAt, start, end));
+            }
+        } else if (dateParam) {
             const filterDate = new Date(dateParam);
             if (!isNaN(filterDate.getTime())) {
                 conditions.push(dateComparisonClause(eodReports.createdAt, filterDate));
+            }
+        } else if (fromDate) {
+            const start = new Date(fromDate);
+            if (!isNaN(start.getTime())) {
+                conditions.push(dateComparisonClause(eodReports.createdAt, start));
             }
         }
 
