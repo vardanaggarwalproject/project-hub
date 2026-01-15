@@ -189,28 +189,23 @@ export default function UserDashboardPage() {
       for (let i = 1; i <= daysToCheck; i++) {
         const checkDate = new Date();
         checkDate.setDate(checkDate.getDate() - i);
-        checkDate.setHours(0, 0, 0, 0);
         const dateStr = getLocalDateString(checkDate);
 
         activeProjects.forEach((project: Project) => {
           // Get the assignment info for this project
-          const assignment = assignments.find(
+          const assignment = projectAssignments.find(
             (a: ProjectAssignment) => a.projectId === project.id
           );
 
           if (assignment) {
             // Calculate valid start date (later of project creation or assignment)
             const assignedDate = new Date(assignment.assignedAt);
-            assignedDate.setHours(0, 0, 0, 0);
-
             const createdDate = new Date(assignment.createdAt);
-            createdDate.setHours(0, 0, 0, 0);
-
-            const validStartDate =
-              assignedDate > createdDate ? assignedDate : createdDate;
+            const validStart = assignedDate > createdDate ? assignedDate : createdDate;
+            const validStartStr = getLocalDateString(validStart);
 
             // Only check for missing updates if the date is after or on assignment/creation
-            if (checkDate < validStartDate) {
+            if (dateStr < validStartStr) {
               return; // Skip this date for this project
             }
           }

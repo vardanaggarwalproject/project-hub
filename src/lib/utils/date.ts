@@ -36,11 +36,18 @@ export function getYesterdayDate(): string {
 /**
  * Convert timestamp to local date string (YYYY-MM-DD)
  * @param dateInput - Date object or UTC timestamp string
- * @returns Local date string in YYYY-MM-DD format
+ * @returns Local date string in YYYY-MM-DD format (safe from timezone shifts for midnight UTC)
  */
 export function getLocalDateString(dateInput: Date | string): string {
   const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
-  return formatDateToYYYYMMDD(date);
+  if (isNaN(date.getTime())) return "";
+
+  // Use UTC methods to get the absolute date the database intended, 
+  // preventing Western shifts where 00:00 UTC becomes 19:00 Previous Day
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /**

@@ -73,8 +73,8 @@ export function ProjectHistoryDialog({
       const [projectData, assignmentData, memosData, eodsData] = await Promise.all([
         projectsApi.getById(projectId),
         projectsApi.getAssignment(projectId, userId).catch(() => null),
-        memosApi.getByFilters(userId),
-        eodsApi.getByFilters(userId),
+        memosApi.getByFilters(userId, projectId, 1000),
+        eodsApi.getByFilters(userId, projectId, 1000),
       ]);
 
       setProject(projectData);
@@ -83,25 +83,28 @@ export function ProjectHistoryDialog({
       const allMemos = Array.isArray(memosData) ? memosData : [];
       const allEods = Array.isArray(eodsData) ? eodsData : [];
 
-      console.log(`🔍 [HistoryDialog] Logged-in UserID: ${userId}`);
-      console.log(`🔍 [HistoryDialog] Total user memos: ${allMemos.length}. URL projectId: ${projectId}`);
-      
-      // Filter by projectId and userId locally (Strict ownership check)
+      // Calculate valid start date for this specific fetch context to ensure strict rendering
+      let currentValidStart = new Date();
+      if (assignmentData?.assignedAt) {
+          currentValidStart = new Date(assignmentData.assignedAt);
+      } else if (projectData?.createdAt) {
+          currentValidStart = new Date(projectData.createdAt);
+      }
+      currentValidStart.setHours(0, 0, 0, 0);
+      const validStartStr = getLocalDateString(currentValidStart);
+
+      // Filter by projectId and userId locally (Strict ownership + date check)
       const filteredMemos = allMemos.filter(m => {
-          const mProjId = String(m.projectId).toLowerCase().trim();
-          const pId = String(projectId).toLowerCase().trim();
-          const match = mProjId === pId && String(m.userId) === String(userId);
-          
-          if (getLocalDateString(m.reportDate) === "2026-01-14") {
-              console.log(`🔍 [HistoryDialog] Jan 14 Memo tracing: match=${match}, MemoUser=${m.userId}, AppUser=${userId}`);
-          }
-          return match;
+          const match = String(m.projectId) === String(projectId) && String(m.userId) === String(userId);
+          const dateStr = getLocalDateString(m.reportDate);
+          // HIDE reports that are before project creation/assignment
+          return match && dateStr >= validStartStr;
       });
       const filteredEods = allEods.filter(e => {
-          const mProjId = String(e.projectId).toLowerCase().trim();
-          const pId = String(projectId).toLowerCase().trim();
-          const match = mProjId === pId && String(e.userId) === String(userId);
-          return match;
+          const match = String(e.projectId) === String(projectId) && String(e.userId) === String(userId);
+          const dateStr = getLocalDateString(e.reportDate);
+          // HIDE reports that are before project creation/assignment
+          return match && dateStr >= validStartStr;
       });
       
       setMemos(filteredMemos);
@@ -193,33 +196,51 @@ export function ProjectHistoryDialog({
   }, [currentMonth, memos, eods, validStartDate]);
 
   const stats = useMemo(() => {
-    const thisMonth = currentMonth.getMonth();
-    const thisYear = currentMonth.getFullYear();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Current month/year for filtering (using string slice for absolute match with dateStr)
+    const targetMonthStr = format(currentMonth, "yyyy-MM");
+    
+    // Today's date string for range capping
+    const todayStr = getLocalDateString(new Date());
+    const validStartStr = getLocalDateString(validStartDate);
 
+    // Filter updates that actually belong to this month AND are within valid project period
     const memosThisMonth = memos.filter((m) => {
-      const date = new Date(m.reportDate);
-      return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
+      const dateStr = getLocalDateString(m.reportDate);
+      return (
+        dateStr.startsWith(targetMonthStr) &&
+        dateStr >= validStartStr &&
+        dateStr <= todayStr
+      );
     }).length;
 
     const eodsThisMonth = eods.filter((e) => {
-      const date = new Date(e.reportDate);
-      return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
+      const dateStr = getLocalDateString(e.reportDate);
+      return (
+        dateStr.startsWith(targetMonthStr) &&
+        dateStr >= validStartStr &&
+        dateStr <= todayStr
+      );
     }).length;
 
+    // Count theoretical working days in this month within assignment period
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
+    
     const validDays = eachDayOfInterval({ start: monthStart, end: monthEnd }).filter((date) => {
-      const dateTime = new Date(date);
-      dateTime.setHours(0, 0, 0, 0);
-      return dateTime >= validStartDate && dateTime <= today;
+      const dateStr = getLocalDateString(date);
+      return dateStr >= validStartStr && dateStr <= todayStr;
     }).length;
+
+    // Completion rate should represent the percentage of days in the period that were completed.
+    // Cap at 100% to ensure statistical accuracy
+    const completionRate = validDays > 0 
+      ? Math.min(100, Math.round((eodsThisMonth / validDays) * 100)) 
+      : 0;
 
     return {
       memosThisMonth,
       eodsThisMonth,
-      completionRate: validDays > 0 ? Math.round((eodsThisMonth / validDays) * 100) : 0,
+      completionRate,
     };
   }, [memos, eods, currentMonth, validStartDate]);
 
