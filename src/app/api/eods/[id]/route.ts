@@ -29,8 +29,8 @@ export async function PUT(
       validation.data;
 
     // Convert to Date object
-    const dateObj = new Date(reportDate);
-    dateObj.setHours(0, 0, 0, 0);
+    // We append T00:00:00 to ensure it's treated as a local date at midnight
+    const dateObj = new Date(reportDate + "T00:00:00");
 
     // Check if another EOD exists for this user+project+date (excluding current EOD)
     const existing = await db

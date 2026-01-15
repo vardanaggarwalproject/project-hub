@@ -5,7 +5,7 @@ import { sql, type SQL, type Column } from "drizzle-orm";
  */
 
 /**
- * Create SQL clause for date comparison in UTC timezone
+ * Create SQL clause for date comparison
  * Used to compare dates regardless of time component
  *
  * @param dateColumn - The database date column
@@ -16,6 +16,32 @@ export function dateComparisonClause(
   dateColumn: Column | SQL,
   dateObj: Date
 ): SQL {
-  const isoString = dateObj.toISOString();
-  return sql`DATE(${dateColumn} AT TIME ZONE 'UTC') = DATE(${isoString}::timestamp AT TIME ZONE 'UTC')`;
+  // Create a range for the entire day in UTC (or the intended timezone)
+  // Robust approach: Check if the timestamp is between 00:00:00 and 23:59:59 of that day
+  const targetDate = new Date(dateObj);
+  targetDate.setHours(0, 0, 0, 0);
+
+  const nextDate = new Date(targetDate);
+  nextDate.setDate(targetDate.getDate() + 1);
+
+  return sql`${dateColumn} >= ${targetDate} AND ${dateColumn} < ${nextDate}`;
+}
+
+/**
+ * Create SQL clause for date range comparison
+ *
+ * @param dateColumn - The database date column
+ * @param from - Start date
+ * @param to - End date
+ * @returns SQL comparison clause
+ */
+export function dateRangeComparisonClause(
+  dateColumn: Column | SQL,
+  from: Date,
+  to: Date
+): SQL {
+  const fromStr = from.toISOString().split('T')[0];
+  const toStr = to.toISOString().split('T')[0];
+
+  return sql`DATE(${dateColumn}) BETWEEN DATE(${fromStr}) AND DATE(${toStr})`;
 }

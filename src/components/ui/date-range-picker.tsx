@@ -53,7 +53,7 @@ export function DateRangePicker({
   className,
   fromDate,
   toDate,
-  numberOfMonths = 2,
+  numberOfMonths = 1,
 }: DateRangePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [tempRange, setTempRange] = React.useState<DateRange | undefined>(value);
@@ -67,38 +67,32 @@ export function DateRangePicker({
   }, [value]);
 
   const today = new Date();
+  today.setHours(23, 59, 59, 999); // End of today for inclusive comparison
+
   const presetOptions = [
     {
       label: "Today",
-      range: { from: today, to: today },
+      range: { from: new Date(), to: new Date() },
     },
     {
-      label: "Tomorrow",
-      range: { from: addDays(today, 1), to: addDays(today, 1) },
+      label: "Yesterday",
+      range: { from: addDays(new Date(), -1), to: addDays(new Date(), -1) },
     },
     {
-      label: "Next 7 days",
-      range: { from: today, to: addDays(today, 7) },
+      label: "Last 7 days",
+      range: { from: addDays(new Date(), -7), to: new Date() },
     },
     {
-      label: "Next 30 days",
-      range: { from: today, to: addDays(today, 30) },
+      label: "Last 30 days",
+      range: { from: addDays(new Date(), -30), to: new Date() },
     },
     {
-      label: "Next Week",
-      range: { from: startOfWeek(addWeeks(today, 1)), to: endOfWeek(addWeeks(today, 1)) },
+      label: "This Week",
+      range: { from: startOfWeek(new Date()), to: new Date() },
     },
     {
-      label: "Next Month",
-      range: { from: startOfMonth(addMonths(today, 1)), to: endOfMonth(addMonths(today, 1)) },
-    },
-    {
-      label: "Next 3 months",
-      range: { from: today, to: addMonths(today, 3) },
-    },
-    {
-      label: "Next 6 months",
-      range: { from: today, to: addMonths(today, 6) },
+      label: "This Month",
+      range: { from: startOfMonth(new Date()), to: new Date() },
     },
   ];
 
@@ -143,36 +137,35 @@ export function DateRangePicker({
             id="date"
             variant="outline"
             className={cn(
-              "w-full justify-start text-left font-normal h-10 bg-white border-slate-200",
+              "w-full justify-start text-left font-normal h-10 bg-white border-slate-200 hover:bg-slate-50",
               !value && "text-muted-foreground"
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
             {value?.from ? (
               value.to ? (
-                <>
-                  {format(value.from, "LLL dd, y")} -{" "}
-                  {format(value.to, "LLL dd, y")}
-                </>
+                <span className="text-xs truncate">
+                  {format(value.from, "LLL dd")} - {format(value.to, "LLL dd, y")}
+                </span>
               ) : (
-                format(value.from, "LLL dd, y")
+                <span className="text-xs">{format(value.from, "LLL dd, y")}</span>
               )
             ) : (
-              <span>{placeholder}</span>
+              <span className="text-xs">{placeholder}</span>
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 max-w-[750px]" align="start">
-          <div className="flex">
-            {/* Presets Sidebar */}
-            <div className="border-r bg-slate-50/50 p-2 min-w-[120px]">
-              <div className="space-y-0.5">
+        <PopoverContent className="w-auto p-0" align="start" sideOffset={8}>
+          <div className="flex flex-col sm:flex-row">
+            {/* Presets - Vertical on Desktop, Horizontal on Mobile */}
+            <div className="border-b sm:border-b-0 sm:border-r bg-slate-50/50 p-2 min-w-[140px]">
+              <div className="grid grid-cols-2 sm:grid-cols-1 gap-1">
                 {presetOptions.map((preset) => (
                   <Button
                     key={preset.label}
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start text-xs font-normal hover:bg-white h-8 px-2"
+                    className="justify-start text-[11px] font-medium hover:bg-white h-7 px-2"
                     onClick={() => handlePreset(preset.range)}
                   >
                     {preset.label}
@@ -181,66 +174,72 @@ export function DateRangePicker({
               </div>
             </div>
 
-            {/* Calendar Section */}
             <div className="p-3">
-              {/* Date Inputs */}
-              <div className="flex items-center gap-1.5 mb-3 pb-3 border-b">
-                <Input
-                  type="date"
-                  value={fromInput}
-                  onChange={handleFromInputChange}
-                  className="h-8 text-xs w-[130px]"
-                  placeholder="Start date"
-                />
-                <span className="text-muted-foreground text-xs">-</span>
-                <Input
-                  type="date"
-                  value={toInput}
-                  onChange={handleToInputChange}
-                  className="h-8 text-xs w-[130px]"
-                  placeholder="End date"
-                />
+              {/* Date Inputs - Compact */}
+              <div className="flex items-center gap-2 mb-3 pb-3 border-b">
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 px-1">From</p>
+                  <Input
+                    type="date"
+                    value={fromInput}
+                    onChange={handleFromInputChange}
+                    className="h-8 text-xs w-[125px] bg-slate-50 border-slate-200"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 px-1">To</p>
+                  <Input
+                    type="date"
+                    value={toInput}
+                    onChange={handleToInputChange}
+                    className="h-8 text-xs w-[125px] bg-slate-50 border-slate-200"
+                  />
+                </div>
               </div>
 
-              {/* Calendar */}
-              <div className="[&_.rdp]:scale-90 [&_.rdp]:-m-2">
+              {/* Calendar - One Month */}
+              <div className="flex justify-center">
                 <Calendar
                   initialFocus
                   mode="range"
                   defaultMonth={tempRange?.from}
                   selected={tempRange}
                   onSelect={setTempRange}
-                  numberOfMonths={numberOfMonths}
+                  numberOfMonths={1}
                   fromDate={fromDate}
-                  toDate={toDate}
+                  toDate={toDate || new Date()}
+                  disabled={(date) => date > new Date()}
+                  className="rounded-md border-none p-0"
                 />
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t mt-3">
+              {/* Actions */}
+              <div className="flex items-center justify-between pt-3 border-t mt-3">
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={handleReset}
-                  className="h-8 text-xs px-3"
+                  className="h-8 text-[11px] px-2 text-slate-500 hover:text-red-500 hover:bg-red-50"
                 >
                   Reset
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setOpen(false)}
-                  className="h-8 text-xs px-3"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleApply}
-                  className="h-8 text-xs px-3 bg-emerald-600 hover:bg-emerald-700"
-                >
-                  Update
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setOpen(false)}
+                    className="h-8 text-[11px] px-3 border-slate-200"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleApply}
+                    className="h-8 text-[11px] px-4 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                  >
+                    Apply Range
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
