@@ -42,6 +42,10 @@ export default function UserDashboardPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
+  /* New State for duplicate checking */
+  const [allMemos, setAllMemos] = useState<Memo[]>([]);
+  const [allEods, setAllEods] = useState<EOD[]>([]);
+
   useEffect(() => {
     const socket = getSocket();
 
@@ -97,6 +101,10 @@ export default function UserDashboardPage() {
         memosApi.getByFilters(userId),
         eodsApi.getByFilters(userId),
       ]);
+      
+      // Store raw data for duplicate checking
+      setAllMemos(Array.isArray(memosData) ? memosData : []);
+      setAllEods(Array.isArray(eodsData) ? eodsData : []);
 
       // Get all user's projects
       const userProjects = projectsData.data || [];
@@ -502,6 +510,8 @@ export default function UserDashboardPage() {
           initialDate={initialDate}
           referenceDataFetcher={referenceDataFetcher}
           onSubmit={handleUpdateSubmit}
+          existingMemos={allMemos}
+          existingEods={allEods}
         />
 
         <ProjectHistoryDialog

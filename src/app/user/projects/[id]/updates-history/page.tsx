@@ -445,6 +445,8 @@ export default function UpdatesHistoryPage() {
           showProjectSelect={false}
           onEditClick={() => setModalMode("edit")}
           referenceDataFetcher={referenceDataFetcher}
+          existingMemos={memos}
+          existingEods={eods}
         />
       </div>
     </ErrorBoundary>

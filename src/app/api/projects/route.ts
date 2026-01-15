@@ -188,7 +188,7 @@ export async function POST(req: Request) {
                 console.warn("⚠️ global.io not found. Falling back to loopback connection...");
                 // Fallback to loopback if global.io is missing (shouldn't happen with custom server)
                 const { io: clientIo } = await import("socket.io-client");
-                const socket = clientIo("http://localhost:3000", {
+                const socket = clientIo(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000", {
                     path: "/api/socket",
                     addTrailingSlash: false,
                 });

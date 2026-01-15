@@ -22,8 +22,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
 import type { Project } from "@/types/project";
+import type { Memo, EOD } from "@/types/report";
 import { MEMO_MAX_LENGTH } from "@/lib/constants";
 import { toast } from "sonner";
+import { getLocalDateString } from "@/lib/utils/date";
 
 /**
  * Props for UpdateModal component
@@ -49,6 +51,8 @@ interface UpdateModalProps {
     projectId: string,
     date: string
   ) => Promise<{ type: string; content: string } | null>;
+  existingMemos?: Memo[];
+  existingEods?: EOD[];
   onSubmit: (data: {
     type: "memo" | "eod";
     projectId: string;
@@ -80,6 +84,8 @@ export function UpdateModal({
   initialClientUpdate = "",
   initialInternalUpdate = "",
   referenceDataFetcher,
+  existingMemos = [],
+  existingEods = [],
   onSubmit,
 }: UpdateModalProps) {
   const [modalTab, setModalTab] = useState<"memo" | "eod">(initialTab);
@@ -148,6 +154,44 @@ export function UpdateModal({
     if (minDate && selectedDate && selectedDate < minDate) {
         toast.error(`Access Denied: You cannot submit updates for dates before your project allocation (${minDate}).`);
         return;
+    }
+
+    if (showDatePicker && selectedDate) {
+        const isEditingSameEntry = 
+            initialDate === selectedDate && 
+            initialTab === modalTab && 
+            initialProjectId === selectedProjectId &&
+            localMode === mode; // mode check might be needed if switching view->edit without re-init
+
+        // However, localMode switches to 'edit' when editing. 
+        // We know we are 'updating' if we started with some content OR if we were in view mode initially.
+        // Better check: If we are editing an EXISTING entry, we are allowed to save *to that same date*.
+        // If we change the date, we must check if the NEW date is free.
+        
+        // A conflict exists if there is an entry for the SELECTED date AND SELECTED project, 
+        // AND it's NOT the same record instance we are editing.
+
+        const isMemo = modalTab === "memo";
+        
+        // Find ANY entry that matches the target criteria
+        const conflictExists = isMemo
+            ? existingMemos.some(m => 
+                m.projectId === selectedProjectId && 
+                getLocalDateString(m.reportDate) === selectedDate
+              )
+            : existingEods.some(e => 
+                e.projectId === selectedProjectId && 
+                getLocalDateString(e.reportDate) === selectedDate
+              );
+            
+        // Check if we are editing the SAME record (heuristically)
+        const isSameRecord = selectedDate === initialDate && modalTab === initialTab && selectedProjectId === initialProjectId;
+        
+        // If conflict exists and we switched context (date/type/project), we must block.
+        if (conflictExists && !isSameRecord) {
+             toast.error(`A ${modalTab === "memo" ? "Memo" : "EOD Report"} already exists for this date. Please edit that entry instead.`);
+             return;
+        }
     }
 
     setIsSubmitting(true);

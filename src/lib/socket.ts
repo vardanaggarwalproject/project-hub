@@ -9,9 +9,8 @@ export const getSocket = () => {
   if (typeof window === "undefined") return null as unknown as Socket;
 
   if (!socket) {
-    const isDevelopment = process.env.NODE_ENV === "development";
-    // Use the current origin in browser, fall back to localhost in dev if needed
-    const socketUrl = isDevelopment ? "http://localhost:3000" : window.location.origin;
+    // Use environment variable or current origin, fall back to localhost
+    const socketUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
 
     console.log("🔌 Initializing socket connection to:", socketUrl);
 

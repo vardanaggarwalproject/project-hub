@@ -412,6 +412,8 @@ export function ProjectHistoryDialog({
           maxDate={format(new Date(), "yyyy-MM-dd")}
           showProjectSelect={false}
           referenceDataFetcher={referenceDataFetcher}
+          existingMemos={memos}
+          existingEods={eods}
         />
       </DialogContent>
     </Dialog>
