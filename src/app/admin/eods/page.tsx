@@ -108,7 +108,7 @@ export default function AdminEODPage() {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchQuery);
             setPage(1);
-        }, 500);
+        }, 1000);
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
@@ -320,89 +320,134 @@ export default function AdminEODPage() {
                                                     </span>
                                                 </TableCell>
                                                 <TableCell className="text-center">
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="sm"
-                                                        onClick={() => copyToClipboard(report.clientUpdate || report.actualUpdate || "")}
-                                                        className="h-8 w-8 p-0 hover:bg-slate-100 rounded-full"
-                                                    >
-                                                        <Copy className="h-3.5 w-3.5 text-slate-500" />
-                                                    </Button>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-slate-400 hover:text-slate-900 border-slate-200 hover:border-slate-300 transition-all"
+                                                                onClick={() => {
+                                                                    const combinedContent = [
+                                                                        report.clientUpdate && `CLIENT UPDATE:\n${report.clientUpdate}`,
+                                                                        report.actualUpdate && `INTERNAL CONTEXT:\n${report.actualUpdate}`
+                                                                    ].filter(Boolean).join('\n\n');
+                                                                    copyToClipboard(combinedContent || "");
+                                                                }}
+                                                            >
+                                                                <Copy className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p className="text-[10px] font-bold uppercase tracking-wider">Click to copy</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6">
                                                     <div className="flex items-center justify-end gap-2">
                                                         <Dialog>
-                                                            <DialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full">
-                                                                    <Eye className="h-4 w-4" />
-                                                                </Button>
-                                                            </DialogTrigger>
-                                                            <DialogContent className="max-w-2xl rounded-[2rem] border-none shadow-2xl p-0 bg-white overflow-hidden">
-                                                                <div className="bg-gradient-to-r from-slate-50 to-slate-100/50 px-8 py-6 border-b border-slate-200">
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <DialogTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full">
+                                                                            <Eye className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </DialogTrigger>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p className="text-[10px] font-bold uppercase tracking-wider">Click to view EOD</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                            <DialogContent className="max-w-lg w-[95vw] sm:w-full rounded-2xl border border-slate-200 shadow-lg p-0 bg-white overflow-hidden">
+                                                                <div className="p-6 border-b border-slate-100">
                                                                     <div className="flex items-center gap-4">
-                                                                        <Avatar className="h-12 w-12 border-2 border-white shadow-sm ring-1 ring-slate-100">
+                                                                        <Avatar className="h-12 w-12 border border-slate-100 shadow-sm">
                                                                             <AvatarImage src={report.user.image || ""} />
-                                                                            <AvatarFallback className="bg-blue-500 text-white font-bold text-sm">
+                                                                            <AvatarFallback className="bg-slate-100 text-slate-600 font-bold text-sm">
                                                                                 {report.user.name.substring(0, 2).toUpperCase()}
                                                                             </AvatarFallback>
                                                                         </Avatar>
-                                                                        <div>
-                                                                            <DialogTitle className="text-xl font-bold text-[#0f172a] uppercase tracking-tight">
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <DialogTitle className="text-lg font-semibold text-slate-900 truncate">
                                                                                 EOD Report
                                                                             </DialogTitle>
-                                                                            <div className="flex items-center gap-3 mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                                                                                <span className="flex items-center gap-1.5"><FolderKanban className="h-3 w-3 text-blue-500" /> {report.projectName}</span>
-                                                                                <span className="flex items-center gap-1.5"><CalendarIcon className="h-3 w-3 text-blue-500" /> {new Date(report.reportDate).toLocaleDateString()}</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                
-                                                                <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto">
-                                                                    <div className="space-y-3">
-                                                                        <div className="flex items-center justify-between">
-                                                                             <div className="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">
-                                                                                <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                                                                                Client Facing Update
-                                                                            </div>
-                                                                             <Button 
-                                                                                variant="outline" 
-                                                                                size="sm" 
-                                                                                onClick={() => copyToClipboard(report.clientUpdate || "")}
-                                                                                className="h-7 text-[10px] uppercase font-bold tracking-wider"
-                                                                            >
-                                                                                <Copy className="h-3 w-3 mr-2" /> Copy
-                                                                            </Button>
-                                                                        </div>
-                                                                        <div className="p-6 rounded-2xl bg-blue-50/20 border border-blue-100/50 text-sm font-medium text-slate-700 leading-relaxed break-words whitespace-pre-wrap shadow-sm">
-                                                                            {report.clientUpdate || "No client-facing update provided."}
-                                                                        </div>
-                                                                    </div>
-                                                                    
-                                                                    <div className="space-y-3">
-                                                                        <div className="flex items-center justify-between">
-                                                                             <div className="flex items-center gap-2 text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em]">
-                                                                                <div className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                                                                                Internal Development Context
-                                                                            </div>
-                                                                             <Button 
-                                                                                variant="outline" 
-                                                                                size="sm" 
-                                                                                onClick={() => copyToClipboard(report.actualUpdate || "")}
-                                                                                className="h-7 text-[10px] uppercase font-bold tracking-wider"
-                                                                            >
-                                                                                <Copy className="h-3 w-3 mr-2" /> Copy
-                                                                            </Button>
-                                                                        </div>
-                                                                        <div className="p-6 rounded-2xl bg-slate-50/80 border border-slate-100 text-sm font-medium text-slate-700 leading-relaxed break-words whitespace-pre-wrap shadow-sm">
-                                                                            {report.actualUpdate || "No internal update provided."}
+                                                                            <p className="text-sm text-slate-600 font-medium text-left">
+                                                                            {report.user.name}
+                                                                        </p>
                                                                         </div>
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end items-center">
-                                                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                                                         Submitted: {new Date(report.createdAt).toLocaleString()}
+                                                                <div className="p-6 space-y-5">
+                                                                    <div className="grid grid-cols-2 gap-4">
+                                                                        <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-3.5 space-y-1">
+                                                                            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest flex items-center gap-1.5">
+                                                                                <FolderKanban className="h-3 w-3 text-slate-500" /> Project
+                                                                            </p>
+                                                                            <p className="text-sm font-bold text-slate-900 truncate">
+                                                                                {report.projectName}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-3.5 space-y-1">
+                                                                            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest flex items-center gap-1.5">
+                                                                                <CalendarIcon className="h-3 w-3 text-slate-500" /> Date
+                                                                            </p>
+                                                                            <p className="text-sm font-bold text-slate-900">
+                                                                                {format(report.reportDate, "MMM d, yyyy")}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                                                                        {/* Client Update Section */}
+                                                                        <div className="bg-slate-50/50 border border-slate-100 rounded-xl overflow-hidden">
+                                                                            <div className="px-4 py-2.5 border-b border-slate-100 bg-white/50 flex items-center justify-between">
+                                                                                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Client Facing Update</p>
+                                                                                <Button 
+                                                                                    variant="ghost" 
+                                                                                    size="sm" 
+                                                                                    onClick={() => copyToClipboard(report.clientUpdate || "")}
+                                                                                    className="h-6 px-2 text-[10px] font-bold text-slate-600 hover:text-slate-900 hover:bg-white"
+                                                                                >
+                                                                                    <Copy className="h-3 w-3 mr-1.5" /> Copy
+                                                                                </Button>
+                                                                            </div>
+                                                                            <div className="p-4">
+                                                                                <div className="text-sm text-slate-700 leading-relaxed font-medium break-words whitespace-pre-wrap">
+                                                                                    {report.clientUpdate || "No client-facing update provided."}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Internal Update Section */}
+                                                                        <div className="bg-slate-50/30 border border-slate-100 border-dashed rounded-xl overflow-hidden">
+                                                                            <div className="px-4 py-2.5 border-b border-slate-100 border-dashed bg-white/30 flex items-center justify-between">
+                                                                                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Internal Context</p>
+                                                                                <Button 
+                                                                                    variant="ghost" 
+                                                                                    size="sm" 
+                                                                                    onClick={() => copyToClipboard(report.actualUpdate || "")}
+                                                                                    className="h-6 px-2 text-[10px] font-bold text-slate-600 hover:text-slate-900 hover:bg-white"
+                                                                                >
+                                                                                    <Copy className="h-3 w-3 mr-1.5" /> Copy
+                                                                                </Button>
+                                                                            </div>
+                                                                            <div className="p-4">
+                                                                                <div className="text-sm text-slate-500 leading-relaxed font-medium break-words whitespace-pre-wrap italic">
+                                                                                    {report.actualUpdate || "No internal update provided."}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="px-6 py-3.5 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
+                                                                    <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
+                                                                        Logged {format(report.createdAt, "MMM d, h:mm a")}
+                                                                    </span>
+                                                                    <div className="flex gap-1">
+                                                                        <div className="h-1 w-1 rounded-full bg-slate-300" />
+                                                                        <div className="h-1 w-1 rounded-full bg-slate-300" />
+                                                                        <div className="h-1 w-1 rounded-full bg-slate-500" />
                                                                     </div>
                                                                 </div>
                                                             </DialogContent>

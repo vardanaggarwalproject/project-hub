@@ -16,7 +16,7 @@ import type { Project, ProjectStatus } from "@/types/project";
 interface ProjectsSectionProps {
   projects: Project[];
   projectStatuses: ProjectStatus[];
-  onOpenModal: (type: "memo" | "eod", projectId: string) => void;
+  onOpenModal: (type: "memo" | "eod", projectId: string, date?: string) => void;
   onToggleActive: (projectId: string, currentStatus: boolean) => void;
   onHistoryClick: (projectId: string) => void;
 }

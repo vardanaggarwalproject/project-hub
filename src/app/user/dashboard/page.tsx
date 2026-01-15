@@ -271,9 +271,10 @@ export default function UserDashboardPage() {
 
   const handleOpenModal = async (
     type: "memo" | "eod",
-    projectId: string
+    projectId: string,
+    date?: string
   ) => {
-    const targetDate = getTodayDate();
+    const targetDate = date || getTodayDate();
     setInitialModalTab(type);
     setInitialProjectId(projectId);
     setInitialDate(targetDate);
@@ -455,7 +456,7 @@ export default function UserDashboardPage() {
     if (existingId) {
          if (data.type === "memo") {
             await memosApi.update(existingId, {
-                memoContent: data.memoContent,
+                memoContent: data.memoContent || "",
                 projectId: data.projectId,
                 userId: session?.user?.id || "",
                 reportDate: data.date
@@ -464,7 +465,7 @@ export default function UserDashboardPage() {
          } else {
              await eodsApi.update(existingId, {
                  clientUpdate: data.clientUpdate || "",
-                 actualUpdate: data.internalUpdate,
+                 actualUpdate: data.internalUpdate || "",
                  projectId: data.projectId,
                  userId: session?.user?.id || "",
                  reportDate: data.date
@@ -520,7 +521,7 @@ export default function UserDashboardPage() {
         <ProjectsSection
           projects={myProjects}
           projectStatuses={projectStatuses}
-          onOpenModal={(type, pid) => handleOpenModal(type, pid)}
+          onOpenModal={(type, pid, date) => handleOpenModal(type, pid, date)}
           onToggleActive={handleToggleActive}
           onHistoryClick={(pid) => {
             setSelectedProjectId(pid);
@@ -531,7 +532,7 @@ export default function UserDashboardPage() {
         {/* Missing Updates */}
         <MissingUpdatesSection
           missingUpdates={missingUpdates}
-          onOpenModal={(type, pid) => handleOpenModal(type, pid)} 
+          onOpenModal={(type, pid, date) => handleOpenModal(type, pid, date)} 
         />
 
         {/* Update Modal */}
