@@ -6,7 +6,7 @@ import * as relations from "./relations";
 const schema = { ...baseSchema, ...relations };
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env' });
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is not defined');
@@ -14,6 +14,9 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('supabase.com')
+    ? { rejectUnauthorized: false }
+    : false,
 });
 
 export const db = drizzle(pool, { schema });

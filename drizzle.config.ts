@@ -2,7 +2,7 @@ import { defineConfig } from "drizzle-kit";
 import dotenv from "dotenv";
 
 // Load env FIRST
-dotenv.config({ path: ".env.local" });
+dotenv.config({ path: ".env" });
 
 const url = (process.env.DIRECT_URL || process.env.DATABASE_URL || "").trim();
 
