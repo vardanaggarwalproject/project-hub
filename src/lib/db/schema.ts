@@ -109,6 +109,8 @@ export const clients = pgTable("clients", {
   id: text("id").primaryKey().notNull(),
   name: text("name").notNull(),
   email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
