@@ -188,7 +188,7 @@ export default function ClientsPage() {
       {/* Page Header with Search and Actions */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-[#0f172a]">
+          <h2 className="text-3xl font-bold tracking-tight text-app-heading">
             Clients
           </h2>
           <p className="text-muted-foreground mt-1">
@@ -200,7 +200,7 @@ export default function ClientsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search clients..."
-              className="pl-10 bg-white border-slate-200 focus-visible:ring-blue-500"
+              className="pl-10 bg-app-input border-app focus-ring-app"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -233,32 +233,32 @@ export default function ClientsPage() {
       {meta && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Total Clients */}
-          <Card className="border-none shadow-md bg-gradient-to-br from-blue-50 to-indigo-50 hover:shadow-lg transition-shadow">
+          <Card className="border-none shadow-app bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-3">
-                <div className="p-3 bg-blue-100 rounded-xl">
-                  <Users className="h-6 w-6 text-blue-600" />
+                <div className="p-3 bg-blue-100 dark:bg-blue-500/20 rounded-xl">
+                  <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
-                <p className="text-4xl font-bold text-blue-600">{meta.total}</p>
+                <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">{meta.total}</p>
               </div>
-              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+              <p className="text-xs font-bold text-app-body uppercase tracking-wider">
                 Total Clients
               </p>
             </CardContent>
           </Card>
 
           {/* Active Projects */}
-          <Card className="border-none shadow-md bg-gradient-to-br from-emerald-50 to-green-50 hover:shadow-lg transition-shadow">
+          <Card className="border-none shadow-app bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950 dark:to-green-950 hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-3">
-                <div className="p-3 bg-emerald-100 rounded-xl">
-                  <FolderKanban className="h-6 w-6 text-emerald-600" />
+                <div className="p-3 bg-emerald-100 dark:bg-emerald-500/20 rounded-xl">
+                  <FolderKanban className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <p className="text-4xl font-bold text-emerald-600">
+                <p className="text-4xl font-bold text-emerald-600 dark:text-emerald-400">
                   {totalActiveProjects}
                 </p>
               </div>
-              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+              <p className="text-xs font-bold text-app-body uppercase tracking-wider">
                 Active Projects
               </p>
             </CardContent>
@@ -267,28 +267,28 @@ export default function ClientsPage() {
       )}
 
       {/* Table Card */}
-      <Card className="border-none shadow-md overflow-hidden bg-white">
+      <Card className="border-none shadow-app overflow-hidden bg-app-card">
         <CardContent className="p-0">
           <div className="relative w-full overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-gradient-to-r from-slate-50 to-slate-100/50 hover:from-slate-50 hover:to-slate-100/50 border-b-2 border-slate-200">
-                  <TableHead className="w-[80px] font-extrabold text-slate-900 uppercase text-[11px] tracking-wider pl-6">
+                <TableRow className="bg-app-table-header hover:bg-app-table-header border-b-2 border-app">
+                  <TableHead className="w-[80px] font-extrabold text-app-body uppercase text-[11px] tracking-wider pl-6">
                     S.No
                   </TableHead>
-                  <TableHead className="font-extrabold text-slate-900 uppercase text-[11px] tracking-wider">
+                  <TableHead className="font-extrabold text-app-body uppercase text-[11px] tracking-wider">
                     Client Name
                   </TableHead>
-                  <TableHead className="font-extrabold text-slate-900 uppercase text-[11px] tracking-wider">
+                  <TableHead className="font-extrabold text-app-body uppercase text-[11px] tracking-wider">
                     Email Address
                   </TableHead>
-                  <TableHead className="font-extrabold text-slate-900 uppercase text-[11px] tracking-wider">
+                  <TableHead className="font-extrabold text-app-body uppercase text-[11px] tracking-wider">
                     Projects
                   </TableHead>
-                  <TableHead className="font-extrabold text-slate-900 uppercase text-[11px] tracking-wider">
+                  <TableHead className="font-extrabold text-app-body uppercase text-[11px] tracking-wider">
                     Added On
                   </TableHead>
-                  <TableHead className="text-right font-extrabold text-slate-900 uppercase text-[11px] tracking-wider pr-6">
+                  <TableHead className="text-right font-extrabold text-app-body uppercase text-[11px] tracking-wider pr-6">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -298,31 +298,31 @@ export default function ClientsPage() {
                   clients.map((client, index) => (
                     <TableRow
                       key={client.id}
-                      className="group transition-all hover:bg-blue-50/30 border-b border-slate-100"
+                      className="group transition-all bg-app-table-row-hover border-b border-app-light"
                     >
-                      <TableCell className="pl-6 font-semibold text-slate-500">
+                      <TableCell className="pl-6 font-semibold text-app-body">
                         {(page - 1) * limit + index + 1}
                       </TableCell>
                       <TableCell>
                         <Link href={`/admin/clients/${client.id}`}>
                           <div className="flex items-center gap-3 cursor-pointer group">
-                            <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 text-emerald-600 shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all">
+                            <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950 dark:to-green-950 text-emerald-600 dark:text-emerald-400 shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all">
                               <Building2 className="h-4 w-4" />
                             </div>
-                            <span className="font-semibold text-[15px] text-[#0f172a] group-hover:text-blue-600 transition-colors">
+                            <span className="font-semibold text-[15px] text-app-heading group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                               {client.name}
                             </span>
                           </div>
                         </Link>
                       </TableCell>
-                      <TableCell className="text-slate-600 font-medium">
+                      <TableCell className="text-app-body font-medium">
                         {client.email || "—"}
                       </TableCell>
-                      <TableCell className="text-slate-600 font-semibold">
+                      <TableCell className="text-app-body font-semibold">
                         {client.activeProjectCount} Active Project
                         {client.activeProjectCount !== 1 ? "s" : ""}
                       </TableCell>
-                      <TableCell className="text-slate-500 text-sm font-medium text-nowrap">
+                      <TableCell className="text-app-body text-sm font-medium text-nowrap">
                         {new Date(client.createdAt).toLocaleDateString(
                           "en-US",
                           { month: "short", day: "numeric", year: "numeric" }
@@ -388,18 +388,18 @@ export default function ClientsPage() {
 
           {/* Pagination */}
           {meta && meta.totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t bg-gradient-to-r from-slate-50/50 to-slate-100/30">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-app bg-app-subtle">
               <p className="text-xs text-muted-foreground font-medium">
                 Showing{" "}
-                <span className="text-[#0f172a] font-bold">
+                <span className="text-app-heading font-bold">
                   {(page - 1) * limit + 1}
                 </span>{" "}
                 to{" "}
-                <span className="text-[#0f172a] font-bold">
+                <span className="text-app-heading font-bold">
                   {Math.min(page * limit, meta.total)}
                 </span>{" "}
                 of{" "}
-                <span className="text-[#0f172a] font-bold">{meta.total}</span>{" "}
+                <span className="text-app-heading font-bold">{meta.total}</span>{" "}
                 clients
               </p>
               <div className="flex items-center gap-2">
@@ -408,12 +408,12 @@ export default function ClientsPage() {
                   size="sm"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="h-9 px-3 border-slate-200 hover:bg-white font-bold"
+                  className="h-9 px-3 border-app hover:bg-white font-bold"
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
                   Prev
                 </Button>
-                <div className="text-sm font-bold text-[#0f172a] px-3">
+                <div className="text-sm font-bold text-app-heading px-3">
                   Page {page} of {meta.totalPages}
                 </div>
                 <Button
@@ -423,7 +423,7 @@ export default function ClientsPage() {
                     setPage((p) => Math.min(meta.totalPages, p + 1))
                   }
                   disabled={page === meta.totalPages}
-                  className="h-9 px-3 border-slate-200 hover:bg-white font-bold"
+                  className="h-9 px-3 border-app hover:bg-white font-bold"
                 >
                   Next
                   <ChevronRight className="h-4 w-4 ml-1" />

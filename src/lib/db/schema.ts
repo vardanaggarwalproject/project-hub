@@ -6,6 +6,7 @@ import {
   pgEnum,
   unique,
   foreignKey,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role_enum", [
@@ -308,6 +309,7 @@ export const links = pgTable(
     projectId: text("project_id").notNull(),
     clientId: text("client_id"),
     addedBy: text("added_by"),
+    allowedRoles: jsonb("allowed_roles").$type<string[]>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

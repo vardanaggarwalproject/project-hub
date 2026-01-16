@@ -20,7 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Calendar, AlertCircle } from "lucide-react";
 import type { Project } from "@/types/project";
 import type { Memo, EOD } from "@/types/report";
 import { MEMO_MAX_LENGTH } from "@/lib/constants";
@@ -101,6 +102,11 @@ export function UpdateModal({
   } | null>(null);
   const [localMode, setLocalMode] = useState<"view" | "edit">(mode);
 
+  // Get selected project details
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const isMemoRequired = selectedProject?.isMemoRequired || false;
+  const MEMO_MIN_LENGTH = isMemoRequired ? 140 : 1;
+
   useEffect(() => {
     if (!isOpen || !referenceDataFetcher || !selectedProjectId || !selectedDate)
       return;
@@ -150,6 +156,12 @@ export function UpdateModal({
   ]);
 
   const handleSubmit = async () => {
+    // Validate memo minimum length for projects that require 140 chars
+    if (modalTab === "memo" && isMemoRequired && memoContent.length < 140) {
+        toast.error(`This project requires a detailed memo (minimum 140 characters). Current: ${memoContent.length}/140`);
+        return;
+    }
+
     // Authority check for date manually entered or selected
     if (minDate && selectedDate && selectedDate < minDate) {
         toast.error(`Access Denied: You cannot submit updates for dates before your project allocation (${minDate}).`);
@@ -354,6 +366,14 @@ export function UpdateModal({
             <>
               {modalTab === "memo" ? (
                 <div className="space-y-2">
+                  {isMemoRequired && (
+                    <Alert className="bg-amber-50 border-amber-200">
+                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                      <AlertDescription className="text-xs text-amber-800">
+                        <strong>Detailed Memo Required:</strong> This project requires a minimum of 140 characters in your memo.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <Label htmlFor="memo" className="text-sm font-medium">
                     What are you working on today?
                   </Label>
@@ -361,12 +381,28 @@ export function UpdateModal({
                     id="memo"
                     value={memoContent}
                     onChange={(e) => setMemoContent(e.target.value.slice(0, MEMO_MAX_LENGTH))}
-                    placeholder="Brief overview of your tasks for today..."
-                    className="min-h-25 resize-none"
+                    placeholder={
+                      isMemoRequired
+                        ? "Provide a detailed overview of your tasks and progress (minimum 140 characters)..."
+                        : "Brief overview of your tasks for today..."
+                    }
+                    className={`min-h-25 resize-none ${
+                      isMemoRequired && memoContent.length < 140 ? "border-amber-300 focus-visible:ring-amber-500" : ""
+                    }`}
                     maxLength={MEMO_MAX_LENGTH}
                   />
-                  <div className="text-xs text-right text-slate-400">
+                  <div className={`text-xs text-right ${
+                    isMemoRequired && memoContent.length < 140 ? "text-amber-600 font-medium" : "text-slate-400"
+                  }`}>
                     {memoContent.length}/{MEMO_MAX_LENGTH}
+                    {isMemoRequired && (
+                      <span className="ml-2">
+                        (min: {MEMO_MIN_LENGTH})
+                        {memoContent.length < 140 && (
+                          <span className="ml-1 text-amber-600">⚠ {140 - memoContent.length} more needed</span>
+                        )}
+                      </span>
+                    )}
                   </div>
                 </div>
               ) : (

@@ -4,7 +4,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, History, Eye, ArrowRight, Star } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Plus, History, Eye, ArrowRight, Star, AlertCircle } from "lucide-react";
 import type { Project, ProjectStatus } from "@/types/project";
 
 interface ProjectsSectionProps {
@@ -67,6 +73,24 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                         <h3 className="text-sm font-semibold text-slate-900">
                           {project.name}
                         </h3>
+                        {project.isMemoRequired && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="outline"
+                                  className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] px-1.5 py-0 h-5 cursor-help"
+                                >
+                                  <AlertCircle className="h-3 w-3 mr-0.5" />
+                                  140 Memo
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="text-xs">This project requires detailed memos (minimum 140 characters)</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {status?.hasTodayMemo ? (

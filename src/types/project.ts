@@ -19,6 +19,7 @@ export interface Project {
   progress?: number;
   isActive?: boolean;
   team?: TeamMember[];
+  isMemoRequired?: boolean;
 }
 
 export interface ProjectStatus {

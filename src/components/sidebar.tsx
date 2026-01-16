@@ -81,16 +81,16 @@ export function Sidebar({
                 className={cn(
                     "flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors",
                     active
-                        ? "bg-blue-50 text-blue-700 shadow-sm"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        ? "bg-app-active text-app-active shadow-sm"
+                        : "text-app-link hover-app-bg hover-app-text"
                 )}
             >
                 <div className="flex items-center gap-3">
-                    <Icon className={cn("h-4 w-4", active ? "text-blue-600" : "text-slate-400")} />
+                    <Icon className={cn("h-4 w-4", active ? "text-app-icon-active" : "text-app-icon")} />
                     {item.name}
                 </div>
                 {isProjectChat && totalUnread > 0 && !active && (
-                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white shadow-sm animate-in zoom-in">
+                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 dark:bg-blue-500 px-1 text-[10px] font-bold text-white shadow-sm animate-in zoom-in">
                         {totalUnread > 99 ? "99+" : totalUnread}
                     </span>
                 )}
@@ -99,17 +99,17 @@ export function Sidebar({
     };
 
     return (
-        <aside className="w-64 border-r bg-white hidden md:flex flex-col sticky top-0 h-screen">
+        <aside className="w-64 border-r border-app bg-app-sidebar hidden md:flex flex-col sticky top-0 h-screen">
             <div className="p-6">
                 <Link href="/" className="flex items-center gap-2">
-                    <div className="h-8 w-8 bg-blue-600 rounded flex items-center justify-center text-white font-bold">P</div>
-                    <h1 className="text-xl font-bold tracking-tight text-slate-900">ProjectHub</h1>
+                    <div className="h-8 w-8 bg-blue-600 dark:bg-blue-500 rounded flex items-center justify-center text-white font-bold">P</div>
+                    <h1 className="text-xl font-bold tracking-tight text-app-heading">ProjectHub</h1>
                 </Link>
             </div>
 
             <div className="flex-1 overflow-y-auto px-3 space-y-6">
                 <div>
-                    <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Main</p>
+                    <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-app-muted mb-2">Main</p>
                     <nav className="space-y-1">
                         {mainItems.map((item) => (
                             <NavLink key={item.href} item={item} />
@@ -119,7 +119,7 @@ export function Sidebar({
 
                 {managementItems.length > 0 && (
                     <div>
-                        <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">{sectionLabel}</p>
+                        <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-app-muted mb-2">{sectionLabel}</p>
                         <nav className="space-y-1">
                             {managementItems.map((item) => (
                                 <NavLink key={item.href} item={item} />
@@ -130,7 +130,7 @@ export function Sidebar({
 
                 {settingsItems.length > 0 && (
                     <div>
-                        <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Settings</p>
+                        <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-app-muted mb-2">Settings</p>
                         <nav className="space-y-1">
                             {settingsItems.map((item) => (
                                 <NavLink key={item.href} item={item} />
@@ -140,8 +140,8 @@ export function Sidebar({
                 )}
             </div>
 
-            <div className="p-4 border-t bg-slate-50/50">
-                <LogoutButton showText className="w-full justify-start gap-2 text-slate-600 hover:text-red-700 hover:bg-red-50 hover:border-red-100 font-medium border-transparent transition-all" />
+            <div className="p-4 border-t border-app bg-app-sidebar">
+                <LogoutButton showText className="w-full justify-start gap-2 text-app-body hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-app-hover hover:border-red-100 dark:hover:border-transparent font-medium border-transparent transition-all" />
             </div>
         </aside>
     );

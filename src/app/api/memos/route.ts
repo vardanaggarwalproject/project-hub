@@ -91,6 +91,18 @@ export async function POST(req: Request) {
 
         const { memoContent, projectId, userId, reportDate } = validation.data;
 
+        // Check if project requires 140 character memo
+        const project = await db.select({ isMemoRequired: projects.isMemoRequired })
+            .from(projects)
+            .where(eq(projects.id, projectId))
+            .limit(1);
+
+        if (project.length > 0 && project[0].isMemoRequired && memoContent.length < 140) {
+            return NextResponse.json({
+                error: `This project requires a detailed memo (minimum 140 characters). Current: ${memoContent.length}/140`
+            }, { status: 400 });
+        }
+
         // Convert to Date object - this preserves the date in local timezone
         const dateObj = new Date(reportDate);
         dateObj.setHours(0, 0, 0, 0);
