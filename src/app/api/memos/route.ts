@@ -126,9 +126,9 @@ export async function POST(req: Request) {
             .where(eq(projects.id, projectId))
             .limit(1);
 
-        if (project.length > 0 && project[0].isMemoRequired && memoContent.length < 140) {
+        if (project.length > 0 && project[0].isMemoRequired && memoContent.length > 140) {
             return NextResponse.json({
-                error: `This project requires a detailed memo (minimum 140 characters). Current: ${memoContent.length}/140`
+                error: `This project requires a memo within 140 characters (maximum). Current: ${memoContent.length}/140`
             }, { status: 400 });
         }
 

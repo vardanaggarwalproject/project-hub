@@ -13,7 +13,7 @@ const updateProjectSchema = z.object({
     links: z.array(z.object({
         label: z.string(),
         value: z.string(),
-        allowedRoles: z.array(z.string()).optional().default(["admin", "developer", "tester"]),
+        allowedRoles: z.array(z.string()).optional().default(["admin", "developer", "tester", "designer"]),
     })).optional(),
     isMemoRequired: z.boolean().optional(),
 });
@@ -155,7 +155,7 @@ export async function PATCH(
                         id: crypto.randomUUID(),
                         name: link.label,
                         url: link.value,
-                        allowedRoles: link.allowedRoles || ["admin", "developer", "tester"],
+                        allowedRoles: link.allowedRoles || ["admin", "developer", "tester", "designer"],
                         projectId: id,
                         description: null,
                         clientId: null,

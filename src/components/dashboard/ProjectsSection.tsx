@@ -86,7 +86,7 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                                 </Badge>
                               </TooltipTrigger>
                               <TooltipContent side="top" className="max-w-xs">
-                                <p className="text-xs">This project requires detailed memos (minimum 140 characters)</p>
+                                <p className="text-xs">This project requires detailed memos (maximum 140 characters)</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>

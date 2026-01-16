@@ -69,12 +69,12 @@ interface DynamicFieldsInputProps {
 export function DynamicFieldsInput({
   fields,
   onChange,
-  globalAllowedRoles = ["admin", "developer", "tester"],
+  globalAllowedRoles = ["admin", "developer", "tester", "designer"],
   onGlobalRolesChange
 }: DynamicFieldsInputProps) {
   // Track if global access is "all" or "restrict"
   const [globalAccessMode, setGlobalAccessMode] = useState<"all" | "restrict">(
-    globalAllowedRoles.includes("developer") && globalAllowedRoles.includes("tester") ? "all" : "restrict"
+    globalAllowedRoles.includes("developer") && globalAllowedRoles.includes("tester") && globalAllowedRoles.includes("designer") ? "all" : "restrict"
   );
   /**
    * Adds a new empty field to the list
@@ -123,7 +123,7 @@ export function DynamicFieldsInput({
 
     setGlobalAccessMode(mode);
     if (mode === "all") {
-      onGlobalRolesChange(["admin", "developer", "tester"]);
+      onGlobalRolesChange(["admin", "developer", "tester", "designer"]);
     } else {
       // Start with admin only when restricting
       onGlobalRolesChange(["admin"]);
@@ -131,7 +131,7 @@ export function DynamicFieldsInput({
   };
 
   /**
-   * Toggles global role checkbox (only for developer/tester)
+   * Toggles global role checkbox (for developer/tester/designer)
    * @param {string} role - Role to toggle
    */
   const toggleGlobalRole = (role: string) => {
@@ -318,6 +318,21 @@ export function DynamicFieldsInput({
                       <Label htmlFor={`tester-${field.id}`} className="text-xs font-medium text-slate-700 cursor-pointer flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3 text-green-600" />
                         Tester
+                      </Label>
+                    </div>
+
+                    {/* Designer Checkbox */}
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        id={`designer-${field.id}`}
+                        checked={(field.allowedRoles || globalAllowedRoles).includes("designer")}
+                        onChange={() => toggleRole(field.id, "designer")}
+                        className="h-3.5 w-3.5 text-purple-600 rounded border-slate-300"
+                      />
+                      <Label htmlFor={`designer-${field.id}`} className="text-xs font-medium text-slate-700 cursor-pointer flex items-center gap-1">
+                        <Star className="h-3 w-3 text-purple-600" />
+                        Designer
                       </Label>
                     </div>
                   </div>

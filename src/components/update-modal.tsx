@@ -107,7 +107,7 @@ export function UpdateModal({
   // Get selected project details
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const isMemoRequired = selectedProject?.isMemoRequired || false;
-  const MEMO_MIN_LENGTH = isMemoRequired ? 140 : 1;
+  const MEMO_REQUIRED_MAX_LENGTH = 140;
 
   // Combined Effect to handle initialization (Data Fetching + Mode Determination)
   // Track previous open state to detect "Opening" transition
@@ -253,9 +253,9 @@ export function UpdateModal({
   };
 
   const handleSubmit = async () => {
-    // Validate memo minimum length for projects that require 140 chars
-    if (modalTab === "memo" && isMemoRequired && memoContent.length < 140) {
-        toast.error(`This project requires a detailed memo (minimum 140 characters). Current: ${memoContent.length}/140`);
+    // Validate memo maximum length for projects that require 140 chars max
+    if (modalTab === "memo" && isMemoRequired && memoContent.length > 140) {
+        toast.error(`This project requires a memo within 140 characters (maximum). Current: ${memoContent.length}/140`);
         return;
     }
 
@@ -461,7 +461,7 @@ export function UpdateModal({
             <Alert className="bg-amber-50 border-amber-200">
               <AlertCircle className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-xs text-amber-800">
-                <strong>Detailed Memo Required:</strong> This project requires a minimum of 140 characters in your memo.
+                <strong>Memo Length Limit:</strong> This project requires memos to be within 140 characters (maximum).
               </AlertDescription>
             </Alert>
           )}
@@ -473,14 +473,14 @@ export function UpdateModal({
                     What are you working on today?
                 </Label>
                 <span className={`text-xs font-normal ${
-                  isMemoRequired && memoContent.length < 140 && !isViewMode ? "text-amber-600 font-medium" : "text-slate-400"
+                  isMemoRequired && memoContent.length > MEMO_REQUIRED_MAX_LENGTH && !isViewMode ? "text-red-600 font-medium" : "text-slate-400"
                 }`}>
                     {memoContent.length}/{MEMO_MAX_LENGTH}
                     {isMemoRequired && !isViewMode && (
                       <span className="ml-1">
-                        (min: {MEMO_MIN_LENGTH})
-                        {memoContent.length < 140 && (
-                          <span className="ml-1 text-amber-600">⚠ {140 - memoContent.length} more</span>
+                        (max: {MEMO_REQUIRED_MAX_LENGTH})
+                        {memoContent.length > MEMO_REQUIRED_MAX_LENGTH && (
+                          <span className="ml-1 text-red-600">⚠ {memoContent.length - MEMO_REQUIRED_MAX_LENGTH} over limit</span>
                         )}
                       </span>
                     )}
@@ -492,12 +492,12 @@ export function UpdateModal({
                 onChange={(e) => setMemoContent(e.target.value.slice(0, MEMO_MAX_LENGTH))}
                 placeholder={
                   isMemoRequired && !isViewMode
-                    ? "• Provide detailed overview of tasks (min 140 chars)...&#10;• Meetings planned...&#10;• Blockers..."
+                    ? "• Provide overview of tasks (max 140 chars)...&#10;• Meetings planned...&#10;• Blockers..."
                     : "• List your key tasks...&#10;• Meetings planned...&#10;• Blockers..."
                 }
                 className={`min-h-[200px] resize-none rounded-lg bg-slate-50/30 focus:bg-white focus:ring-2 transition-all p-4 leading-relaxed ${
-                  isMemoRequired && memoContent.length < 140 && !isViewMode
-                    ? "border-amber-300 focus:ring-amber-500/10"
+                  isMemoRequired && memoContent.length > MEMO_REQUIRED_MAX_LENGTH && !isViewMode
+                    ? "border-red-300 focus:ring-red-500/10"
                     : "border-slate-200 focus:ring-blue-500/10"
                 }`}
                 maxLength={MEMO_MAX_LENGTH}

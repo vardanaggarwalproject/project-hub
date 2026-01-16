@@ -80,7 +80,7 @@ export function ProjectFormSheet({
   const [clientId, setClientId] = useState<string>("");
   const [team, setTeam] = useState<User[]>([]);
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
-  const [globalAllowedRoles, setGlobalAllowedRoles] = useState<string[]>(["admin", "developer", "tester"]);
+  const [globalAllowedRoles, setGlobalAllowedRoles] = useState<string[]>(["admin", "developer", "tester", "designer"]);
   const [isMemoRequired, setIsMemoRequired] = useState(false);
 
   const [clients, setClients] = useState<Client[]>([]);

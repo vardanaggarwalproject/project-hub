@@ -71,8 +71,16 @@ export async function GET(req: Request) {
         const totalResult = await db.select({ count: sql<number>`count(*)` })
             .from(clients)
             .where(whereClause);
-        
+
         const total = totalResult[0].count;
+
+        // Get total active projects count across ALL clients (not just paginated)
+        const totalActiveProjectsResult = await db
+            .select({ count: count() })
+            .from(projects)
+            .where(eq(projects.status, 'active'));
+
+        const totalActiveProjects = totalActiveProjectsResult[0]?.count || 0;
 
         return NextResponse.json({
             data: clientList,
@@ -80,7 +88,8 @@ export async function GET(req: Request) {
                 total,
                 page,
                 limit,
-                totalPages: Math.ceil(total / limit)
+                totalPages: Math.ceil(total / limit),
+                totalActiveProjects
             }
         });
     } catch (error) {

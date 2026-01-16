@@ -50,6 +50,7 @@ interface Meta {
   page: number;
   limit: number;
   totalPages: number;
+  totalActiveProjects: number;
 }
 
 export default function ClientsPage() {
@@ -177,11 +178,8 @@ export default function ClientsPage() {
       </div>
     );
 
-  const totalActiveProjects =
-    clients?.reduce(
-      (sum, client) => sum + (client.activeProjectCount || 0),
-      0
-    ) || 0;
+  // Use totalActiveProjects from API meta instead of calculating from paginated clients
+  const totalActiveProjects = meta?.totalActiveProjects || 0;
 
   return (
     <div className="space-y-6">

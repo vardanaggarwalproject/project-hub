@@ -345,10 +345,10 @@ export function ProjectDetailsModal({
                       <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                       <div className="flex flex-col">
                         <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                          140 Character Memo Required
+                          Max 140 Character Memo
                         </span>
                         <span className="text-[10px] text-amber-700 dark:text-amber-400">
-                          Developers must provide detailed memos
+                          Developers must submit memos within 140 characters
                         </span>
                       </div>
                     </div>
