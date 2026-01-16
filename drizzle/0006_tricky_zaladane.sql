@@ -1,0 +1,1 @@
+ALTER TABLE "links" ADD COLUMN "allowed_roles" jsonb;
