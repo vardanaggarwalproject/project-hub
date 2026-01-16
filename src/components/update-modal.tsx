@@ -21,7 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Calendar, AlertCircle } from "lucide-react";
 import type { Project } from "@/types/project";
 import type { Memo, EOD } from "@/types/report";
 import { MEMO_MAX_LENGTH } from "@/lib/constants";
@@ -102,6 +103,11 @@ export function UpdateModal({
   } | null>(null);
   const [localMode, setLocalMode] = useState<"view" | "edit">(mode);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Get selected project details
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const isMemoRequired = selectedProject?.isMemoRequired || false;
+  const MEMO_REQUIRED_MAX_LENGTH = 140;
 
   // Combined Effect to handle initialization (Data Fetching + Mode Determination)
   // Track previous open state to detect "Opening" transition
@@ -247,6 +253,12 @@ export function UpdateModal({
   };
 
   const handleSubmit = async () => {
+    // Validate memo maximum length for projects that require 140 chars max
+    if (modalTab === "memo" && isMemoRequired && memoContent.length > 140) {
+        toast.error(`This project requires a memo within 140 characters (maximum). Current: ${memoContent.length}/140`);
+        return;
+    }
+
     // Authority check for date manually entered or selected
     if (minDate && selectedDate && selectedDate < minDate) {
         toast.error(`Access Denied: You cannot submit updates for dates before your project allocation (${minDate}).`);
@@ -445,22 +457,49 @@ export function UpdateModal({
             </div>
           )}
 
+          {isMemoRequired && !isViewMode && modalTab === "memo" && (
+            <Alert className="bg-amber-50 border-amber-200">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-xs text-amber-800">
+                <strong>Memo Length Limit:</strong> This project requires memos to be within 140 characters (maximum).
+              </AlertDescription>
+            </Alert>
+          )}
+
           {modalTab === "memo" ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label htmlFor="memo" className="text-sm font-semibold text-slate-700 ml-1">
                     What are you working on today?
                 </Label>
-                <span className="text-xs text-slate-400 font-normal">
+                <span className={`text-xs font-normal ${
+                  isMemoRequired && memoContent.length > MEMO_REQUIRED_MAX_LENGTH && !isViewMode ? "text-red-600 font-medium" : "text-slate-400"
+                }`}>
                     {memoContent.length}/{MEMO_MAX_LENGTH}
+                    {isMemoRequired && !isViewMode && (
+                      <span className="ml-1">
+                        (max: {MEMO_REQUIRED_MAX_LENGTH})
+                        {memoContent.length > MEMO_REQUIRED_MAX_LENGTH && (
+                          <span className="ml-1 text-red-600">⚠ {memoContent.length - MEMO_REQUIRED_MAX_LENGTH} over limit</span>
+                        )}
+                      </span>
+                    )}
                 </span>
               </div>
               <Textarea
                 id="memo"
                 value={memoContent}
                 onChange={(e) => setMemoContent(e.target.value.slice(0, MEMO_MAX_LENGTH))}
-                placeholder="• List your key tasks...&#10;• Meetings planned...&#10;• Blockers..."
-                className="min-h-[200px] resize-none rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all p-4 leading-relaxed"
+                placeholder={
+                  isMemoRequired && !isViewMode
+                    ? "• Provide overview of tasks (max 140 chars)...&#10;• Meetings planned...&#10;• Blockers..."
+                    : "• List your key tasks...&#10;• Meetings planned...&#10;• Blockers..."
+                }
+                className={`min-h-[200px] resize-none rounded-lg bg-slate-50/30 focus:bg-white focus:ring-2 transition-all p-4 leading-relaxed ${
+                  isMemoRequired && memoContent.length > MEMO_REQUIRED_MAX_LENGTH && !isViewMode
+                    ? "border-red-300 focus:ring-red-500/10"
+                    : "border-slate-200 focus:ring-blue-500/10"
+                }`}
                 maxLength={MEMO_MAX_LENGTH}
                 readOnly={isViewMode}
               />
@@ -494,8 +533,8 @@ export function UpdateModal({
                 />
               </div>
             </div>
-          )} 
-            </>
+          )}
+          </>
           )}
         </div>
 

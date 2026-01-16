@@ -18,8 +18,8 @@ export interface Project {
   updatedAt?: Date;
   progress?: number;
   isActive?: boolean;
-  isMemoRequired: boolean;
   team?: TeamMember[];
+  isMemoRequired?: boolean;
 }
 
 export interface ProjectStatus {

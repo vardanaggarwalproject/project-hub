@@ -18,7 +18,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import {
   Mail,
   Calendar,
@@ -39,11 +38,12 @@ import {
   Copy,
   Check,
   Edit3,
-  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
+import { ProjectDetailsModal } from "@/common/ProjectDetailsModal";
+import { ProjectFormSheet } from "@/common/ProjectFormSheet";
 
 interface Project {
   id: string;
@@ -76,8 +76,10 @@ export default function ClientDetailsPage({
   const [client, setClient] = useState<ClientDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showProjectSheet, setShowProjectSheet] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [projectSheetMode, setProjectSheetMode] = useState<"add" | "edit">("edit");
   const router = useRouter();
 
   useEffect(() => {
@@ -104,33 +106,21 @@ export default function ClientDetailsPage({
       });
   }, [id]);
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      const res = await fetch(`/api/clients/${id}`, {
-        method: "DELETE",
-      });
+  const handleViewProject = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    setShowProjectModal(true);
+  };
 
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to delete client");
-      }
+  const handleEditProject = (projectId: string) => {
+    setProjectSheetMode("edit");
+    setSelectedProjectId(projectId);
+    setShowProjectSheet(true);
+  };
 
-      toast.success("Client deleted successfully", {
-        description: `${client?.name} has been permanently deleted.`,
-      });
-
-      router.push("/admin/clients");
-      router.refresh();
-    } catch (error: any) {
-      console.error("Error deleting client:", error);
-      toast.error("Failed to delete client", {
-        description: error.message || "Please try again.",
-      });
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteDialog(false);
-    }
+  const handleAddProject = () => {
+    setProjectSheetMode("add");
+    setSelectedProjectId(null);
+    setShowProjectSheet(true);
   };
 
   const statusConfig: Record<
@@ -268,57 +258,36 @@ export default function ClientDetailsPage({
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 overflow-x-hidden">
       <div className="max-w-7xl mx-auto p-8">
         <div className="space-y-8">
           {/* Header */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.back()}
+              className="h-12 w-12 rounded-xl hover:bg-white/80 transition-all"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => router.back()}
-                className="h-12 w-12 rounded-xl hover:bg-white/80 transition-all"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center gap-4">
-                <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
-                  <Building2 className="h-8 w-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
-                    {client.name}
-                  </h1>
-                  <p className="text-slate-500 font-medium mt-1.5">
-                    Partner since{" "}
-                    {new Date(client.createdAt).toLocaleDateString("en-US", {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
+              <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
+                <Building2 className="h-8 w-8 text-white" />
               </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={() => router.push(`/admin/clients/${client.id}/edit`)}
-                className="h-12 px-6 rounded-xl border-slate-200 hover:bg-white font-semibold"
-              >
-                <Edit3 className="mr-2 h-4 w-4" />
-                Edit Client
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowDeleteDialog(true)}
-                className="h-12 px-6 rounded-xl border-red-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 font-semibold text-red-600"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </Button>
+              <div>
+                <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
+                  {client.name}
+                </h1>
+                <p className="text-slate-500 font-medium mt-1.5">
+                  Partner since{" "}
+                  {new Date(client.createdAt).toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -510,15 +479,11 @@ export default function ClientDetailsPage({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        asChild
+                        onClick={handleAddProject}
                         className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all"
                       >
-                        <Link
-                          href={`/admin/projects/new?clientId=${client.id}`}
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add Project
-                        </Link>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Project
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -598,32 +563,28 @@ export default function ClientDetailsPage({
                             {/* Actions */}
                             <td className="py-4 px-6">
                               <div className="flex items-center justify-center gap-2">
-                                <Link href={`/admin/projects/${project.id}`}>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 px-3 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                                  >
-                                    <Eye className="h-3.5 w-3.5 mr-1.5 text-blue-600" />
-                                    <span className="font-semibold text-xs">
-                                      View
-                                    </span>
-                                  </Button>
-                                </Link>
-                                <Link
-                                  href={`/admin/projects/${project.id}/edit`}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleViewProject(project.id)}
+                                  className="h-8 px-3 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                                 >
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 px-3 hover:bg-amber-50 hover:text-amber-600 transition-colors"
-                                  >
-                                    <Edit3 className="h-3.5 w-3.5 mr-1.5 text-amber-600" />
-                                    <span className="font-semibold text-xs">
-                                      Edit
-                                    </span>
-                                  </Button>
-                                </Link>
+                                  <Eye className="h-3.5 w-3.5 mr-1.5 text-blue-600" />
+                                  <span className="font-semibold text-xs">
+                                    View
+                                  </span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditProject(project.id)}
+                                  className="h-8 px-3 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                                >
+                                  <Edit3 className="h-3.5 w-3.5 mr-1.5 text-amber-600" />
+                                  <span className="font-semibold text-xs">
+                                    Edit
+                                  </span>
+                                </Button>
                               </div>
                             </td>
                           </tr>
@@ -644,13 +605,11 @@ export default function ClientDetailsPage({
                     This client doesn't have any projects assigned yet.
                   </p>
                   <Button
-                    asChild
+                    onClick={handleAddProject}
                     className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                   >
-                    <Link href={`/admin/projects/new?clientId=${client.id}`}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create First Project
-                    </Link>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create First Project
                   </Button>
                 </div>
               )}
@@ -659,15 +618,32 @@ export default function ClientDetailsPage({
         </div>
       </div>
 
-      <DeleteConfirmDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        onConfirm={handleDelete}
-        itemName={client.name}
-        isDeleting={isDeleting}
-        title="Delete Client"
-        description={`This will permanently delete "${client.name}" and all associated projects, tasks, and data. This action cannot be undone.`}
+      <ProjectDetailsModal
+        open={showProjectModal}
+        onOpenChange={setShowProjectModal}
+        projectId={selectedProjectId}
       />
+
+      <ProjectFormSheet
+        open={showProjectSheet}
+        onOpenChange={setShowProjectSheet}
+        mode={projectSheetMode}
+        projectId={selectedProjectId || undefined}
+        fixedClientId={client?.id}
+        onSuccess={() => {
+          setShowProjectSheet(false);
+          // Refresh client data to show updated/new project
+          fetch(`/api/clients/${id}`)
+            .then((res) => res.json())
+            .then((data) => {
+              if (!data.error) {
+                setClient(data);
+              }
+            })
+            .catch((err) => console.error("Failed to refresh client:", err));
+        }}
+      />
+
     </div>
   );
 }

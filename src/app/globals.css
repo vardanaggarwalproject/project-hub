@@ -45,6 +45,13 @@
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
 
+  /* Custom semantic colors */
+  --color-text-heading: rgb(var(--text-heading));
+  --color-text-body: rgb(var(--text-body));
+  --color-bg-card: rgb(var(--bg-card));
+  --color-bg-subtle: rgb(var(--bg-subtle));
+  --color-bg-hover: rgb(var(--bg-hover));
+
   @keyframes shimmer {
     0% {
       transform: translateX(-100%);
@@ -88,6 +95,16 @@
   --sidebar-accent-foreground: hsl(240 5.9% 10%);
   --sidebar-border: hsl(220 13% 91%);
   --sidebar-ring: hsl(217.2 91.2% 59.8%);
+
+  /* ====================================
+     CUSTOM SEMANTIC COLORS - LIGHT MODE
+     Change these to customize the light theme globally
+     ==================================== */
+  --text-heading: 15 23 42; /* Main heading text - slate-900 */
+  --text-body: 71 85 105; /* Body text - slate-600 */
+  --bg-card: 255 255 255; /* Card backgrounds - white */
+  --bg-subtle: 248 250 252; /* Subtle backgrounds (headers, etc) - slate-50 */
+  --bg-hover: 241 245 249; /* Hover state backgrounds - slate-100 */
 }
 
 .dark {
@@ -122,6 +139,22 @@
   --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
   --sidebar-border: hsl(240 3.7% 15.9%);
   --sidebar-ring: hsl(217.2 91.2% 59.8%);
+
+  /* ====================================
+     CUSTOM SEMANTIC COLORS - DARK MODE (Notion-style)
+     ⭐ CHANGE THESE TO CUSTOMIZE YOUR DARK THEME GLOBALLY ⭐
+     Very dark, almost black backgrounds like Notion
+     ==================================== */
+  --text-heading: 255 255 255; /* Main heading text - pure white for high contrast */
+  --text-body: 171 171 171; /* Body text - neutral gray #ababab */
+  --bg-card: 25 25 25; /* Card backgrounds - very dark #191919 */
+  --bg-subtle: 37 37 37; /* Subtle backgrounds (headers, sections) - #252525 */
+  --bg-hover: 47 47 47; /* Hover state backgrounds - #2f2f2f */
+
+  /* Sidebar colors - matching Notion's dark sidebar */
+  --sidebar: 25 25 25; /* Sidebar background - same as cards #191919 */
+  --sidebar-foreground: 171 171 171; /* Sidebar text - neutral gray */
+  --sidebar-hover: 37 37 37; /* Sidebar hover state - #252525 */
 }
 
 @layer base {
@@ -130,5 +163,121 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ============================================
+   GLOBAL THEME UTILITIES - CHANGE COLORS HERE!
+   ============================================
+   Use these classes throughout your app:
+   - bg-app-bg, bg-app-card, bg-app-subtle, bg-app-hover
+   - text-app-heading, text-app-body, text-app-muted
+   - border-app, border-app-light
+   ============================================ */
+
+@layer utilities {
+  /* ===== BACKGROUND COLORS ===== */
+  .bg-app-bg {
+    @apply bg-slate-50 dark:bg-[#0f0f0f];
+  }
+
+  .bg-app-card {
+    @apply bg-white dark:bg-[#191919];
+  }
+
+  .bg-app-subtle {
+    @apply bg-slate-50 dark:bg-[#252525];
+  }
+
+  .bg-app-hover {
+    @apply bg-slate-100 dark:bg-[#2f2f2f];
+  }
+
+  .bg-app-sidebar {
+    @apply bg-white dark:bg-[#191919];
+  }
+
+  .bg-app-active {
+    @apply bg-blue-50 dark:bg-[#2f2f2f];
+  }
+
+  /* ===== TEXT COLORS ===== */
+  .text-app-heading {
+    @apply text-slate-900 dark:text-white;
+  }
+
+  .text-app-body {
+    @apply text-slate-600 dark:text-[#ababab];
+  }
+
+  .text-app-muted {
+    @apply text-slate-400 dark:text-[#787774];
+  }
+
+  .text-app-link {
+    @apply text-slate-600 dark:text-[#ababab];
+  }
+
+  .text-app-link-hover {
+    @apply text-slate-900 dark:text-white;
+  }
+
+  .text-app-active {
+    @apply text-blue-700 dark:text-white;
+  }
+
+  /* ===== BORDER COLORS ===== */
+  .border-app {
+    @apply border-slate-200 dark:border-[#2f2f2f];
+  }
+
+  .border-app-light {
+    @apply border-slate-100 dark:border-[#252525];
+  }
+
+  /* ===== ICON COLORS ===== */
+  .text-app-icon {
+    @apply text-slate-400 dark:text-[#787774];
+  }
+
+  .text-app-icon-active {
+    @apply text-blue-600 dark:text-white;
+  }
+
+  /* ===== INPUT/FORM COLORS ===== */
+  .bg-app-input {
+    @apply bg-slate-50 dark:bg-[#252525];
+  }
+
+  .placeholder-app {
+    @apply placeholder:text-slate-400 dark:placeholder:text-[#787774];
+  }
+
+  /* ===== HOVER STATES ===== */
+  .hover-app-bg {
+    @apply hover:bg-slate-50 dark:hover:bg-[#252525];
+  }
+
+  .hover-app-text {
+    @apply hover:text-slate-900 dark:hover:text-white;
+  }
+
+  /* ===== TABLE SPECIFIC ===== */
+  .bg-app-table-header {
+    @apply bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-[#252525] dark:to-[#252525];
+  }
+
+  .bg-app-table-row-hover {
+    @apply hover:bg-blue-50/30 dark:hover:bg-blue-950/20;
+  }
+
+  /* ===== SHADOW ===== */
+  .shadow-app {
+    @apply shadow-sm dark:shadow-none;
+  }
+
+  /* ===== FOCUS RINGS ===== */
+  .focus-ring-app {
+    @apply focus-visible:ring-1 focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400/50;
   }
 }
