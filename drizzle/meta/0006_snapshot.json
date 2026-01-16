@@ -1,6 +1,6 @@
 {
-  "id": "b355d893-0f8e-4e20-b890-714f17559dc4",
-  "prevId": "0cc3abb5-9bcc-4820-80b7-cdea41dc17d0",
+  "id": "488d66a1-3796-4087-a4b6-a122a0b68baa",
+  "prevId": "b355d893-0f8e-4e20-b890-714f17559dc4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -609,6 +609,12 @@
         "added_by": {
           "name": "added_by",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "allowed_roles": {
+          "name": "allowed_roles",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },

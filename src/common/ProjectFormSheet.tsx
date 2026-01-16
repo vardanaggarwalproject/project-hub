@@ -240,8 +240,8 @@ export function ProjectFormSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto overflow-x-hidden p-0 flex flex-col bg-app-card">
-        <SheetHeader className="space-y-3 px-6 py-5 border-b border-app bg-app-card sticky top-0 z-10">
+      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto overflow-x-hidden p-0 flex flex-col bg-white dark:bg-[#191919]">
+        <SheetHeader className="space-y-3 px-6 py-5 border-b border-app bg-white dark:bg-[#191919] sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-md">
               <FolderKanban className="h-5 w-5 text-white" />
@@ -590,7 +590,7 @@ export function ProjectFormSheet({
             )}
           </div>
 
-          <SheetFooter className="sticky bottom-0 bg-app-card border-t border-app px-6 py-4 mt-auto">
+          <SheetFooter className="sticky bottom-0 bg-white dark:bg-[#191919] border-t border-app px-6 py-4 mt-auto">
             <Button
               type="submit"
               disabled={isLoading || isFetchingData || !name || clientId === ""}

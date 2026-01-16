@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, Building2, Mail, MapPin, FileText, ArrowLeft } from "lucide-react";
+import { Loader2, Building2, ArrowLeft } from "lucide-react";
 
 export default function NewClientPage() {
     const [name, setName] = useState("");
@@ -49,67 +49,58 @@ export default function NewClientPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 p-8">
-            <div className="max-w-3xl mx-auto space-y-6">
-                {/* Header */}
-                <div className="flex items-center gap-4">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => router.back()}
-                        className="h-12 w-12 rounded-xl hover:bg-white/80 transition-all"
-                    >
-                        <ArrowLeft className="h-5 w-5" />
-                    </Button>
-                    <div className="flex items-center gap-4">
-                        <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
-                            <Building2 className="h-8 w-8 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-                                Add New Client
-                            </h1>
-                            <p className="text-slate-500 font-medium mt-1">
-                                Create a new client profile
-                            </p>
-                        </div>
-                    </div>
+        <div className="space-y-6 max-w-4xl mx-auto pb-10">
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.back()}
+                    className="h-9 w-9 p-0 rounded-full"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div>
+                    <h1 className="text-2xl font-bold text-[#0f172a] tracking-tight">
+                        Add New Client
+                    </h1>
+                    <p className="text-muted-foreground text-sm">
+                        Create a new client profile for your organization
+                    </p>
                 </div>
+            </div>
 
-                {/* Form Card */}
-                <Card className="border-none shadow-xl bg-white/90 backdrop-blur-sm">
-                    <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-slate-100/50">
-                        <CardTitle className="text-xl font-bold text-slate-900">
-                            Client Information
-                        </CardTitle>
-                        <CardDescription className="text-slate-600">
-                            Enter the client details below
-                        </CardDescription>
-                    </CardHeader>
-                    <form onSubmit={handleSubmit}>
-                        <CardContent className="space-y-6 p-6">
-                            {/* Client Name */}
-                            <div className="space-y-2">
-                                <Label htmlFor="name" className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                    <Building2 className="h-4 w-4 text-blue-600" />
-                                    Client Name
-                                </Label>
-                                <Input
-                                    id="name"
-                                    placeholder="Enter client name (e.g., Acme Corp)"
-                                    required
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="h-11 bg-white border-slate-200 focus-visible:ring-blue-500"
-                                />
-                            </div>
+            {/* Form Card */}
+            <Card className="border-none shadow-md bg-app-card overflow-hidden">
+                <CardHeader className="border-b bg-app-subtle pb-4">
+                    <CardTitle className="text-lg font-bold text-[#0f172a] flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-blue-500" />
+                        Client Information
+                    </CardTitle>
+                </CardHeader>
+                <form onSubmit={handleSubmit}>
+                    <CardContent className="space-y-6 p-6 pt-6">
+                        {/* Client Name */}
+                        <div className="space-y-2">
+                            <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                Client Name
+                            </Label>
+                            <Input
+                                id="name"
+                                placeholder="Enter client name (e.g., Acme Corp)"
+                                required
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="h-11 border-slate-200 focus-visible:ring-blue-500 font-medium"
+                            />
+                        </div>
 
+                        <div className="grid md:grid-cols-2 gap-6">
                             {/* Email */}
                             <div className="space-y-2">
-                                <Label htmlFor="email" className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                    <Mail className="h-4 w-4 text-blue-600" />
+                                <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-slate-500">
                                     Email Address
-                                    <span className="text-xs font-normal text-slate-500">(Optional)</span>
+                                    <span className="text-[10px] font-normal text-slate-400 ml-1">(Optional)</span>
                                 </Label>
                                 <Input
                                     id="email"
@@ -117,63 +108,61 @@ export default function NewClientPage() {
                                     placeholder="contact@example.com"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="h-11 bg-white border-slate-200 focus-visible:ring-blue-500"
+                                    className="h-11 border-slate-200 focus-visible:ring-blue-500 font-medium"
                                 />
                             </div>
 
                             {/* Location */}
                             <div className="space-y-2">
-                                <Label htmlFor="address" className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                    <MapPin className="h-4 w-4 text-blue-600" />
+                                <Label htmlFor="address" className="text-xs font-bold uppercase tracking-wider text-slate-500">
                                     Location
-                                    <span className="text-xs font-normal text-slate-500">(Optional)</span>
+                                    <span className="text-[10px] font-normal text-slate-400 ml-1">(Optional)</span>
                                 </Label>
                                 <Input
                                     id="address"
                                     placeholder="Enter location or address"
                                     value={address}
                                     onChange={(e) => setAddress(e.target.value)}
-                                    className="h-11 bg-white border-slate-200 focus-visible:ring-blue-500"
+                                    className="h-11 border-slate-200 focus-visible:ring-blue-500 font-medium"
                                 />
                             </div>
+                        </div>
 
-                            {/* Description */}
-                            <div className="space-y-2">
-                                <Label htmlFor="description" className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                    <FileText className="h-4 w-4 text-blue-600" />
-                                    Description
-                                    <span className="text-xs font-normal text-slate-500">(Optional)</span>
-                                </Label>
-                                <Textarea
-                                    id="description"
-                                    placeholder="Add notes or description about the client..."
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    className="min-h-[120px] bg-white border-slate-200 focus-visible:ring-blue-500 resize-none"
-                                />
-                            </div>
-                        </CardContent>
-                        <CardFooter className="flex justify-between border-t bg-gradient-to-r from-slate-50/50 to-slate-100/30 p-6">
-                            <Button
-                                variant="outline"
-                                onClick={() => router.back()}
-                                type="button"
-                                className="h-11 px-6 border-slate-200 hover:bg-white font-semibold"
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={isLoading}
-                                className="h-11 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/25 font-semibold"
-                            >
-                                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Add Client
-                            </Button>
-                        </CardFooter>
-                    </form>
-                </Card>
-            </div>
+                        {/* Description */}
+                        <div className="space-y-2">
+                            <Label htmlFor="description" className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                Description
+                                <span className="text-[10px] font-normal text-slate-400 ml-1">(Optional)</span>
+                            </Label>
+                            <Textarea
+                                id="description"
+                                placeholder="Add notes or description about the client..."
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                className="min-h-[120px] border-slate-200 focus-visible:ring-blue-500 resize-none font-medium"
+                            />
+                        </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-between border-t bg-app-subtle p-6">
+                        <Button
+                            variant="ghost"
+                            onClick={() => router.back()}
+                            type="button"
+                            className="font-bold text-slate-500"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={isLoading || !name}
+                            className="bg-blue-600 hover:bg-blue-700 shadow-lg px-8 py-6 font-bold text-base rounded-xl transition-all hover:scale-[1.02]"
+                        >
+                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Add Client
+                        </Button>
+                    </CardFooter>
+                </form>
+            </Card>
         </div>
     );
 }

@@ -176,8 +176,8 @@ export default function AdminProjectDetailPage() {
                 <TabsContent value="overview" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
                     <div className="grid md:grid-cols-2 gap-6">
                         {/* Project Info Card */}
-                        <Card className="border-none shadow-md bg-white">
-                            <CardHeader className="border-b bg-slate-50/50 pb-4">
+                        <Card className="border-none shadow-md bg-app-card">
+                            <CardHeader className="border-b bg-app-subtle pb-4">
                                 <h3 className="text-base font-bold text-[#0f172a] uppercase tracking-tight flex items-center gap-2">
                                     <Building2 className="h-4 w-4 text-blue-500" />
                                     Details
@@ -226,8 +226,8 @@ export default function AdminProjectDetailPage() {
                         </Card>
 
                         {/* Team Card */}
-                        <Card className="border-none shadow-md bg-white flex flex-col">
-                             <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row items-center justify-between">
+                        <Card className="border-none shadow-md bg-app-card flex flex-col">
+                             <CardHeader className="border-b bg-app-subtle pb-4 flex flex-row items-center justify-between">
                                 <h3 className="text-base font-bold text-[#0f172a] uppercase tracking-tight flex items-center gap-2">
                                     <Users className="h-4 w-4 text-blue-500" />
                                     Team
@@ -271,8 +271,8 @@ export default function AdminProjectDetailPage() {
 
                 {/* Links Tab */}
                 <TabsContent value="links" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    <Card className="border-none shadow-md bg-white">
-                        <CardHeader className="border-b bg-slate-50/50 px-6 py-4">
+                    <Card className="border-none shadow-md bg-app-card">
+                        <CardHeader className="border-b bg-app-subtle px-6 py-4">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div>
                                     <h3 className="text-lg font-bold text-[#0f172a] uppercase tracking-tight">Project Resources</h3>

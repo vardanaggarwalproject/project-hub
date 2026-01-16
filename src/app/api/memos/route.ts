@@ -15,6 +15,7 @@ export async function GET(req: Request) {
         const projectId = searchParams.get("projectId");
         const userId = searchParams.get("userId");
         const search = searchParams.get("search");
+        const summary = searchParams.get("summary") === "true";
         const page = parseInt(searchParams.get("page") || "1");
         const limit = parseInt(searchParams.get("limit") || "10");
         const offset = (page - 1) * limit;
@@ -56,24 +57,34 @@ export async function GET(req: Request) {
             whereClause = and(...conditions);
         }
 
-        const allMemos = await db.select({
+        const querySelection: any = {
             id: memos.id,
             memoContent: memos.memoContent,
+            memoType: memos.memoType,
             projectId: memos.projectId,
             userId: memos.userId,
             reportDate: memos.reportDate,
             createdAt: memos.createdAt,
-            projectName: projects.name,
-            user: {
+        };
+
+        if (!summary) {
+            querySelection.projectName = projects.name;
+            querySelection.user = {
                 id: user.id,
                 name: user.name,
                 image: user.image,
                 role: user.role
-            }
-        })
-            .from(memos)
-            .leftJoin(user, eq(memos.userId, user.id))
-            .leftJoin(projects, eq(memos.projectId, projects.id))
+            };
+        }
+
+        let query = db.select(querySelection).from(memos);
+
+        if (!summary) {
+            query = query.leftJoin(user, eq(memos.userId, user.id)) as any;
+            query = query.leftJoin(projects, eq(memos.projectId, projects.id)) as any;
+        }
+
+        const allMemos = await query
             .where(whereClause)
             .limit(limit)
             .offset(offset)
@@ -81,8 +92,6 @@ export async function GET(req: Request) {
 
         const totalResult = await db.select({ count: sql<number>`count(*)` })
             .from(memos)
-            .leftJoin(user, eq(memos.userId, user.id))
-            .leftJoin(projects, eq(memos.projectId, projects.id))
             .where(whereClause);
 
         const total = Number(totalResult[0]?.count || 0);
@@ -107,58 +116,73 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/memos
- * Create a new memo with duplicate checking
+ * Create or update memos with duplicate checking
  */
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const validation = memoSchema.safeParse(body);
 
-        if (!validation.success) {
-            return NextResponse.json({ error: validation.error.issues }, { status: 400 });
+        // Handle potential dual save (bulk)
+        if (body.memos && Array.isArray(body.memos)) {
+            const results = [];
+            for (const memoData of body.memos) {
+                const res = await saveMemo(memoData);
+                results.push(res);
+            }
+            return NextResponse.json(results, { status: 201 });
         }
 
-        const { memoContent, projectId, userId, reportDate } = validation.data;
-
-        // Check if project requires 140 character memo
-        const project = await db.select({ isMemoRequired: projects.isMemoRequired })
-            .from(projects)
-            .where(eq(projects.id, projectId))
-            .limit(1);
-
-        if (project.length > 0 && project[0].isMemoRequired && memoContent.length > 140) {
-            return NextResponse.json({
-                error: `This project requires a memo within 140 characters (maximum). Current: ${memoContent.length}/140`
-            }, { status: 400 });
+        const result = await saveMemo(body);
+        if ('error' in result) {
+            return NextResponse.json({ error: result.error }, { status: result.status });
         }
+        return NextResponse.json(result, { status: 201 });
 
-        // Convert to Date object - this preserves the date in local timezone
-        // We append T00:00:00 to ensure it's treated as a local date at midnight
-        const dateObj = new Date(reportDate + "T00:00:00");
-
-        // Check if memo exists for this user+project+date - compare date parts at UTC
-        const existing = await db.select().from(memos)
-            .where(and(
-                eq(memos.userId, userId),
-                eq(memos.projectId, projectId),
-                dateComparisonClause(memos.reportDate, dateObj)
-            ));
-
-        if (existing.length > 0) {
-            return NextResponse.json({ error: "Memo already exists for this date" }, { status: 409 });
-        }
-
-        const newMemo = await db.insert(memos).values({
-            id: crypto.randomUUID(),
-            projectId,
-            reportDate: dateObj,
-            memoContent,
-            userId
-        }).returning();
-
-        return NextResponse.json(newMemo[0], { status: 201 });
     } catch (error) {
         console.error(error);
-        return NextResponse.json({ error: "Failed to create memo" }, { status: 500 });
+        return NextResponse.json({ error: "Failed to process memo" }, { status: 500 });
     }
+}
+
+async function saveMemo(data: any) {
+    const validation = memoSchema.safeParse(data);
+    if (!validation.success) {
+        return { error: validation.error.issues, status: 400 };
+    }
+
+    const { memoContent, projectId, userId, reportDate, memoType = 'short' } = validation.data;
+    const dateObj = new Date(reportDate + "T00:00:00");
+
+    // Check if memo exists for this user+project+date+type
+    const existing = await db.select().from(memos)
+        .where(and(
+            eq(memos.userId, userId),
+            eq(memos.projectId, projectId),
+            eq(memos.memoType, memoType),
+            dateComparisonClause(memos.reportDate, dateObj)
+        ));
+
+    if (existing.length > 0) {
+        // Update instead of error? The user wants optimization. 
+        // If it exists, let's update it.
+        const updated = await db.update(memos)
+            .set({
+                memoContent,
+                updatedAt: new Date()
+            })
+            .where(eq(memos.id, existing[0].id))
+            .returning();
+        return updated[0];
+    }
+
+    const newMemo = await db.insert(memos).values({
+        id: crypto.randomUUID(),
+        projectId,
+        reportDate: dateObj,
+        memoContent,
+        memoType,
+        userId
+    }).returning();
+
+    return newMemo[0];
 }

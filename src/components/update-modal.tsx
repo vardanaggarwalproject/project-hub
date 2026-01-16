@@ -22,11 +22,12 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Calendar, AlertCircle } from "lucide-react";
+import { Calendar, AlertCircle, Copy } from "lucide-react";
 import type { Project } from "@/types/project";
 import type { Memo, EOD } from "@/types/report";
 import { MEMO_MAX_LENGTH } from "@/lib/constants";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { getLocalDateString } from "@/lib/utils/date";
 
 /**
@@ -46,6 +47,7 @@ interface UpdateModalProps {
   initialProjectId?: string;
   initialDate?: string;
   initialMemoContent?: string;
+  initialShortMemoContent?: string;
   initialClientUpdate?: string;
   initialInternalUpdate?: string;
   referenceDataFetcher?: (
@@ -60,6 +62,7 @@ interface UpdateModalProps {
     projectId: string;
     date: string;
     memoContent?: string;
+    shortMemoContent?: string;
     clientUpdate?: string;
     internalUpdate?: string;
   }) => Promise<void>;
@@ -83,6 +86,7 @@ export function UpdateModal({
   initialProjectId = "",
   initialDate = "",
   initialMemoContent = "",
+  initialShortMemoContent = "",
   initialClientUpdate = "",
   initialInternalUpdate = "",
   referenceDataFetcher,
@@ -94,6 +98,7 @@ export function UpdateModal({
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
   const [memoContent, setMemoContent] = useState(initialMemoContent);
+  const [shortMemoContent, setShortMemoContent] = useState(initialShortMemoContent);
   const [clientUpdate, setClientUpdate] = useState(initialClientUpdate);
   const [internalUpdate, setInternalUpdate] = useState(initialInternalUpdate);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -104,14 +109,42 @@ export function UpdateModal({
   const [localMode, setLocalMode] = useState<"view" | "edit">(mode);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Get selected project details
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
-  const isMemoRequired = selectedProject?.isMemoRequired || false;
-  const MEMO_REQUIRED_MAX_LENGTH = 140;
+  // Helper for localStorage keys
+  const getDraftKey = (projectId: string, date: string, type: "memo" | "eod") => 
+    `update_draft_${projectId}_${date}_${type}`;
 
-  // Combined Effect to handle initialization (Data Fetching + Mode Determination)
-  // Track previous open state to detect "Opening" transition
+  // Get selected project info
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
+  const isMemoRequired = selectedProject?.isMemoRequired;
+
+  // Track previous open state and context to detect transitions
   const wasOpen = useRef(isOpen);
+  const prevContext = useRef({ projectId: selectedProjectId, date: selectedDate });
+
+  // Persistence: Save drafts as user types
+  useEffect(() => {
+    if (!isOpen || localMode === "view" || !selectedProjectId || !selectedDate) return;
+
+    const saveDraft = () => {
+      if (modalTab === "memo") {
+        const key = getDraftKey(selectedProjectId, selectedDate, "memo");
+        if (memoContent || shortMemoContent) {
+          localStorage.setItem(key, JSON.stringify({ memoContent, shortMemoContent }));
+        } else {
+          localStorage.removeItem(key);
+        }
+      } else {
+        const key = getDraftKey(selectedProjectId, selectedDate, "eod");
+        if (clientUpdate || internalUpdate) {
+          localStorage.setItem(key, JSON.stringify({ clientUpdate, internalUpdate }));
+        } else {
+          localStorage.removeItem(key);
+        }
+      }
+    };
+
+    saveDraft();
+  }, [memoContent, shortMemoContent, clientUpdate, internalUpdate, selectedProjectId, selectedDate, modalTab, localMode, isOpen]);
 
   // Combined Effect to handle initialization (Data Fetching + Mode Determination + State Sync)
   useEffect(() => {
@@ -134,6 +167,7 @@ export function UpdateModal({
       // If opening, sync state immediately
       if (isOpening) {
           setMemoContent(initialMemoContent);
+          setShortMemoContent(initialShortMemoContent);
           setClientUpdate(initialClientUpdate);
           setInternalUpdate(initialInternalUpdate);
           setModalTab(initialTab);
@@ -155,14 +189,19 @@ export function UpdateModal({
 
         // 2. Determine Mode & Content
         const dateStr = targetDate; 
-        let foundContent: { memo?: string; client?: string; internal?: string } | null = null;
+        let foundContent: { memo?: string; shortMemo?: string; client?: string; internal?: string } | null = null;
         let exists = false;
 
         if (targetTab === "memo") {
-            const match = existingMemos.find(m => m.projectId === targetProjectId && getLocalDateString(m.reportDate) === dateStr);
-            if (match) {
+            const matches = existingMemos.filter(m => m.projectId === targetProjectId && getLocalDateString(m.reportDate) === dateStr);
+            if (matches.length > 0) {
                 exists = true;
-                foundContent = { memo: match.memoContent };
+                const universal = matches.find(m => m.memoType === 'universal') || matches.find(m => m.memoType === 'short' && !isMemoRequired);
+                const short = matches.find(m => m.memoType === 'short' && isMemoRequired);
+                foundContent = { 
+                    memo: universal?.memoContent,
+                    shortMemo: short?.memoContent
+                };
             }
         } else {
             const match = existingEods.find(e => e.projectId === targetProjectId && getLocalDateString(e.reportDate) === dateStr);
@@ -176,30 +215,66 @@ export function UpdateModal({
             setLocalMode("view");
             if (targetTab === "memo") {
                 setMemoContent(foundContent.memo || "");
+                setShortMemoContent(foundContent.shortMemo || "");
             } else {
                 setClientUpdate(foundContent.client || "");
                 setInternalUpdate(foundContent.internal || "");
             }
         } else {
-            // Default to Edit mode (Add) and clear fields if switching context
+            // Default to Edit mode (Add)
             setLocalMode("edit");
-            // Only clear content if we are NOT opening (if opening, we kept initialMemoContent above)
-            // Or if we are opening but didn't find match?
-            // Actually, if we are opening, we trust initialMemoContent unless we find a match that overrides it?
-            // The logic: if match found, use match. If not found, use initial (which might be empty).
-            // But if we switch tabs (not opening), we want to clear.
             
-            if (!isOpening) {
-                if (targetTab === "memo") {
-                     setMemoContent("");
-                } else {
-                     setClientUpdate("");
-                     setInternalUpdate("");
+            // 3. Try to Load Draft from localStorage
+            const draftKey = getDraftKey(targetProjectId, targetDate, targetTab);
+            const savedDraft = localStorage.getItem(draftKey);
+            let draftFound = false;
+
+            if (savedDraft) {
+                try {
+                    const draft = JSON.parse(savedDraft);
+                    if (targetTab === "memo") {
+                        setMemoContent(draft.memoContent || "");
+                        setShortMemoContent(draft.shortMemoContent || "");
+                    } else {
+                        setClientUpdate(draft.clientUpdate || "");
+                        setInternalUpdate(draft.internalUpdate || "");
+                    }
+                    draftFound = true;
+                } catch (e) {
+                    console.error("Failed to parse draft", e);
                 }
-            } else {
-                // If opening and no match found, we stick with initialMemoContent (already set above)
+            }
+
+            // 4. Initial content from props (only if just opening and no draft)
+            if (!draftFound && isOpening) {
+                if (targetTab === "memo") {
+                     setMemoContent(initialMemoContent);
+                     setShortMemoContent(initialShortMemoContent);
+                } else {
+                     setClientUpdate(initialClientUpdate);
+                     setInternalUpdate(initialInternalUpdate);
+                }
+            } 
+            
+            // 5. Clear if context (Project or Date) changed and no draft/initial content
+            if (!draftFound && !isOpening) {
+                const contextChanged = prevContext.current.projectId !== targetProjectId || 
+                                     prevContext.current.date !== targetDate;
+                
+                if (contextChanged) {
+                    if (targetTab === "memo") {
+                         setMemoContent("");
+                         setShortMemoContent("");
+                    } else {
+                         setClientUpdate("");
+                         setInternalUpdate("");
+                    }
+                }
             }
         }
+
+        // Update prevContext after processing
+        prevContext.current = { projectId: targetProjectId, date: targetDate };
 
       } catch (error) {
         console.error("Failed to initialize modal", error);
@@ -210,29 +285,7 @@ export function UpdateModal({
 
     initializeModal();
 
-  }, [isOpen, modalTab, selectedDate, selectedProjectId, existingMemos, existingEods, initialProjectId, initialDate, initialTab, initialMemoContent, initialClientUpdate, initialInternalUpdate, mode, referenceDataFetcher]); // Dependencies might trigger re-runs, which is fine, it will show loading briefly
-
-  // Remove the old separate useEffects by replacing them with this one block.
-  // Note: I will need to target the lines carefully to replace BOTH old effects.
-  
-  // RENDER LOGIC UPDATE:
-  // Inside the main content div:
-  
-  /* 
-  <div className="flex-1 overflow-y-auto p-5 space-y-4">
-     {isLoading ? (
-       <div className="space-y-4 animate-in fade-in duration-300">
-         <Skeleton className="h-10 w-full rounded-lg bg-slate-100" />
-         {showProjectSelect && <Skeleton className="h-10 w-full rounded-lg bg-slate-100" />}
-         {showDatePicker && <Skeleton className="h-10 w-full rounded-lg bg-slate-100" />}
-         <Skeleton className="h-24 w-full rounded-lg bg-slate-100" />
-         <Skeleton className="h-32 w-full rounded-lg bg-slate-100" />
-       </div>
-     ) : (
-        ... existing form content ...
-     )}
-  </div>
-  */
+  }, [isOpen, modalTab, selectedDate, selectedProjectId, existingMemos, existingEods, initialProjectId, initialDate, initialTab, initialMemoContent, initialShortMemoContent, initialClientUpdate, initialInternalUpdate, mode, referenceDataFetcher, isMemoRequired]);
 
   // Handle Edit Click (Internal)
   const handleInternalEditClick = () => {
@@ -266,23 +319,12 @@ export function UpdateModal({
     }
 
     if (showDatePicker && selectedDate) {
-        const isEditingSameEntry = 
-            initialDate === selectedDate && 
-            initialTab === modalTab && 
-            initialProjectId === selectedProjectId &&
-            localMode === mode; // mode check might be needed if switching view->edit without re-init
-
-        // However, localMode switches to 'edit' when editing. 
-        // We know we are 'updating' if we started with some content OR if we were in view mode initially.
-        // Better check: If we are editing an EXISTING entry, we are allowed to save *to that same date*.
-        // If we change the date, we must check if the NEW date is free.
-        
-        // A conflict exists if there is an entry for the SELECTED date AND SELECTED project, 
-        // AND it's NOT the same record instance we are editing.
-
         const isMemo = modalTab === "memo";
         
         // Find ANY entry that matches the target criteria
+        // For memos, we now might have multiple. Conflict if ANY exist for a DIFFERENT context?
+        // Actually, if ANY exists, we are "editing" or "switching".
+        
         const conflictExists = isMemo
             ? existingMemos.some(m => 
                 m.projectId === selectedProjectId && 
@@ -310,9 +352,13 @@ export function UpdateModal({
         projectId: selectedProjectId,
         date: selectedDate,
         memoContent,
+        shortMemoContent,
         clientUpdate,
         internalUpdate,
       });
+      // Clear drafts on success
+      localStorage.removeItem(getDraftKey(selectedProjectId, selectedDate, "memo"));
+      localStorage.removeItem(getDraftKey(selectedProjectId, selectedDate, "eod"));
       // Only close if submission was successful (no error thrown)
       onClose();
     } catch (error) {
@@ -325,6 +371,10 @@ export function UpdateModal({
 
   const isViewMode = localMode === "view";
 
+  const hasExistingRecord = modalTab === "memo"
+    ? existingMemos.some(m => m.projectId === selectedProjectId && getLocalDateString(m.reportDate) === selectedDate)
+    : existingEods.some(e => e.projectId === selectedProjectId && getLocalDateString(e.reportDate) === selectedDate);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] sm:max-w-[600px] max-h-[85vh] flex flex-col gap-0 p-0 rounded-2xl overflow-hidden border-0 shadow-2xl">
@@ -336,12 +386,9 @@ export function UpdateModal({
                   ? modalTab === "memo"
                     ? "View Memo"
                     : "View EOD Report"
-                  : modalTab === "memo"
-                    ? "Add Daily Memo"
-                    : "Submit EOD Report"}
+                  : (hasExistingRecord ? "Edit " : "Add ") + (modalTab === "memo" ? "Daily Memo" : "EOD Report")}
               </DialogTitle>
             </div>
-            {/* Edit button moved to footer */}
           </div>
           <DialogDescription className="sr-only">
             Submit your {modalTab === "memo" ? "daily memo" : "end of day report"}
@@ -457,59 +504,96 @@ export function UpdateModal({
             </div>
           )}
 
-          {isMemoRequired && !isViewMode && modalTab === "memo" && (
-            <Alert className="bg-amber-50 border-amber-200">
-              <AlertCircle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-xs text-amber-800">
-                <strong>Memo Length Limit:</strong> This project requires memos to be within 140 characters (maximum).
-              </AlertDescription>
-            </Alert>
-          )}
+
 
           {modalTab === "memo" ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="memo" className="text-sm font-semibold text-slate-700 ml-1">
-                    What are you working on today?
-                </Label>
-                <span className={`text-xs font-normal ${
-                  isMemoRequired && memoContent.length > MEMO_REQUIRED_MAX_LENGTH && !isViewMode ? "text-red-600 font-medium" : "text-slate-400"
-                }`}>
-                    {memoContent.length}/{MEMO_MAX_LENGTH}
-                    {isMemoRequired && !isViewMode && (
-                      <span className="ml-1">
-                        (max: {MEMO_REQUIRED_MAX_LENGTH})
-                        {memoContent.length > MEMO_REQUIRED_MAX_LENGTH && (
-                          <span className="ml-1 text-red-600">⚠ {memoContent.length - MEMO_REQUIRED_MAX_LENGTH} over limit</span>
-                        )}
-                      </span>
-                    )}
-                </span>
+            <div className="space-y-6">
+              {/* Universal Memo - Required for all */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="universal-memo" className="text-sm font-semibold text-slate-700 ml-1">
+                      Universal Memo (Required)
+                  </Label>
+                  {!isViewMode && isMemoRequired && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMemoContent(shortMemoContent)}
+                      className="h-7 px-2.5 text-[11px] font-semibold text-blue-600 border-blue-100 bg-blue-50/50 hover:bg-blue-100 hover:border-blue-200 hover:text-blue-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Copy className="h-3 w-3" />
+                      Same as 140chars Memo
+                    </Button>
+                  )}
+                </div>
+                <Textarea
+                  id="universal-memo"
+                  value={memoContent}
+                  onChange={(e) => setMemoContent(e.target.value)}
+                  placeholder="Universal memo content for all team members..."
+                  className="min-h-[150px] resize-none rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all p-4 leading-relaxed"
+                  readOnly={isViewMode}
+                />
               </div>
-              <Textarea
-                id="memo"
-                value={memoContent}
-                onChange={(e) => setMemoContent(e.target.value.slice(0, MEMO_MAX_LENGTH))}
-                placeholder={
-                  isMemoRequired && !isViewMode
-                    ? "• Provide overview of tasks (max 140 chars)...&#10;• Meetings planned...&#10;• Blockers..."
-                    : "• List your key tasks...&#10;• Meetings planned...&#10;• Blockers..."
-                }
-                className={`min-h-[200px] resize-none rounded-lg bg-slate-50/30 focus:bg-white focus:ring-2 transition-all p-4 leading-relaxed ${
-                  isMemoRequired && memoContent.length > MEMO_REQUIRED_MAX_LENGTH && !isViewMode
-                    ? "border-red-300 focus:ring-red-500/10"
-                    : "border-slate-200 focus:ring-blue-500/10"
-                }`}
-                maxLength={MEMO_MAX_LENGTH}
-                readOnly={isViewMode}
-              />
+
+              {/* 140 Char Memo - Only if project requires it */}
+              {isMemoRequired && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="short-memo" className="text-sm font-semibold text-slate-700 ml-1">
+                            140chars Memo (Required for this project)
+                        </Label>
+                        {!isViewMode && (
+                            <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShortMemoContent(memoContent.slice(0, 140))}
+                            className="h-7 px-2.5 text-[11px] font-semibold text-blue-600 border-blue-100 bg-blue-50/50 hover:bg-blue-100 hover:border-blue-200 hover:text-blue-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
+                            >
+                            <Copy className="h-3 w-3" />
+                            Same as Universal Memo
+                            </Button>
+                        )}
+                    </div>
+                    <span className={cn(
+                        "text-xs font-normal",
+                        shortMemoContent.length > MEMO_MAX_LENGTH ? "text-red-500" : "text-slate-400"
+                    )}>
+                        {shortMemoContent.length}/{MEMO_MAX_LENGTH}
+                    </span>
+                  </div>
+                  <Textarea
+                    id="short-memo"
+                    value={shortMemoContent}
+                    onChange={(e) => setShortMemoContent(e.target.value.slice(0, 140))}
+                    placeholder="Short 140char summary..."
+                    className="min-h-[100px] resize-none rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all p-4 leading-relaxed"
+                    maxLength={140}
+                    readOnly={isViewMode}
+                  />
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-6">
               <div className="space-y-3">
-                <Label htmlFor="client" className="text-sm font-semibold text-slate-700 ml-1">
-                  Client Update
-                </Label>
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="client" className="text-sm font-semibold text-slate-700 ml-1">
+                    Client Update
+                    </Label>
+                    {!isViewMode && (
+                        <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setClientUpdate(internalUpdate)}
+                        className="h-7 px-2.5 text-[11px] font-semibold text-purple-600 border-purple-100 bg-purple-50/50 hover:bg-purple-100 hover:border-purple-200 hover:text-purple-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
+                        >
+                        <Copy className="h-3 w-3" />
+                        Same as Internal Update
+                        </Button>
+                    )}
+                </div>
                 <Textarea
                   id="client"
                   value={clientUpdate}
@@ -520,9 +604,22 @@ export function UpdateModal({
                 />
               </div>
               <div className="space-y-3">
-                <Label htmlFor="internal" className="text-sm font-semibold text-slate-700 ml-1">
-                  Internal Update
-                </Label>
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="internal" className="text-sm font-semibold text-slate-700 ml-1">
+                    Internal Update
+                    </Label>
+                    {!isViewMode && (
+                        <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setInternalUpdate(clientUpdate)}
+                        className="h-7 px-2.5 text-[11px] font-semibold text-purple-600 border-purple-100 bg-purple-50/50 hover:bg-purple-100 hover:border-purple-200 hover:text-purple-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
+                        >
+                        <Copy className="h-3 w-3" />
+                        Same as Client Update
+                        </Button>
+                    )}
+                </div>
                 <Textarea
                   id="internal"
                   value={internalUpdate}
@@ -538,15 +635,17 @@ export function UpdateModal({
           )}
         </div>
 
-        <DialogFooter className="px-6 py-5 border-t border-slate-100 bg-slate-50/50 flex flex-row justify-end gap-3 sticky bottom-0 z-10">
-          <Button 
-            variant="outline" 
-            onClick={handleInternalEditClick}
-            size="default" 
-            className="flex-1 sm:flex-initial rounded-lg border-slate-200 hover:bg-white hover:text-blue-600 text-slate-600"
-          >
-            Edit
-          </Button>
+        <DialogFooter className="px-6 py-5 border-t border-slate-100 bg-slate-50/50 flex flex-row justify-end gap-3 sticky bottom-0 z-10 transition-all">
+          {isViewMode && hasExistingRecord && (
+            <Button 
+              variant="outline" 
+              onClick={handleInternalEditClick}
+              size="default" 
+              className="flex-1 sm:flex-initial rounded-lg border-blue-200 hover:bg-blue-50 hover:text-blue-700 text-blue-600 font-medium"
+            >
+              Edit
+            </Button>
+          )}
           <Button 
             variant="outline" 
             onClick={onClose} 

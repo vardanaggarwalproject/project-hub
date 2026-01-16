@@ -44,6 +44,8 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { ProjectDetailsModal } from "@/common/ProjectDetailsModal";
 import { ProjectFormSheet } from "@/common/ProjectFormSheet";
+import { ClientFormSheet } from "@/components/clients/ClientFormSheet";
+
 
 interface Project {
   id: string;
@@ -80,6 +82,8 @@ export default function ClientDetailsPage({
   const [showProjectSheet, setShowProjectSheet] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [projectSheetMode, setProjectSheetMode] = useState<"add" | "edit">("edit");
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
   const router = useRouter();
 
   useEffect(() => {
@@ -258,38 +262,42 @@ export default function ClientDetailsPage({
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 overflow-x-hidden">
-      <div className="max-w-7xl mx-auto p-8">
-        <div className="space-y-8">
-          {/* Header */}
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
-              className="h-12 w-12 rounded-xl hover:bg-white/80 transition-all"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
-                <Building2 className="h-8 w-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
-                  {client.name}
-                </h1>
-                <p className="text-slate-500 font-medium mt-1.5">
-                  Partner since{" "}
-                  {new Date(client.createdAt).toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </p>
-              </div>
-            </div>
+    <div className="space-y-6 pb-10">
+      {/* Header / Breadcrumb */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.back()}
+            className="h-9 w-9 p-0 rounded-full"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-[#0f172a] tracking-tight">
+              {client.name}
+            </h1>
+            <p className="text-muted-foreground text-sm flex items-center gap-1.5 font-medium">
+              <Building2 className="h-3.5 w-3.5 text-emerald-500" />
+              Client Profile Details
+            </p>
           </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            className="font-bold border-app hover:bg-slate-50"
+            onClick={() => setIsSheetOpen(true)}
+          >
+            <Edit3 className="h-4 w-4 mr-2 text-amber-600" />
+            Edit Client
+          </Button>
+          <Button variant="outline" size="icon" className="h-9 w-9 border-app">
+            <Copy className="h-3.5 w-3.5 text-slate-500" />
+          </Button>
+        </div>
+      </div>
 
           {/* Stats Row */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -344,8 +352,8 @@ export default function ClientDetailsPage({
           </div>
 
           {/* Client Information Section */}
-          <Card className="border-none shadow-xl bg-white/90 backdrop-blur-sm">
-            <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-slate-100/50">
+          <Card className="border-none shadow-xl bg-app-card">
+            <CardHeader className="border-b bg-app-subtle">
               <CardTitle className="text-xl font-bold text-slate-900">
                 Client Details
               </CardTitle>
@@ -457,8 +465,8 @@ export default function ClientDetailsPage({
           </Card>
 
           {/* Projects Section */}
-          <Card className="border-none shadow-xl bg-white/90 backdrop-blur-sm">
-            <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-slate-100/50">
+          <Card className="border-none shadow-xl bg-app-card">
+            <CardHeader className="border-b bg-app-subtle">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-3">
@@ -615,8 +623,6 @@ export default function ClientDetailsPage({
               )}
             </CardContent>
           </Card>
-        </div>
-      </div>
 
       <ProjectDetailsModal
         open={showProjectModal}
@@ -644,6 +650,34 @@ export default function ClientDetailsPage({
         }}
       />
 
+      <ClientFormSheet
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+        mode="edit"
+        clientId={client?.id}
+        initialData={
+          client
+            ? {
+                name: client.name,
+                email: client.email || "",
+                address: client.address || "",
+                description: client.description || "",
+              }
+            : undefined
+        }
+        onSuccess={() => {
+          setIsSheetOpen(false);
+          // Refresh client data
+          fetch(`/api/clients/${id}`)
+            .then((res) => res.json())
+            .then((data) => {
+              if (!data.error) {
+                setClient(data);
+              }
+            })
+            .catch((err) => console.error("Failed to refresh client:", err));
+        }}
+      />
     </div>
   );
 }

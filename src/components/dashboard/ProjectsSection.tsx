@@ -73,53 +73,47 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                         <h3 className="text-sm font-semibold text-slate-900">
                           {project.name}
                         </h3>
-                        {project.isMemoRequired && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge
-                                  variant="outline"
-                                  className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] px-1.5 py-0 h-5 cursor-help"
-                                >
-                                  <AlertCircle className="h-3 w-3 mr-0.5" />
-                                  140 Memo
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-xs">
-                                <p className="text-xs">This project requires detailed memos (maximum 140 characters)</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         <Badge
-                          className={`text-xs cursor-pointer transition-colors ${
-                            status?.hasTodayMemo
-                              ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
-                              : "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
+                          className={`text-[10px] sm:text-xs cursor-pointer transition-colors px-2 py-0.5 ${
+                            status?.hasUniversalToday
+                              ? "bg-green-50 text-green-600 border-green-100 hover:bg-green-100"
+                              : "bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100"
                           }`}
                           onClick={() => onOpenModal("memo", project.id)}
                         >
-                          {status?.hasTodayMemo ? "✓ Memo" : "⏳ Memo Pending"}
+                          {status?.hasUniversalToday ? "✓ Universal" : "⏳ Universal Memo"}
                         </Badge>
 
+                        {project.isMemoRequired && (
+                          <Badge
+                            className={`text-[10px] sm:text-xs cursor-pointer transition-colors px-2 py-0.5 ${
+                              status?.hasShortToday
+                                ? "bg-green-50 text-green-600 border-green-100 hover:bg-green-100"
+                                : "bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100"
+                            }`}
+                            onClick={() => onOpenModal("memo", project.id)}
+                          >
+                            {status?.hasShortToday ? "✓ 140chars" : "⏳ 140chars Memo"}
+                          </Badge>
+                        )}
+
                         <Badge
-                          className={`text-xs cursor-pointer transition-colors ${
-                            status?.hasTodayEod
-                              ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
-                              : "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
+                          className={`text-[10px] sm:text-xs cursor-pointer transition-colors px-2 py-0.5 ${
+                            status?.hasEodToday
+                              ? "bg-green-50 text-green-600 border-green-100 hover:bg-green-100"
+                              : "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
                           }`}
                           onClick={() => onOpenModal("eod", project.id)}
                         >
-                          {status?.hasTodayEod ? "✓ EOD" : "⏳ EOD Pending"}
+                          {status?.hasEodToday ? "✓ EOD" : "⏳ EOD Pending"}
                         </Badge>
-
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                        {!(status?.hasTodayMemo && status?.hasTodayEod) && (
+                        {!(status?.hasUniversalToday && status?.hasEodToday && (!project.isMemoRequired || status?.hasShortToday)) && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -127,7 +121,11 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  onClick={() => onOpenModal("memo", project.id)}
+                                  onClick={() => {
+                                     // Default to memo if any memo part is missing
+                                     const needsMemo = !status?.hasUniversalToday || (project.isMemoRequired && !status?.hasShortToday);
+                                     onOpenModal(needsMemo ? "memo" : "eod", project.id);
+                                  }}
                                 >
                                   <Plus className="h-4 w-4" />
                                 </Button>
@@ -175,9 +173,9 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                       </TooltipProvider>
                       <div className="w-px h-6 bg-slate-200 mx-1" />
                       <Switch
-                        checked={true}
+                        checked={project.isActive}
                         onCheckedChange={() =>
-                          onToggleActive(project.id, true)
+                          onToggleActive(project.id, project.isActive || false)
                         }
                         className="scale-90 cursor-pointer"
                         title="Toggle Active Status"

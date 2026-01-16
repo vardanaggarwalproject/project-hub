@@ -82,10 +82,17 @@ export async function GET(req: Request) {
             description: projects.description,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
+            isActive: userProjectAssignments.isActive,
+            assignedAt: userProjectAssignments.assignedAt,
+            lastActivatedAt: userProjectAssignments.lastActivatedAt,
             isMemoRequired: projects.isMemoRequired,
         })
             .from(projects)
             .leftJoin(clients, eq(projects.clientId, clients.id))
+            .leftJoin(userProjectAssignments, and(
+                eq(projects.id, userProjectAssignments.projectId),
+                currentUserId ? eq(userProjectAssignments.userId, currentUserId) : sql`false`
+            ))
             .where(whereClause)
             .limit(limit)
             .offset(offset)

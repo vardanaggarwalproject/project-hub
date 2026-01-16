@@ -174,7 +174,7 @@ export function ProjectDetailsModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Maximum width increased for large screens - uses custom max-w value for better display */}
-      <DialogContent className="max-w-[90vw] lg:max-w-7xl max-h-[90vh] p-0 bg-app-card border border-app flex flex-col rounded-2xl overflow-hidden">
+      <DialogContent className="max-w-[90vw] lg:max-w-7xl max-h-[90vh] p-0 bg-white dark:bg-[#191919] border border-app flex flex-col rounded-2xl overflow-hidden">
         {isLoading || !project ? (
           // Loading skeleton placeholder - matches split-panel layout
           <>
@@ -258,7 +258,7 @@ export function ProjectDetailsModal({
             <div className="flex flex-col lg:flex-row h-[650px]">
 
               {/* ===== LEFT PANEL: Project Info ===== */}
-              <div className="w-full lg:w-2/5 p-8 bg-app-sidebar border-r border-app">
+              <div className="w-full lg:w-2/5 p-8 bg-slate-50 dark:bg-[#1e1e1e] border-r border-app">
                 {/* Icon and Status Badge */}
                 <div className="flex items-center gap-3 mb-6">
                   <div className="p-3 bg-blue-500/10 dark:bg-blue-500/20 rounded-xl">
@@ -419,7 +419,7 @@ export function ProjectDetailsModal({
               </div>
 
               {/* ===== RIGHT PANEL: Resources (Scrollable) ===== */}
-              <div className="flex-1 p-8 bg-app-card flex flex-col h-full">
+              <div className="flex-1 p-8 bg-white dark:bg-[#191919] flex flex-col h-full">
                 {/* Header */}
                 <h3 className="text-xl font-bold text-app-heading border-l-4 border-blue-600 dark:border-blue-500 pl-3 mb-4 flex-shrink-0">
                   Resources & Links

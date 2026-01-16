@@ -75,29 +75,7 @@ export default function UserProjectsPage() {
             if (statusFilter !== "all") params.append("status", statusFilter);
 
             const resData = await projectsApi.getAll(params);
-            const userProjects = resData.data || [];
-
-            // Fetch assignment data for each project
-            const projectsWithAssignments = await Promise.all(
-                userProjects.map(async (project: Project) => {
-                    try {
-                        const assignmentData = await projectsApi.getAssignment(project.id, session.user.id);
-                        return {
-                            ...project,
-                            isActive: assignmentData.isActive || false,
-                        };
-                    } catch (error) {
-                        console.error(`Failed to fetch assignment for project ${project.id}`, error);
-                        // Return default project object on error
-                        return {
-                            ...project,
-                            isActive: false,
-                        };
-                    }
-                })
-            );
-
-            setProjects(projectsWithAssignments);
+            setProjects(resData.data || []);
             setMeta(resData.meta || null);
         } catch (err) {
             console.error(err);
