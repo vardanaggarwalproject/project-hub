@@ -112,7 +112,7 @@ export default function AdminDashboardPage() {
                 {/* KPI Cards Skeleton */}
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     {[...Array(4)].map((_, i) => (
-                        <Card key={i} className="border-none shadow-lg">
+                        <Card key={i} className="border-none shadow-app bg-app-card">
                             <CardContent className="p-6">
                                 <Skeleton className="h-12 w-12 rounded-xl mb-4" />
                                 <div className="space-y-2">
@@ -130,7 +130,7 @@ export default function AdminDashboardPage() {
                     <Skeleton className="h-6 w-32" />
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {[...Array(4)].map((_, i) => (
-                            <Card key={i} className="border-none shadow-md">
+                            <Card key={i} className="border-none shadow-app bg-app-card">
                                 <CardContent className="p-6 flex items-center gap-4">
                                     <Skeleton className="h-11 w-11 rounded-xl" />
                                     <div className="space-y-2">
@@ -229,7 +229,7 @@ export default function AdminDashboardPage() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl md:text-3xl font-black tracking-tight text-[#0f172a]">
+                    <h2 className="text-2xl md:text-3xl font-black tracking-tight text-app-heading">
                         Good morning, {session?.user.name}!
                     </h2>
                     <p className="text-xs md:text-sm text-muted-foreground mt-1 font-medium">Here's your organization overview</p>
@@ -237,9 +237,9 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center gap-3 w-full md:w-auto">
                     <div className="relative flex-1 md:flex-initial">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Search..." 
-                            className="pl-9 w-full md:w-64 bg-white border-slate-200 rounded-xl h-10 text-sm"
+                        <Input
+                            placeholder="Search..."
+                            className="pl-9 w-full md:w-64 bg-app-input border-app rounded-xl h-10 text-sm"
                         />
                     </div>
                 </div>
@@ -248,18 +248,18 @@ export default function AdminDashboardPage() {
             {/* KPI Cards */}
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {kpiCards.map((kpi, i) => (
-                    <Card key={i} className="border-none shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
+                    <Card key={i} className="border-none shadow-app hover:shadow-xl transition-all duration-300 overflow-hidden group bg-app-card">
                         <CardContent className="p-6">
                             <div className="flex items-start justify-between mb-4">
-                                <div className={cn("p-3 rounded-xl", kpi.iconBg)}>
-                                    <kpi.icon className={cn("h-6 w-6", kpi.iconColor)} />
+                                <div className={cn("p-3 rounded-xl", kpi.iconBg, "dark:bg-opacity-20 dark:bg-gray-700")}>
+                                    <kpi.icon className={cn("h-6 w-6", kpi.iconColor, "dark:opacity-80")} />
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <div className="text-3xl font-black text-[#0f172a]">{kpi.value}</div>
+                                <div className="text-3xl font-black text-app-heading">{kpi.value}</div>
                                 <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{kpi.title}</div>
                                 <div className="text-xs text-muted-foreground">{kpi.subtitle}</div>
-                                <div className="flex items-center gap-1 text-xs font-bold text-emerald-600">
+                                <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                                     <TrendingUp className="h-3 w-3" />
                                     {kpi.trend}
                                 </div>
@@ -271,18 +271,18 @@ export default function AdminDashboardPage() {
 
             {/* Quick Actions */}
             <div>
-                <h3 className="text-lg font-black uppercase tracking-tight text-[#0f172a] mb-4">Quick Actions</h3>
+                <h3 className="text-lg font-black uppercase tracking-tight text-app-heading mb-4">Quick Actions</h3>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {quickActions.map((action, i) => (
                         <Link key={i} href={action.href}>
-                            <Card className="border-none shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer group">
+                            <Card className="border-none shadow-app hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer group bg-app-card">
                                 <CardContent className="p-6">
                                     <div className="flex items-center gap-4">
-                                        <div className={cn("p-3 rounded-xl group-hover:scale-110 transition-transform", action.bgColor)}>
-                                            <action.icon className={cn("h-5 w-5", action.iconColor)} />
+                                        <div className={cn("p-3 rounded-xl group-hover:scale-110 transition-transform", action.bgColor, "dark:bg-opacity-20 dark:bg-gray-700")}>
+                                            <action.icon className={cn("h-5 w-5", action.iconColor, "dark:opacity-80")} />
                                         </div>
                                         <div>
-                                            <h4 className="font-bold text-sm text-[#0f172a] group-hover:text-blue-600 transition-colors">{action.title}</h4>
+                                            <h4 className="font-bold text-sm text-app-heading group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{action.title}</h4>
                                             <p className="text-xs text-muted-foreground mt-0.5">{action.subtitle}</p>
                                         </div>
                                     </div>
@@ -294,11 +294,11 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Recent Projects */}
-            <Card className="border-none shadow-xl">
-                <CardHeader className="border-b bg-slate-50/50 px-4 md:px-6 py-4">
+            <Card className="border-none shadow-app bg-app-card">
+                <CardHeader className="border-b border-app bg-app-subtle px-4 md:px-6 py-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <CardTitle className="text-base md:text-lg font-black uppercase tracking-tight">Recent Projects</CardTitle>
-                        <Button variant="link" className="text-blue-600 font-bold text-xs md:text-sm self-start sm:self-auto" asChild>
+                        <CardTitle className="text-base md:text-lg font-black uppercase tracking-tight text-app-heading">Recent Projects</CardTitle>
+                        <Button variant="link" className="text-blue-600 dark:text-blue-400 font-bold text-xs md:text-sm self-start sm:self-auto" asChild>
                             <Link href="/dashboard/projects">
                                 View All <ArrowRight className="ml-2 h-3 md:h-4 w-3 md:w-4" />
                             </Link>
@@ -307,10 +307,10 @@ export default function AdminDashboardPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
-                    <div className="rounded-md border">
+                    <div className="rounded-md border border-app">
                         <Table>
-                            <TableHeader className="bg-slate-50/50">
-                                <TableRow>
+                            <TableHeader className="bg-app-table-header">
+                                <TableRow className="border-app">
                                     <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Project Name</TableHead>
                                     <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Client</TableHead>
                                     <TableHead className="px-6 font-black uppercase tracking-wider text-muted-foreground">Developers</TableHead>
@@ -320,18 +320,18 @@ export default function AdminDashboardPage() {
                             </TableHeader>
                             <TableBody>
                                 {recentProjects.slice(0, 5).map((project) => (
-                                    <TableRow key={project.id} className="hover:bg-slate-50/50 transition-colors group">
+                                    <TableRow key={project.id} className="bg-app-table-row-hover transition-colors group border-app">
                                         <TableCell className="px-6 py-4">
-                                            <Link href={`/admin/projects/${project.id}`} className="font-bold text-sm text-[#0f172a] hover:text-blue-600 transition-colors">
+                                            <Link href={`/admin/projects/${project.id}`} className="font-bold text-sm text-app-heading hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                                                 {project.name}
                                             </Link>
                                             <p className="text-xs text-muted-foreground mt-0.5">{project.clientName || "No client"}</p>
                                         </TableCell>
                                         <TableCell className="px-6 py-4">
-                                            <span className="text-sm text-slate-600">{project.clientName || "—"}</span>
+                                            <span className="text-sm text-app-body">{project.clientName || "—"}</span>
                                         </TableCell>
                                         <TableCell className="px-6 py-4">
-                                            <span className="text-sm font-bold text-slate-600">{project.team?.length || 0} developers</span>
+                                            <span className="text-sm font-bold text-app-body">{project.team?.length || 0} developers</span>
                                         </TableCell>
                                         <TableCell className="px-6 py-4">
                                             <Badge className={cn(

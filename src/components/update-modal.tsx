@@ -21,7 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Calendar, Copy } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Calendar, AlertCircle, Copy } from "lucide-react";
 import type { Project } from "@/types/project";
 import type { Memo, EOD } from "@/types/report";
 import { MEMO_MAX_LENGTH } from "@/lib/constants";
@@ -305,6 +306,12 @@ export function UpdateModal({
   };
 
   const handleSubmit = async () => {
+    // Validate memo maximum length for projects that require 140 chars max
+    if (modalTab === "memo" && isMemoRequired && memoContent.length > 140) {
+        toast.error(`This project requires a memo within 140 characters (maximum). Current: ${memoContent.length}/140`);
+        return;
+    }
+
     // Authority check for date manually entered or selected
     if (minDate && selectedDate && selectedDate < minDate) {
         toast.error(`Access Denied: You cannot submit updates for dates before your project allocation (${minDate}).`);
@@ -497,6 +504,8 @@ export function UpdateModal({
             </div>
           )}
 
+
+
           {modalTab === "memo" ? (
             <div className="space-y-6">
               {/* Universal Memo - Required for all */}
@@ -621,8 +630,8 @@ export function UpdateModal({
                 />
               </div>
             </div>
-          )} 
-            </>
+          )}
+          </>
           )}
         </div>
 

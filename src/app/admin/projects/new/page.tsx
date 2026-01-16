@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Plus, Users } from "lucide-react";
+import { Loader2, Plus, Users, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Client {
@@ -103,18 +103,30 @@ export default function NewProjectPage() {
     };
 
     return (
-        <div className="max-w-3xl mx-auto py-8">
-            <h2 className="text-3xl font-bold tracking-tight text-[#0f172a] mb-6">Create Project</h2>
+        <div className="space-y-6 max-w-5xl mx-auto pb-10">
+            <div className="flex items-center gap-4 mb-2">
+                <Button asChild variant="outline" size="sm" className="h-9 w-9 p-0 rounded-full">
+                    <div onClick={() => router.back()} className="cursor-pointer flex items-center justify-center">
+                         <Plus className="h-4 w-4 rotate-45" />
+                    </div>
+                </Button>
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-[#0f172a]">Create Project</h2>
+                    <p className="text-muted-foreground text-sm">Set up a new project and assign a team</p>
+                </div>
+            </div>
 
             <form onSubmit={handleSubmit}>
-                <div className="grid gap-6 md:grid-cols-3">
-                    <div className="md:col-span-2 space-y-6">
-                        <Card className="border-none shadow-md bg-white overflow-hidden">
-                            <CardHeader className="bg-slate-50/50 border-b">
-                                <CardTitle className="text-lg font-bold">General Information</CardTitle>
-                                <CardDescription>Basic project details and client assignment.</CardDescription>
+                <div className="grid lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 space-y-6">
+                        <Card className="border-none shadow-md bg-app-card overflow-hidden">
+                            <CardHeader className="bg-app-subtle border-b pb-4">
+                                <CardTitle className="text-lg font-bold text-[#0f172a] flex items-center gap-2">
+                                    <Building2 className="h-4 w-4 text-blue-500" />
+                                    General Information
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent className="p-6 space-y-4">
+                            <CardContent className="p-6 space-y-4 pt-6">
                                 <div className="space-y-2">
                                     <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-slate-500">Project Name</Label>
                                     <Input
@@ -130,7 +142,7 @@ export default function NewProjectPage() {
                                 <div className="space-y-2">
                                     <Label htmlFor="client" className="text-xs font-bold uppercase tracking-wider text-slate-500">Client</Label>
                                     <Select onValueChange={setClientId} required>
-                                        <SelectTrigger className="h-11 border-slate-200 focus-visible:ring-blue-500 font-medium">
+                                        <SelectTrigger className="h-11 border-slate-200 focus-visible:ring-blue-500 font-medium text-left">
                                             <SelectValue placeholder="Select a client" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -149,7 +161,9 @@ export default function NewProjectPage() {
                                         id="description"
                                         rows={4}
                                         placeholder="Briefly describe the project scope and goals..."
-                                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-medium transition-all"
+                                        className="w-full rounded-md border border-slate-200 bg-app-input px-3 py-2 text-sm ring-offset-white placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-medium transition-all"
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
                                     />
                                 </div>
 
@@ -176,12 +190,14 @@ export default function NewProjectPage() {
                     </div>
 
                     <div className="space-y-6">
-                        <Card className="border-none shadow-md bg-white overflow-hidden h-full flex flex-col">
-                            <CardHeader className="bg-slate-50/50 border-b">
-                                <CardTitle className="text-lg font-bold">Assign Team</CardTitle>
-                                <CardDescription>Select developers for this project.</CardDescription>
+                        <Card className="border-none shadow-md bg-app-card overflow-hidden h-full flex flex-col">
+                            <CardHeader className="bg-app-subtle border-b pb-4">
+                                <CardTitle className="text-lg font-bold text-[#0f172a] flex items-center gap-2">
+                                    <Users className="h-4 w-4 text-blue-500" />
+                                    Assign Team
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent className="p-6 flex-1 overflow-y-auto max-h-[400px]">
+                            <CardContent className="p-6 flex-1 overflow-y-auto max-h-[500px] pt-6">
                                 <div className="space-y-3">
                                     {users.length > 0 ? users.map(user => (
                                         <div

@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { projects, clients, chatGroups, user, userProjectAssignments } from "@/lib/db/schema";
+import { projects, clients, chatGroups, user, userProjectAssignments, links } from "@/lib/db/schema";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -13,6 +13,11 @@ const projectSchema = z.object({
     totalTime: z.string().optional(),
     description: z.string().optional(),
     assignedUserIds: z.array(z.string()).optional(),
+    links: z.array(z.object({
+        label: z.string(),
+        value: z.string(),
+        allowedRoles: z.array(z.string()).optional().default(["admin", "developer", "tester", "designer"]),
+    })).optional(),
     isMemoRequired: z.boolean().optional(),
 });
 
@@ -32,6 +37,8 @@ export async function GET(req: Request) {
         const status = searchParams.get("status");
         const clientId = searchParams.get("clientId");
         const search = searchParams.get("search");
+        const fromDate = searchParams.get("fromDate");
+        const toDate = searchParams.get("toDate");
 
         const offset = (page - 1) * limit;
 
@@ -42,6 +49,14 @@ export async function GET(req: Request) {
         if (clientId) conditions.push(eq(projects.clientId, clientId));
         // Note: ILike is pg specific, using sql for generic search if needed or simple like
         if (search) conditions.push(sql`${projects.name} ILIKE ${`%${search}%`}`);
+
+        // Date range filtering
+        if (fromDate) {
+            conditions.push(sql`${projects.createdAt} >= ${new Date(fromDate)}`);
+        }
+        if (toDate) {
+            conditions.push(sql`${projects.createdAt} <= ${new Date(toDate)}`);
+        }
 
         // If not admin and we have a user ID, only show assigned projects
         if (userRole !== "admin" && currentUserId) {
@@ -65,12 +80,12 @@ export async function GET(req: Request) {
             totalTime: projects.totalTime,
             completedTime: projects.completedTime,
             description: projects.description,
-            isMemoRequired: projects.isMemoRequired,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
             isActive: userProjectAssignments.isActive,
             assignedAt: userProjectAssignments.assignedAt,
             lastActivatedAt: userProjectAssignments.lastActivatedAt,
+            isMemoRequired: projects.isMemoRequired,
         })
             .from(projects)
             .leftJoin(clients, eq(projects.clientId, clients.id))
@@ -91,6 +106,7 @@ export async function GET(req: Request) {
                 user: {
                     id: user.id,
                     name: user.name,
+                    email: user.email,
                     image: user.image,
                     role: user.role
                 }
@@ -151,7 +167,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: validation.error.issues }, { status: 400 });
         }
 
-        const { name, clientId, status, totalTime, description, assignedUserIds } = validation.data;
+        const { name, clientId, status, totalTime, description, assignedUserIds, links: projectLinks, isMemoRequired } = validation.data;
 
         const [newProject] = await db.insert(projects).values({
             id: crypto.randomUUID(),
@@ -161,7 +177,7 @@ export async function POST(req: Request) {
             totalTime: totalTime || null,
             completedTime: null, // explicit null
             description: description || null, // explicit null
-            isMemoRequired: body.isMemoRequired ?? false,
+            isMemoRequired: isMemoRequired || false,
         }).returning();
 
         // Handle assignments
@@ -171,6 +187,22 @@ export async function POST(req: Request) {
                     id: crypto.randomUUID(),
                     userId,
                     projectId: newProject.id
+                }))
+            );
+        }
+
+        // Handle project links
+        if (projectLinks && projectLinks.length > 0) {
+            await db.insert(links).values(
+                projectLinks.map(link => ({
+                    id: crypto.randomUUID(),
+                    name: link.label,
+                    url: link.value,
+                    allowedRoles: link.allowedRoles || ["admin", "developer", "tester", "designer"],
+                    projectId: newProject.id,
+                    description: null,
+                    clientId: null,
+                    addedBy: null,
                 }))
             );
         }

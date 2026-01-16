@@ -10,7 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, History, ExternalLink, ArrowRight, Star } from "lucide-react";
+import { Plus, History, Eye, ExternalLink, ArrowRight, Star, AlertCircle } from "lucide-react";
 import type { Project, ProjectStatus } from "@/types/project";
 
 interface ProjectsSectionProps {

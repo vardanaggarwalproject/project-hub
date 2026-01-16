@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { projects, clients, user, userProjectAssignments, chatGroups } from "@/lib/db/schema";
+import { projects, clients, user, userProjectAssignments, chatGroups, links } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -10,6 +10,11 @@ const updateProjectSchema = z.object({
     status: z.enum(["active", "completed", "on-hold"]).optional(),
     clientId: z.string().optional(),
     assignedUserIds: z.array(z.string()).optional(),
+    links: z.array(z.object({
+        label: z.string(),
+        value: z.string(),
+        allowedRoles: z.array(z.string()).optional().default(["admin", "developer", "tester", "designer"]),
+    })).optional(),
     isMemoRequired: z.boolean().optional(),
 });
 
@@ -30,13 +35,16 @@ export async function GET(
             status: projects.status,
             totalTime: projects.totalTime,
             completedTime: projects.completedTime,
-            isMemoRequired: projects.isMemoRequired,
+            createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
             clientId: projects.clientId,
             clientName: clients.name,
+            isMemoRequired: projects.isMemoRequired,
         })
             .from(projects)
             .leftJoin(clients, eq(projects.clientId, clients.id))
+       
+       
             .where(eq(projects.id, id))
             .limit(1);
 
@@ -48,12 +56,23 @@ export async function GET(
         const team = await db.select({
             id: user.id,
             name: user.name,
+            email: user.email,
             image: user.image,
             role: user.role
         })
             .from(userProjectAssignments)
             .innerJoin(user, eq(userProjectAssignments.userId, user.id))
             .where(eq(userProjectAssignments.projectId, id));
+
+        // Fetch project links
+        const projectLinks = await db.select({
+            id: links.id,
+            label: links.name,
+            value: links.url,
+            allowedRoles: links.allowedRoles,
+        })
+            .from(links)
+            .where(eq(links.projectId, id));
 
         // Calculate progress based on completedTime and totalTime
         const project = projectData[0];
@@ -69,7 +88,8 @@ export async function GET(
         return NextResponse.json({
             ...project,
             progress,
-            team
+            team,
+            links: projectLinks
         });
     } catch (error) {
         console.error(error);
@@ -90,7 +110,7 @@ export async function PATCH(
             return NextResponse.json({ error: validation.error.issues }, { status: 400 });
         }
 
-        const { name, description, status, clientId, assignedUserIds } = validation.data;
+        const { name, description, status, clientId, assignedUserIds, links: projectLinks, isMemoRequired } = validation.data;
 
         // Update project metadata
         await db.update(projects)
@@ -99,7 +119,7 @@ export async function PATCH(
                 description,
                 status,
                 clientId,
-                isMemoRequired: body.isMemoRequired,
+                isMemoRequired,
                 updatedAt: sql`NOW()`,
             })
             .where(eq(projects.id, id));
@@ -117,6 +137,29 @@ export async function PATCH(
                         id: crypto.randomUUID(),
                         userId,
                         projectId: id
+                    }))
+                );
+            }
+        }
+
+        // Update project links if provided
+        if (projectLinks !== undefined) {
+            // Remove existing links
+            await db.delete(links)
+                .where(eq(links.projectId, id));
+
+            // Add new links
+            if (projectLinks.length > 0) {
+                await db.insert(links).values(
+                    projectLinks.map(link => ({
+                        id: crypto.randomUUID(),
+                        name: link.label,
+                        url: link.value,
+                        allowedRoles: link.allowedRoles || ["admin", "developer", "tester", "designer"],
+                        projectId: id,
+                        description: null,
+                        clientId: null,
+                        addedBy: null,
                     }))
                 );
             }

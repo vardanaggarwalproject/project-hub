@@ -60,8 +60,8 @@ export default async function AdminLayout({
     ];
 
     return (
-        <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
-            <Sidebar 
+        <div className="flex h-screen overflow-hidden bg-app-bg">
+            <Sidebar
                 mainItems={mainItems}
                 managementItems={managementItems}
                 settingsItems={settingsItems}
@@ -70,12 +70,12 @@ export default async function AdminLayout({
 
             {/* Main Content */}
             <main className="flex-1 flex flex-col min-w-0 min-h-0">
-                <Header 
-                    userName={session.user.name} 
-                    userRole={session.user.role} 
-                    searchPlaceholder="Search keywords, projects..." 
+                <Header
+                    userName={session.user.name}
+                    userRole={session.user.role}
+                    searchPlaceholder="Search keywords, projects..."
                 />
-                
+
                 <AdminMainContent>
                     {children}
                 </AdminMainContent>
