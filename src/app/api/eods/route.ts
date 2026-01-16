@@ -70,6 +70,7 @@ export async function GET(req: Request) {
 
         if (!summary) {
             querySelection.projectName = projects.name;
+            querySelection.isMemoRequired = projects.isMemoRequired;
             querySelection.user = {
                 id: user.id,
                 name: user.name,
@@ -91,9 +92,14 @@ export async function GET(req: Request) {
             .offset(offset)
             .orderBy(desc(eodReports.createdAt));
 
-        const totalResult = await db.select({ count: sql<number>`count(*)` })
-            .from(eodReports)
-            .where(whereClause);
+        let totalQuery = db.select({ count: sql<number>`count(*)` }).from(eodReports);
+
+        // If we have filters that require joining other tables (like search by user name)
+        if (search) {
+            totalQuery = totalQuery.leftJoin(user, eq(eodReports.userId, user.id)) as any;
+        }
+
+        const totalResult = await totalQuery.where(whereClause);
 
         const total = Number(totalResult[0]?.count || 0);
 

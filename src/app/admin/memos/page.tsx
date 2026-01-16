@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-    FileText, 
-    Search, 
+import {
+    FileText,
+    Search,
     Calendar as CalendarIcon,
     FolderKanban,
     ChevronLeft,
@@ -21,13 +21,15 @@ import {
     ExternalLink,
     Copy,
     AlignLeft,
-    X
+    X,
+    ShieldCheck
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ProjectSelect } from "@/components/admin/ProjectSelect";
-import { DateSelect } from "@/components/admin/DateSelect";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DateRange } from "react-day-picker";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -46,16 +48,17 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import { 
-    Tooltip, 
-    TooltipContent, 
-    TooltipProvider, 
-    TooltipTrigger 
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger
 } from "@/components/ui/tooltip";
 
 interface Memo {
     id: string;
     memoContent: string;
+    memoType: 'short' | 'detailed';
     reportDate: Date;
     createdAt: Date;
     projectName: string;
@@ -66,6 +69,8 @@ interface Memo {
         role: string;
     };
     projectId: string;
+    userId: string;
+    isMemoRequired?: boolean;
 }
 
 interface PaginationMeta {
@@ -79,20 +84,44 @@ export default function AdminMemosPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { data: session } = authClient.useSession();
-    
+
     // Initialize state from URL params
     const [selectedProject, setSelectedProject] = useState(searchParams.get("project") || "");
-    const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-        searchParams.get("date") ? new Date(searchParams.get("date")!) : undefined
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(
+        searchParams.get("fromDate") && searchParams.get("toDate")
+            ? { from: new Date(searchParams.get("fromDate")!), to: new Date(searchParams.get("toDate")!) }
+            : undefined
     );
     const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
     const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get("search") || "");
-    const [showLongMemosOnly, setShowLongMemosOnly] = useState(false);
+    const [activeDualMemos, setActiveDualMemos] = useState<{ short?: Memo, detailed?: Memo } | null>(null);
+    const [isFetchingDual, setIsFetchingDual] = useState(false);
+    const [show140Only, setShow140Only] = useState(false);
+    const [showUniversalOnly, setShowUniversalOnly] = useState(false);
     const [memos, setMemos] = useState<Memo[]>([]);
     const [meta, setMeta] = useState<PaginationMeta | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [page, setPage] = useState(1);
     const limit = 10;
+
+    // Load filters from localStorage
+    useEffect(() => {
+        const saved140 = localStorage.getItem("admin_memos_filter_140");
+        const savedUniversal = localStorage.getItem("admin_memos_filter_universal");
+
+        if (saved140 !== null) setShow140Only(saved140 === "true");
+        if (savedUniversal !== null) setShowUniversalOnly(savedUniversal === "true");
+        setIsInitialLoad(false);
+    }, []);
+
+    // Save filters to localStorage
+    useEffect(() => {
+        if (!isInitialLoad) {
+            localStorage.setItem("admin_memos_filter_140", show140Only.toString());
+            localStorage.setItem("admin_memos_filter_universal", showUniversalOnly.toString());
+        }
+    }, [show140Only, showUniversalOnly, isInitialLoad]);
 
     // Debounce search
     useEffect(() => {
@@ -112,7 +141,16 @@ export default function AdminMemosPage() {
             });
             if (debouncedSearch) params.append("search", debouncedSearch);
             if (selectedProject) params.append("projectId", selectedProject);
-            if (selectedDate) params.append("date", format(selectedDate, "yyyy-MM-dd"));
+            if (dateRange?.from) params.append("fromDate", format(dateRange.from, "yyyy-MM-dd"));
+            if (dateRange?.to) params.append("toDate", format(dateRange.to, "yyyy-MM-dd"));
+
+            // Filter logic: if one is checked and other isn't, pass it to API
+            // If both are checked or none are checked, don't pass anything (show all)
+            if (show140Only && !showUniversalOnly) {
+                params.append("isMemoRequired", "true");
+            } else if (!show140Only && showUniversalOnly) {
+                params.append("isMemoRequired", "false");
+            }
 
             const res = await fetch(`/api/memos?${params.toString()}`);
             const resData = await res.json();
@@ -127,18 +165,7 @@ export default function AdminMemosPage() {
                 reportDate: new Date(memo.reportDate),
                 createdAt: new Date(memo.createdAt)
             }));
-            
-            // Client-side filtering for 140 chars if needed (or if API supported it we'd use that)
-            // Since the requirement says "filteration on the basis of ... 140 chars", let's do client side for now as API plan didn't strictly add it
-            // Actually, better to filter the displayed list or use API. Let's filter displayed list for now as an additional toggle
-            // But wait, "filter" implies reducing the result set. If I filter client side, pagination breaks.
-            // The requirement "highlight those memo to me their 140 chars is completed" suggests visual highlight.
-            // "in both the pages i want to use filteration on the basis of ... 140 chars for memo specific" implies a filter.
-            // I'll stick to Visual Highlight as primary request, and add a toggle that filters locally or via API if possible.
-            // Given I didn't add it to API, I will implement visual highlight strongly, and maybe a simple client-side filter for the current page? 
-            // Better: Just highlight for now to satisfy "highlight those memo". The "filtration" part might be interpreted as "highlighting" or "sorting".
-            // Let's implement visual highlight.
-            
+
             setMemos(transformedData);
             setMeta(resData.meta);
         } catch (error) {
@@ -146,18 +173,19 @@ export default function AdminMemosPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [page, debouncedSearch, selectedProject, selectedDate]);
+    }, [page, debouncedSearch, selectedProject, dateRange, show140Only, showUniversalOnly]);
 
     // Sync filters to URL
     useEffect(() => {
         const params = new URLSearchParams();
         if (debouncedSearch) params.set("search", debouncedSearch);
         if (selectedProject) params.set("project", selectedProject);
-        if (selectedDate) params.set("date", format(selectedDate, "yyyy-MM-dd"));
-        
+        if (dateRange?.from) params.set("fromDate", format(dateRange.from, "yyyy-MM-dd"));
+        if (dateRange?.to) params.set("toDate", format(dateRange.to, "yyyy-MM-dd"));
+
         const newUrl = params.toString() ? `?${params.toString()}` : "/admin/memos";
         router.replace(newUrl, { scroll: false });
-    }, [debouncedSearch, selectedProject, selectedDate, router]);
+    }, [debouncedSearch, selectedProject, dateRange, router]);
 
     useEffect(() => {
         if (session) {
@@ -173,27 +201,23 @@ export default function AdminMemosPage() {
         });
     };
 
-    const filteredMemos = showLongMemosOnly 
-        ? memos.filter(m => m.memoContent.length >= 140) 
-        : memos;
-
     if (isLoading && memos.length === 0) return (
         <div className="space-y-6 animate-in fade-in duration-500">
-             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="space-y-2">
                     <Skeleton className="h-10 w-48" />
                     <Skeleton className="h-4 w-64" />
                 </div>
                 <div className="flex gap-3">
                     <Skeleton className="h-10 w-full sm:w-80 rounded-lg" />
-                     <Skeleton className="h-10 w-24 rounded-lg" />
+                    <Skeleton className="h-10 w-24 rounded-lg" />
                 </div>
             </div>
             <Card className="border-none shadow-md overflow-hidden">
                 <div className="border-b-2 border-slate-200">
                     <div className="grid grid-cols-6 gap-4 p-4">
                         {[...Array(6)].map((_, i) => (
-                             <Skeleton key={i} className="h-4 w-full" />
+                            <Skeleton key={i} className="h-4 w-full" />
                         ))}
                     </div>
                 </div>
@@ -201,15 +225,15 @@ export default function AdminMemosPage() {
                     {[...Array(8)].map((_, i) => (
                         <div key={i} className="grid grid-cols-6 gap-4 p-6 border-b border-slate-100 items-center">
                             <Skeleton className="h-4 w-8" />
-                             <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3">
                                 <Skeleton className="h-10 w-10 rounded-xl" />
                                 <div className="space-y-2">
-                                     <Skeleton className="h-4 w-32" />
+                                    <Skeleton className="h-4 w-32" />
                                     <Skeleton className="h-2 w-20" />
                                 </div>
                             </div>
                             <Skeleton className="h-6 w-24 rounded-full" />
-                             <Skeleton className="h-6 w-20 rounded-full" />
+                            <Skeleton className="h-6 w-20 rounded-full" />
                             <Skeleton className="h-6 w-20 rounded-full" />
                             <div className="flex justify-end">
                                 <Skeleton className="h-8 w-8 rounded-lg" />
@@ -235,56 +259,95 @@ export default function AdminMemosPage() {
                         </Badge>
                     </div>
 
-                     {/* Filter Toolbar */}
-                    <div className="flex flex-col gap-0 bg-white rounded-xl border border-slate-200 shadow-sm mt-4 overflow-hidden">
-                        <div className="flex flex-col sm:flex-row items-center gap-3 p-2">
-                            <div className="relative flex-1 w-full">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                    placeholder="Search by user name..." 
-                                    className="pl-10 h-10 bg-slate-50 border-slate-200 focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg placeholder:text-muted-foreground/70"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 lg:ml-auto">
-                                <ProjectSelect value={selectedProject} onValueChange={setSelectedProject} />
-                                <DateSelect
-                                    date={selectedDate}
-                                    onDateChange={setSelectedDate}
-                                    placeholder="Filter by submitted date..."
-                                />
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        setSearchQuery("");
-                                        setSelectedProject("");
-                                        setSelectedDate(undefined);
-                                    }}
-                                    className="h-10 px-4 text-xs font-semibold whitespace-nowrap bg-white border-slate-200 hover:bg-slate-50"
-                                >
-                                    <X className="h-4 w-4 mr-2" />
-                                    Clear
-                                </Button>
-                            </div>
+                    {/* Filter Toolbar */}
+                    <div className="flex flex-col sm:flex-row items-center gap-3 p-2">
+                        <div className="relative flex-1 w-full">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search by user name..."
+                                className="pl-10 h-10 bg-slate-50 border-slate-200 focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg placeholder:text-muted-foreground/70"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 lg:ml-auto">
+                            <ProjectSelect
+                                value={selectedProject}
+                                onValueChange={(val) => {
+                                    setSelectedProject(val);
+                                    if (val) {
+                                        setShow140Only(false);
+                                        setShowUniversalOnly(false);
+                                    }
+                                }}
+                            />
+                            <DateRangePicker
+                                value={dateRange}
+                                onChange={setDateRange}
+                                placeholder="Filter by submitted date..."
+                                className="w-[280px]"
+                            />
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    setSearchQuery("");
+                                    setSelectedProject("");
+                                    setDateRange(undefined);
+                                    setShow140Only(false);
+                                    setShowUniversalOnly(false);
+                                }}
+                                className="h-10 px-4 text-xs font-semibold whitespace-nowrap bg-white border-slate-200 hover:bg-slate-50"
+                            >
+                                <X className="h-4 w-4 mr-2" />
+                                Clear
+                            </Button>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex justify-end mb-2">
-                     <div className="flex items-center space-x-2">
-                        <Checkbox 
-                            id="long-memos" 
-                            checked={showLongMemosOnly}
-                            onCheckedChange={(c) => setShowLongMemosOnly(!!c)}
+                <div className="flex justify-end mb-2 gap-6">
+                    <div className="flex items-center space-x-2">
+                        <Checkbox
+                            id="140-memos"
+                            checked={show140Only}
+                            onCheckedChange={(c) => {
+                                setShow140Only(!!c);
+                                if (!!c) {
+                                    setSelectedProject("");
+                                    setShowUniversalOnly(false);
+                                }
+                                setPage(1);
+                            }}
                             className="data-[state=checked]:bg-blue-600 border-slate-300"
                         />
                         <label
-                            htmlFor="long-memos"
+                            htmlFor="140-memos"
                             className="text-xs font-semibold uppercase tracking-wide text-slate-600 cursor-pointer select-none"
                         >
-                            Show only detailed memos (140 chars)
+                            140 Char Memo
+                        </label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                        <Checkbox
+                            id="universal-memos"
+                            checked={showUniversalOnly}
+                            onCheckedChange={(c) => {
+                                setShowUniversalOnly(!!c);
+                                if (!!c) {
+                                    setSelectedProject("");
+                                    setShow140Only(false);
+                                }
+                                setPage(1);
+                            }}
+                            className="data-[state=checked]:bg-blue-600 border-slate-300"
+                        />
+                        <label
+                            htmlFor="universal-memos"
+                            className="text-xs font-semibold uppercase tracking-wide text-slate-600 cursor-pointer select-none"
+                        >
+                            Universal Memo
                         </label>
                     </div>
                 </div>
@@ -305,11 +368,11 @@ export default function AdminMemosPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredMemos.length > 0 ? (
-                                        filteredMemos.map((memo, index) => (
+                                    {memos.length > 0 ? (
+                                        memos.map((memo, index) => (
                                             <TableRow key={memo.id} className={cn(
                                                 "group hover:bg-slate-50/80 transition-colors duration-200",
-                                                memo.memoContent.length >= 140 && "bg-green-50/30 hover:bg-green-50/50"
+                                                memo.isMemoRequired && "bg-blue-50/30 hover:bg-blue-50/50"
                                             )}>
                                                 <TableCell className="font-medium text-slate-600 text-xs text-center border-r border-slate-100/50">
                                                     {(page - 1) * limit + index + 1}
@@ -324,16 +387,23 @@ export default function AdminMemosPage() {
                                                         </Avatar>
                                                         <div className="flex items-center gap-2">
                                                             <span className="font-semibold text-slate-700 text-sm whitespace-nowrap">{memo.user.name}</span>
-                                                            {memo.memoContent.length >= 140 && (
-                                                                <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white text-[10px] px-2 py-0.5 font-semibold">
-                                                                    DETAILED
-                                                                </Badge>
+                                                            {memo.isMemoRequired && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <div className="flex items-center justify-center p-1 rounded-full bg-blue-100/50 text-blue-600 hover:bg-blue-100 transition-colors cursor-help">
+                                                                            <ShieldCheck className="h-3.5 w-3.5" />
+                                                                        </div>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent side="top">
+                                                                        <p className="text-[10px] font-bold uppercase tracking-wider">Detailed Memo Required</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
                                                             )}
                                                         </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Link 
+                                                    <Link
                                                         href={`/admin/projects/${memo.projectId}`}
                                                         className="group/link flex items-center gap-2 hover:opacity-80 transition-opacity"
                                                     >
@@ -356,8 +426,8 @@ export default function AdminMemosPage() {
                                                 <TableCell className="text-center">
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <Button 
-                                                                variant="ghost" 
+                                                            <Button
+                                                                variant="ghost"
                                                                 size="sm"
                                                                 onClick={() => copyToClipboard(memo.memoContent)}
                                                                 className="h-8 w-8 p-0 hover:bg-slate-100 rounded-full"
@@ -371,7 +441,33 @@ export default function AdminMemosPage() {
                                                     </Tooltip>
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6">
-                                                    <Dialog>
+                                                    <Dialog onOpenChange={async (open) => {
+                                                        if (open) {
+                                                            setIsFetchingDual(true);
+                                                            setActiveDualMemos(null);
+                                                            try {
+                                                                const params = new URLSearchParams({
+                                                                    projectId: memo.projectId,
+                                                                    userId: memo.user.id, // Use memo.user.id
+                                                                    date: format(memo.reportDate, "yyyy-MM-dd"),
+                                                                    summary: "true"
+                                                                });
+                                                                const res = await fetch(`/api/memos?${params.toString()}`);
+                                                                const resData = await res.json();
+                                                                if (resData.data) {
+                                                                    const memos = resData.data;
+                                                                    setActiveDualMemos({
+                                                                        short: memos.find((m: any) => m.memoType === 'short'),
+                                                                        detailed: memos.find((m: any) => m.memoType === 'detailed')
+                                                                    });
+                                                                }
+                                                            } catch (error) {
+                                                                console.error("Error fetching dual memos", error);
+                                                            } finally {
+                                                                setIsFetchingDual(false);
+                                                            }
+                                                        }
+                                                    }}>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <DialogTrigger asChild>
@@ -384,74 +480,140 @@ export default function AdminMemosPage() {
                                                                 <p className="text-[10px] font-bold uppercase tracking-wider">Click to view Memo</p>
                                                             </TooltipContent>
                                                         </Tooltip>
-                                                        <DialogContent className="max-w-lg w-[95vw] sm:w-full rounded-2xl border border-slate-200 shadow-lg p-0 bg-white overflow-hidden">
-                                                            <div className="p-6 border-b border-slate-100">
-                                                                <div className="flex items-center gap-4">
-                                                                    <Avatar className="h-12 w-12 border border-slate-100 shadow-sm">
-                                                                        <AvatarImage src={memo.user.image || ""} />
-                                                                        <AvatarFallback className="bg-slate-100 text-slate-600 font-bold text-sm">
-                                                                            {memo.user.name.substring(0, 2).toUpperCase()}
-                                                                        </AvatarFallback>
-                                                                    </Avatar>
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <DialogTitle className="text-lg font-semibold text-slate-900 truncate">
-                                                                            Memo Update
-                                                                        </DialogTitle>
-                                                                        <p className="text-sm text-slate-600 font-medium">
-                                                                            {memo.user.name}
-                                                                        </p>
+                                                        <DialogContent className="max-w-2xl w-[95vw] sm:w-full rounded-2xl border border-slate-200 shadow-lg p-0 bg-white overflow-hidden">
+                                                            <div className="p-6 border-b border-slate-100 bg-slate-50/30">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-4">
+                                                                        <Avatar className="h-12 w-12 border-2 border-white shadow-md">
+                                                                            <AvatarImage src={memo.user.image || ""} />
+                                                                            <AvatarFallback className="bg-blue-100 text-blue-700 font-bold text-sm">
+                                                                                {memo.user.name.substring(0, 2).toUpperCase()}
+                                                                            </AvatarFallback>
+                                                                        </Avatar>
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <DialogTitle className="text-xl font-bold text-slate-900 tracking-tight">
+                                                                                Daily Memo Report
+                                                                            </DialogTitle>
+                                                                            <p className="text-sm text-slate-500 font-medium">
+                                                                                Reviewing updates from <span className="text-slate-900 font-bold">{memo.user.name}</span>
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex flex-col items-end gap-1">
+                                                                        {/* Removed unnecessary labels */}
                                                                     </div>
                                                                 </div>
                                                             </div>
 
-                                                            <div className="p-6 space-y-5">
-                                                                <div className="grid grid-cols-2 gap-4">
-                                                                    <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-3.5 space-y-1">
-                                                                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest flex items-center gap-1.5">
-                                                                            <FolderKanban className="h-3 w-3 text-slate-500" /> Project
-                                                                        </p>
+                                                            <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
+                                                                {/* Project & Date Headers */}
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                                    <div className="bg-slate-50/80 border border-slate-100 rounded-2xl p-4 transition-all hover:bg-white hover:shadow-sm">
+                                                                        <div className="flex items-center gap-2 mb-1.5">
+                                                                            <FolderKanban className="h-3.5 w-3.5 text-blue-500" />
+                                                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Project Assignment</p>
+                                                                        </div>
                                                                         <p className="text-sm font-bold text-slate-900 truncate">
                                                                             {memo.projectName}
                                                                         </p>
                                                                     </div>
-                                                                    <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-3.5 space-y-1">
-                                                                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest flex items-center gap-1.5">
-                                                                            <CalendarIcon className="h-3 w-3 text-slate-500" /> Date
-                                                                        </p>
+                                                                    <div className="bg-slate-50/80 border border-slate-100 rounded-2xl p-4 transition-all hover:bg-white hover:shadow-sm">
+                                                                        <div className="flex items-center gap-2 mb-1.5">
+                                                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-500" />
+                                                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reporting Date</p>
+                                                                        </div>
                                                                         <p className="text-sm font-bold text-slate-900">
-                                                                            {format(memo.reportDate, "MMM d, yyyy")}
+                                                                            {format(memo.reportDate, "MMMM d, yyyy")}
                                                                         </p>
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="bg-slate-50/50 border border-slate-100 rounded-xl overflow-hidden">
-                                                                    <div className="px-4 py-2.5 border-b border-slate-100 bg-white/50 flex items-center justify-between">
-                                                                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Memo Content</p>
-                                                                        <Button 
-                                                                            variant="ghost" 
-                                                                            size="sm" 
-                                                                            onClick={() => copyToClipboard(memo.memoContent)}
-                                                                            className="h-6 px-2 text-[10px] font-bold text-slate-600 hover:text-slate-900 hover:bg-white"
-                                                                        >
-                                                                            <Copy className="h-3 w-3 mr-1.5" /> Copy
-                                                                        </Button>
-                                                                    </div>
-                                                                    <div className="p-4">
-                                                                        <div className="text-sm text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">
-                                                                            {memo.memoContent}
+                                                                {/* Memo Content Areas */}
+                                                                <div className="space-y-4">
+                                                                    {/* Universal Memo Section */}
+                                                                    <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm ring-1 ring-slate-100/50">
+                                                                        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                                                                <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Universal Memo</p>
+                                                                            </div>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                onClick={() => activeDualMemos?.short && copyToClipboard(activeDualMemos.short.memoContent)}
+                                                                                className="h-7 text-[10px] font-bold text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                                                                                disabled={!activeDualMemos?.short}
+                                                                            >
+                                                                                <Copy className="h-3 w-3 mr-1.5" /> Copy
+                                                                            </Button>
+                                                                        </div>
+                                                                        <div className="p-5 min-h-[80px]">
+                                                                            {isFetchingDual ? (
+                                                                                <div className="h-4 w-3/4 bg-slate-100 animate-pulse rounded" />
+                                                                            ) : activeDualMemos?.short ? (
+                                                                                <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                                                                    {activeDualMemos.short.memoContent}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="text-sm text-slate-400 italic">Empty</div>
+                                                                            )}
                                                                         </div>
                                                                     </div>
+
+                                                                    {/* 140 Char Memo Section - Only if required */}
+                                                                    {memo.isMemoRequired && (
+                                                                        <div className="border border-blue-100/50 rounded-2xl overflow-hidden bg-white shadow-sm ring-1 ring-blue-50/50">
+                                                                            <div className="px-4 py-3 border-b border-blue-50 bg-blue-50/20 flex items-center justify-between">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+                                                                                    <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">140 Char Memo</p>
+                                                                                </div>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    onClick={() => activeDualMemos?.detailed && copyToClipboard(activeDualMemos.detailed.memoContent)}
+                                                                                    className="h-7 text-[10px] font-bold text-blue-400 hover:text-blue-600 hover:bg-blue-50/50"
+                                                                                    disabled={!activeDualMemos?.detailed}
+                                                                                >
+                                                                                    <Copy className="h-3 w-3 mr-1.5" /> Copy
+                                                                                </Button>
+                                                                            </div>
+                                                                            <div className="p-5 min-h-[80px]">
+                                                                                {isFetchingDual ? (
+                                                                                    <div className="h-4 w-3/4 bg-slate-100 animate-pulse rounded" />
+                                                                                ) : activeDualMemos?.detailed ? (
+                                                                                    <div className="text-sm text-slate-700 leading-relaxed font-semibold whitespace-pre-wrap">
+                                                                                        {activeDualMemos.detailed.memoContent}
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="text-sm text-slate-400 italic">Empty</div>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </div>
 
-                                                            <div className="px-6 py-3.5 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
-                                                                <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
-                                                                    Logged {format(memo.createdAt, "MMM d, h:mm a")}
-                                                                </span>
-                                                                <div className="flex gap-1">
-                                                                    <div className="h-1 w-1 rounded-full bg-slate-300" />
-                                                                    <div className="h-1 w-1 rounded-full bg-slate-300" />
-                                                                    <div className="h-1 w-1 rounded-full bg-slate-500" />
+                                                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                                                                        Logged At: {format(memo.createdAt, "h:mm a, MMM d")}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex gap-2">
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={() => {
+                                                                            const combined = [];
+                                                                            if (activeDualMemos?.short) combined.push(`Universal Memo:\n${activeDualMemos.short.memoContent}`);
+                                                                            if (activeDualMemos?.detailed) combined.push(`140 Char Memo:\n${activeDualMemos.detailed.memoContent}`);
+                                                                            copyToClipboard(combined.join("\n\n") || memo.memoContent);
+                                                                        }}
+                                                                        className="h-8 text-[10px] font-bold border-slate-200 hover:bg-white"
+                                                                    >
+                                                                        Copy Combined
+                                                                    </Button>
                                                                 </div>
                                                             </div>
                                                         </DialogContent>
@@ -470,15 +632,15 @@ export default function AdminMemosPage() {
                             </Table>
                         </div>
                         {/* Pagination Component */}
-                         {meta && meta.totalPages > 1 && (
+                        {meta && meta.totalPages > 1 && (
                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t bg-gradient-to-r from-slate-50/50 to-slate-100/30">
                                 <p className="text-xs text-muted-foreground font-medium">
                                     Showing <span className="text-[#0f172a] font-bold">{(page - 1) * limit + 1}</span> to <span className="text-[#0f172a] font-bold">{Math.min(page * limit, meta.total)}</span> of <span className="text-[#0f172a] font-bold">{meta.total}</span> memos
                                 </p>
                                 <div className="flex items-center gap-2">
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
                                         onClick={() => setPage(p => Math.max(1, p - 1))}
                                         disabled={page === 1}
                                         className="h-9 px-3 border-slate-200 hover:bg-white font-bold"
@@ -489,9 +651,9 @@ export default function AdminMemosPage() {
                                     <div className="text-sm font-bold text-[#0f172a] px-3">
                                         Page {page} of {meta.totalPages}
                                     </div>
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
                                         onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                                         disabled={page === meta.totalPages}
                                         className="h-9 px-3 border-slate-200 hover:bg-white font-bold"

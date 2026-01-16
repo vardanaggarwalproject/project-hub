@@ -18,6 +18,7 @@ export async function GET(req: Request) {
         const summary = searchParams.get("summary") === "true";
         const page = parseInt(searchParams.get("page") || "1");
         const limit = parseInt(searchParams.get("limit") || "10");
+        const isMemoRequiredParam = searchParams.get("isMemoRequired");
         const offset = (page - 1) * limit;
 
         let whereClause = undefined;
@@ -53,6 +54,10 @@ export async function GET(req: Request) {
             conditions.push(sql`${user.name} ILIKE ${`%${search}%`}`);
         }
 
+        if (isMemoRequiredParam !== null) {
+            conditions.push(eq(projects.isMemoRequired, isMemoRequiredParam === "true"));
+        }
+
         if (conditions.length > 0) {
             whereClause = and(...conditions);
         }
@@ -69,6 +74,7 @@ export async function GET(req: Request) {
 
         if (!summary) {
             querySelection.projectName = projects.name;
+            querySelection.isMemoRequired = projects.isMemoRequired;
             querySelection.user = {
                 id: user.id,
                 name: user.name,
@@ -90,9 +96,15 @@ export async function GET(req: Request) {
             .offset(offset)
             .orderBy(desc(memos.createdAt));
 
-        const totalResult = await db.select({ count: sql<number>`count(*)` })
-            .from(memos)
-            .where(whereClause);
+        let totalQuery = db.select({ count: sql<number>`count(*)` }).from(memos);
+
+        // If we have filters that require the projects table, we must join it
+        if (isMemoRequiredParam !== null || search) {
+            totalQuery = totalQuery.leftJoin(user, eq(memos.userId, user.id)) as any;
+            totalQuery = totalQuery.leftJoin(projects, eq(memos.projectId, projects.id)) as any;
+        }
+
+        const totalResult = await totalQuery.where(whereClause);
 
         const total = Number(totalResult[0]?.count || 0);
 
