@@ -35,29 +35,54 @@ export const MissingUpdatesSection = React.memo(function MissingUpdatesSection({
           {missingUpdates.map((missing) => (
             <div
               key={missing.id}
-              className="p-4 hover:bg-slate-50 transition-colors duration-150 grid md:grid-cols-[1fr_auto] gap-4 items-center"
+              className="p-4 hover:bg-slate-50 transition-colors duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
-              <div className="space-y-1.5">
-                <h3 className="text-sm font-medium text-slate-900">
-                  {formatDisplayDate(missing.date).split(",")[0]} -{" "}
-                  {missing.projectName}
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-slate-800">
+                  {formatDisplayDate(missing.date).split(",")[0]} — {missing.projectName}
                 </h3>
-                <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100 text-xs">
-                  {missing.type === "memo"
-                    ? "Memo Not Submitted"
-                    : "EOD Not Submitted"}
-                </Badge>
+                <div className="flex flex-wrap gap-2">
+                  {missing.isUniversalMissing && (
+                    <Badge 
+                      variant="outline" 
+                      className="bg-amber-50 text-amber-600 border-amber-100 text-[10px] uppercase tracking-wider font-bold cursor-pointer hover:bg-amber-100 transition-colors"
+                      onClick={() => onOpenModal("memo", missing.projectId, getLocalDateString(missing.date))}
+                    >
+                      Universal Memo
+                    </Badge>
+                  )}
+                  {missing.isShortMissing && (
+                    <Badge 
+                      variant="outline" 
+                      className="bg-rose-50 text-rose-600 border-rose-100 text-[10px] uppercase tracking-wider font-bold cursor-pointer hover:bg-rose-100 transition-colors"
+                      onClick={() => onOpenModal("memo", missing.projectId, getLocalDateString(missing.date))}
+                    >
+                      140chars Memo
+                    </Badge>
+                  )}
+                  {missing.isEodMissing && (
+                    <Badge 
+                      variant="outline" 
+                      className="bg-blue-50 text-blue-600 border-blue-100 text-[10px] uppercase tracking-wider font-bold cursor-pointer hover:bg-blue-100 transition-colors"
+                      onClick={() => onOpenModal("eod", missing.projectId, getLocalDateString(missing.date))}
+                    >
+                      EOD Report
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               <Button
-                variant="ghost"
+                variant="default"
                 size="sm"
-                className="border border-slate-200 hover:border-slate-300"
-                onClick={() =>
-                  onOpenModal(missing.type, missing.projectId, getLocalDateString(missing.date))
-                }
+                className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm"
+                onClick={() => {
+                  // If memo part is missing, open memo tab, else EOD
+                  const type = (missing.isUniversalMissing || missing.isShortMissing) ? "memo" : "eod";
+                  onOpenModal(type, missing.projectId, getLocalDateString(missing.date));
+                }}
               >
-                Add Now
+                Add Update
               </Button>
             </div>
           ))}

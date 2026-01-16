@@ -16,6 +16,7 @@ export async function GET(req: Request) {
         const projectId = searchParams.get("projectId");
         const userId = searchParams.get("userId");
         const search = searchParams.get("search");
+        const summary = searchParams.get("summary") === "true";
         const page = parseInt(searchParams.get("page") || "1");
         const limit = parseInt(searchParams.get("limit") || "10");
         const offset = (page - 1) * limit;
@@ -57,7 +58,7 @@ export async function GET(req: Request) {
             whereClause = and(...conditions);
         }
 
-        const reports = await db.select({
+        const querySelection: any = {
             id: eodReports.id,
             projectId: eodReports.projectId,
             userId: eodReports.userId,
@@ -65,17 +66,26 @@ export async function GET(req: Request) {
             actualUpdate: eodReports.actualUpdate,
             reportDate: eodReports.reportDate,
             createdAt: eodReports.createdAt,
-            projectName: projects.name,
-            user: {
+        };
+
+        if (!summary) {
+            querySelection.projectName = projects.name;
+            querySelection.user = {
                 id: user.id,
                 name: user.name,
                 image: user.image,
                 role: user.role
-            }
-        })
-            .from(eodReports)
-            .leftJoin(user, eq(eodReports.userId, user.id))
-            .leftJoin(projects, eq(eodReports.projectId, projects.id))
+            };
+        }
+
+        let query = db.select(querySelection).from(eodReports);
+
+        if (!summary) {
+            query = query.leftJoin(user, eq(eodReports.userId, user.id)) as any;
+            query = query.leftJoin(projects, eq(eodReports.projectId, projects.id)) as any;
+        }
+
+        const reports = await query
             .where(whereClause)
             .limit(limit)
             .offset(offset)
@@ -83,8 +93,6 @@ export async function GET(req: Request) {
 
         const totalResult = await db.select({ count: sql<number>`count(*)` })
             .from(eodReports)
-            .leftJoin(user, eq(eodReports.userId, user.id))
-            .leftJoin(projects, eq(eodReports.projectId, projects.id))
             .where(whereClause);
 
         const total = Number(totalResult[0]?.count || 0);

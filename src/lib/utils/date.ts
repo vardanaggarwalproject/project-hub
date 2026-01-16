@@ -39,12 +39,23 @@ export function getYesterdayDate(): string {
  * @returns Local date string in YYYY-MM-DD format (safe from timezone shifts for midnight UTC)
  */
 export function getLocalDateString(dateInput: Date | string): string {
-  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (!dateInput) return "";
+
+  // If it's a string, try to parse it safely
+  let date: Date;
+  if (typeof dateInput === "string") {
+    // If it's just YYYY-MM-DD, append time to avoid UTC shift
+    if (dateInput.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+      date = new Date(dateInput + "T12:00:00");
+    } else {
+      date = new Date(dateInput);
+    }
+  } else {
+    date = dateInput;
+  }
+
   if (isNaN(date.getTime())) return "";
 
-  // Use local methods to get the date parts. 
-  // This ensures that if a Date object represents "Today at 00:00 Local", 
-  // it returns "Today's" date string, regardless of UTC offset.
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");

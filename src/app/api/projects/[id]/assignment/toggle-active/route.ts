@@ -42,12 +42,18 @@ export async function PATCH(
         }
 
         // Update the assignment
+        const updateData: any = {
+            isActive: isActive,
+            updatedAt: new Date(),
+        };
+
+        if (isActive) {
+            updateData.lastActivatedAt = new Date();
+        }
+
         const updated = await db
             .update(userProjectAssignments)
-            .set({
-                isActive: isActive,
-                updatedAt: new Date(),
-            })
+            .set(updateData)
             .where(
                 and(
                     eq(userProjectAssignments.projectId, projectId),

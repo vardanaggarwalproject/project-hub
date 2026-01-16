@@ -18,6 +18,7 @@ export interface Project {
   updatedAt?: Date;
   progress?: number;
   isActive?: boolean;
+  assignedAt?: Date | string;
   isMemoRequired: boolean;
   team?: TeamMember[];
 }
@@ -25,13 +26,15 @@ export interface Project {
 export interface ProjectStatus {
   projectId: string;
   projectName: string;
-  hasTodayMemo: boolean;
-  hasTodayEod: boolean;
+  hasUniversalToday: boolean;
+  hasShortToday: boolean;
+  hasEodToday: boolean;
 }
 
 export interface ProjectAssignment {
   projectId: string;
   assignedAt: Date;
+  lastActivatedAt?: Date;
   createdAt: Date;
   isActive: boolean;
 }

@@ -57,16 +57,22 @@ export const CalendarGrid = React.memo(function CalendarGrid({
                     <Badge
                       variant="outline"
                       className={cn(
-                        "w-full justify-center text-xs cursor-pointer py-1.5 rounded-lg border shadow-sm transition-all duration-200 active:scale-95",
+                        "w-full justify-center text-[10px] cursor-pointer py-1 rounded-md border shadow-sm transition-all duration-200 active:scale-95",
                         day.hasMemo
-                          ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:border-green-300"
+                          ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
                           : day.isToday
-                            ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 border-dashed"
-                            : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                            ? "bg-amber-50 text-amber-700 border-amber-200 border-dashed"
+                            : "bg-red-50 text-red-700 border-red-200"
                       )}
                       onClick={() => onDayClick(day, "memo")}
                     >
-                      {day.hasMemo ? "✓ Memo" : day.isToday ? "Pend. Memo" : "Missing Memo"}
+                      {day.hasMemo 
+                        ? "✓ Memo" 
+                        : day.isToday 
+                          ? "Pend. Memo" 
+                          : !day.hasUniversal 
+                            ? "Miss. Univ." 
+                            : "Miss. 140ch"}
                     </Badge>
                   )}
 
@@ -74,16 +80,16 @@ export const CalendarGrid = React.memo(function CalendarGrid({
                     <Badge
                       variant="outline"
                       className={cn(
-                        "w-full justify-center text-xs cursor-pointer py-1.5 rounded-lg border shadow-sm transition-all duration-200 active:scale-95",
+                        "w-full justify-center text-[10px] cursor-pointer py-1 rounded-md border shadow-sm transition-all duration-200 active:scale-95",
                         day.hasEOD
-                          ? "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 hover:border-purple-300"
+                          ? "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
                           : day.isToday
-                            ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 border-dashed"
-                            : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                            ? "bg-amber-50 text-amber-700 border-amber-200 border-dashed"
+                            : "bg-red-50 text-red-700 border-red-200"
                       )}
                       onClick={() => onDayClick(day, "eod")}
                     >
-                      {day.hasEOD ? "✓ EOD" : day.isToday ? "Pend. EOD" : "Missing EOD"}
+                      {day.hasEOD ? "✓ EOD" : day.isToday ? "Pend. EOD" : "Miss. EOD"}
                     </Badge>
                   )}
                 </>

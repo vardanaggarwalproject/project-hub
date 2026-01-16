@@ -6,6 +6,7 @@ import {
   pgEnum,
   unique,
   foreignKey,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role_enum", [
@@ -149,6 +150,7 @@ export const userProjectAssignments = pgTable(
     lastReadAt: timestamp("last_read_at").defaultNow().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    lastActivatedAt: timestamp("last_activated_at").defaultNow().notNull(),
     isActive: boolean("is_active").default(false).notNull(),
   },
   (table) => [
@@ -229,6 +231,9 @@ export const eodReports = pgTable(
       .notNull(),
   },
   (table) => [
+    index("eod_reports_user_id_project_id_idx").on(table.userId, table.projectId),
+    index("eod_reports_report_date_idx").on(table.reportDate),
+    index("eod_reports_created_at_idx").on(table.createdAt),
     foreignKey({
       columns: [table.projectId],
       foreignColumns: [projects.id],
@@ -279,6 +284,9 @@ export const memos = pgTable(
       .notNull(),
   },
   (table) => [
+    index("memos_user_id_project_id_idx").on(table.userId, table.projectId),
+    index("memos_report_date_idx").on(table.reportDate),
+    index("memos_created_at_idx").on(table.createdAt),
     unique("memos_user_id_project_id_report_date_memo_type_unique").on(
       table.userId,
       table.projectId,
