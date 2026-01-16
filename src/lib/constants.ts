@@ -4,7 +4,7 @@
 
 // Report constraints
 export const MEMO_MAX_LENGTH = 140;
-export const MISSING_UPDATES_DAYS_TO_CHECK = 2;
+export const MISSING_UPDATES_DAYS_TO_CHECK = 365;
 
 // Cache configuration for Next.js fetch
 export const CACHE_REVALIDATE = {

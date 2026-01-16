@@ -43,6 +43,8 @@ export async function GET(
         })
             .from(projects)
             .leftJoin(clients, eq(projects.clientId, clients.id))
+       
+       
             .where(eq(projects.id, id))
             .limit(1);
 

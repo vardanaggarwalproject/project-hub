@@ -41,10 +41,13 @@ export default function UserDashboardPage() {
   const [initialDate, setInitialDate] = useState<string>("");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-
-  /* New State for duplicate checking */
   const [allMemos, setAllMemos] = useState<Memo[]>([]);
   const [allEods, setAllEods] = useState<EOD[]>([]);
+
+  // Update Modal State
+  const [initialMemoContent, setInitialMemoContent] = useState("");
+  const [initialClientUpdate, setInitialClientUpdate] = useState("");
+  const [initialInternalUpdate, setInitialInternalUpdate] = useState("");
 
   useEffect(() => {
     const socket = getSocket();
@@ -98,10 +101,10 @@ export default function UserDashboardPage() {
       // Fetch user's projects, memos, and EODs
       const [projectsData, memosData, eodsData] = await Promise.all([
         projectsApi.getAll(),
-        memosApi.getByFilters(userId),
-        eodsApi.getByFilters(userId),
+        memosApi.getByFilters(userId, undefined, 1000),
+        eodsApi.getByFilters(userId, undefined, 1000),
       ]);
-      
+
       // Store raw data for duplicate checking
       setAllMemos(Array.isArray(memosData) ? memosData : []);
       setAllEods(Array.isArray(eodsData) ? eodsData : []);
@@ -182,64 +185,63 @@ export default function UserDashboardPage() {
       // Find missing updates
       const missing: MissingUpdate[] = [];
       const daysToCheck = MISSING_UPDATES_DAYS_TO_CHECK;
+      const memoLimitDays = 7;
+
+      // Pre-process memos and eods into Sets for O(1) lookup
+      const memoMap = new Map<string, Set<string>>();
+      const eodMap = new Map<string, Set<string>>();
+
+      if (Array.isArray(memosData)) {
+        memosData.forEach(m => {
+          if (!memoMap.has(m.projectId)) memoMap.set(m.projectId, new Set());
+          memoMap.get(m.projectId)?.add(getLocalDateString(m.reportDate));
+        });
+      }
+
+      if (Array.isArray(eodsData)) {
+        eodsData.forEach(e => {
+          if (!eodMap.has(e.projectId)) eodMap.set(e.projectId, new Set());
+          eodMap.get(e.projectId)?.add(getLocalDateString(e.reportDate));
+        });
+      }
 
       for (let i = 1; i <= daysToCheck; i++) {
         const checkDate = new Date();
         checkDate.setDate(checkDate.getDate() - i);
-        checkDate.setHours(0, 0, 0, 0);
         const dateStr = getLocalDateString(checkDate);
 
         activeProjects.forEach((project: Project) => {
-          // Get the assignment info for this project
+          // Get the assignment info for this project (using local assignments variable)
           const assignment = assignments.find(
-            (a: ProjectAssignment) => a.projectId === project.id
+            (a) => a.projectId === project.id
           );
 
           if (assignment) {
-            // Calculate valid start date (later of project creation or assignment)
-            const assignedDate = new Date(assignment.assignedAt);
-            assignedDate.setHours(0, 0, 0, 0);
+            // Strictly use the allocation date (assignedAt) for filtering
+            const validStartStr = getLocalDateString(assignment.assignedAt);
 
-            const createdDate = new Date(assignment.createdAt);
-            createdDate.setHours(0, 0, 0, 0);
-
-            const validStartDate =
-              assignedDate > createdDate ? assignedDate : createdDate;
-
-            // Only check for missing updates if the date is after or on assignment/creation
-            if (checkDate < validStartDate) {
+            // Only check for missing updates if the date is after or on assignment
+            if (dateStr < validStartStr) {
               return; // Skip this date for this project
             }
           }
 
-          // Check for missing memo
-          const hasMemo =
-            Array.isArray(memosData) &&
-            memosData.some(
-              (m: Memo) =>
-                m.projectId === project.id &&
-                getLocalDateString(m.reportDate) === dateStr
-            );
-
-          if (!hasMemo) {
-            missing.push({
-              id: `${project.id}-${dateStr}-memo`,
-              date: new Date(dateStr + "T00:00:00"),
-              projectId: project.id,
-              projectName: project.name,
-              type: "memo",
-            });
+          // Check for missing memo - ONLY show for last 7 days AND if required
+          if (i <= memoLimitDays && project.isMemoRequired) {
+            const hasMemo = memoMap.get(project.id)?.has(dateStr);
+            if (!hasMemo) {
+              missing.push({
+                id: `${project.id}-${dateStr}-memo`,
+                date: new Date(dateStr + "T00:00:00"),
+                projectId: project.id,
+                projectName: project.name,
+                type: "memo",
+              });
+            }
           }
 
-          // Check for missing EOD
-          const hasEod =
-            Array.isArray(eodsData) &&
-            eodsData.some(
-              (e: EOD) =>
-                e.projectId === project.id &&
-                getLocalDateString(e.reportDate) === dateStr
-            );
-
+          // Check for missing EOD - Always show (within daysToCheck)
+          const hasEod = eodMap.get(project.id)?.has(dateStr);
           if (!hasEod) {
             missing.push({
               id: `${project.id}-${dateStr}-eod`,
@@ -275,6 +277,9 @@ export default function UserDashboardPage() {
     setInitialModalTab(type);
     setInitialProjectId(projectId);
     setInitialDate(targetDate);
+    setInitialMemoContent("");
+    setInitialClientUpdate("");
+    setInitialInternalUpdate("");
     setIsModalOpen(true);
   };
 
@@ -320,7 +325,7 @@ export default function UserDashboardPage() {
         // Find the most recent memo before this date
         const memos = await memosApi.getByFilters(session.user.id, projectId) as Memo[];
         const previousMemos = Array.isArray(memos)
-          ? memos.filter((m) => getLocalDateString(m.reportDate) < date)
+          ? memos.filter((m) => getLocalDateString(m.reportDate) <= date)
           : [];
 
         // Sort by date descending
@@ -330,9 +335,9 @@ export default function UserDashboardPage() {
 
         if (latestMemo) {
           const memoDateStr = getLocalDateString(latestMemo.reportDate);
-          const isYesterday = memoDateStr === getYesterdayDate();
+          const isSameDay = memoDateStr === date;
           return {
-            type: isYesterday ? "Yesterday's Memo" : `Latest Memo (${formatDisplayDate(memoDateStr).split(',')[0]})`,
+            type: isSameDay ? `Current Memo (${formatDisplayDate(memoDateStr).split(',')[0]})` : `Latest Memo (${formatDisplayDate(memoDateStr).split(',')[0]})`,
             content: latestMemo.memoContent || "No content",
           };
         } else {
@@ -345,7 +350,7 @@ export default function UserDashboardPage() {
         // Find the most recent EOD before this date
         const eods = await eodsApi.getByFilters(session.user.id, projectId) as EOD[];
         const previousEods = Array.isArray(eods)
-          ? eods.filter((e) => getLocalDateString(e.reportDate) < date)
+          ? eods.filter((e) => getLocalDateString(e.reportDate) <= date)
           : [];
 
         // Sort by date descending
@@ -355,9 +360,9 @@ export default function UserDashboardPage() {
 
         if (latestEod) {
           const eodDateStr = getLocalDateString(latestEod.reportDate);
-          const isYesterday = eodDateStr === getYesterdayDate();
+          const isSameDay = eodDateStr === date;
           return {
-            type: isYesterday ? "Yesterday's EOD" : `Latest EOD (${formatDisplayDate(eodDateStr).split(',')[0]})`,
+            type: isSameDay ? `Current EOD (${formatDisplayDate(eodDateStr).split(',')[0]})` : `Latest EOD (${formatDisplayDate(eodDateStr).split(',')[0]})`,
             content: latestEod.actualUpdate || latestEod.clientUpdate || "No content",
           };
         } else {
@@ -429,6 +434,51 @@ export default function UserDashboardPage() {
     }
   };
 
+  const handleUpdateSubmitWrapper = async (data: {
+    type: "memo" | "eod";
+    projectId: string;
+    date: string;
+    memoContent?: string;
+    clientUpdate?: string;
+    internalUpdate?: string;
+  }) => {
+    // Check if entry exists to determine update vs create
+    let existingId: string | undefined;
+    if (data.type === "memo") {
+      const existing = allMemos.find(m => m.projectId === data.projectId && getLocalDateString(m.reportDate) === data.date);
+      existingId = existing?.id;
+    } else {
+      const existing = allEods.find(e => e.projectId === data.projectId && getLocalDateString(e.reportDate) === data.date);
+      existingId = existing?.id;
+    }
+
+    if (existingId) {
+      if (data.type === "memo") {
+        await memosApi.update(existingId, {
+          memoContent: data.memoContent || "",
+          projectId: data.projectId,
+          userId: session?.user?.id || "",
+          reportDate: data.date
+        });
+        toast.success("Memo updated successfully!");
+      } else {
+        await eodsApi.update(existingId, {
+          clientUpdate: data.clientUpdate || "",
+          actualUpdate: data.internalUpdate || "",
+          projectId: data.projectId,
+          userId: session?.user?.id || "",
+          reportDate: data.date
+        });
+        toast.success("EOD Report updated successfully!");
+      }
+      await fetchDashboardData();
+      return;
+    }
+
+    // Proceed to Create
+    await handleUpdateSubmit(data);
+  };
+
   if (isSessionLoading || isLoading) {
     return (
       <div className="p-4 md:p-6 space-y-5">
@@ -467,11 +517,10 @@ export default function UserDashboardPage() {
           totalProjects={totalProjects}
         />
 
-        {/* Projects Section */}
         <ProjectsSection
           projects={myProjects}
           projectStatuses={projectStatuses}
-          onOpenModal={handleOpenModal}
+          onOpenModal={(type, pid, date) => handleOpenModal(type, pid, date)}
           onToggleActive={handleToggleActive}
           onHistoryClick={(pid) => {
             setSelectedProjectId(pid);
@@ -482,7 +531,7 @@ export default function UserDashboardPage() {
         {/* Missing Updates */}
         <MissingUpdatesSection
           missingUpdates={missingUpdates}
-          onOpenModal={handleOpenModal}
+          onOpenModal={(type, pid, date) => handleOpenModal(type, pid, date)}
         />
 
         {/* Update Modal */}
@@ -497,10 +546,9 @@ export default function UserDashboardPage() {
             const assignment = projectAssignments.find(a => a.projectId === initialProjectId);
             if (!assignment) return undefined;
 
-            // Use the later of assignedAt or createdAt to be strict
             const assignedDate = new Date(assignment.assignedAt);
             const createdDate = new Date(assignment.createdAt);
-            const validStart = assignedDate > createdDate ? assignedDate : createdDate;
+            const validStart = assignedDate < createdDate ? assignedDate : createdDate;
 
             return getLocalDateString(validStart);
           })()}
@@ -509,9 +557,13 @@ export default function UserDashboardPage() {
           initialProjectId={initialProjectId}
           initialDate={initialDate}
           referenceDataFetcher={referenceDataFetcher}
-          onSubmit={handleUpdateSubmit}
+          onSubmit={handleUpdateSubmitWrapper}
           existingMemos={allMemos}
           existingEods={allEods}
+
+          initialMemoContent={initialMemoContent}
+          initialClientUpdate={initialClientUpdate}
+          initialInternalUpdate={initialInternalUpdate}
         />
 
         <ProjectHistoryDialog

@@ -28,8 +28,8 @@ export async function PUT(
     const { memoContent, projectId, userId, reportDate } = validation.data;
 
     // Convert to Date object
-    const dateObj = new Date(reportDate);
-    dateObj.setHours(0, 0, 0, 0);
+    // We append T00:00:00 to ensure it's treated as a local date at midnight
+    const dateObj = new Date(reportDate + "T00:00:00");
 
     // Check if another memo exists for this user+project+date (excluding current memo)
     const existing = await db

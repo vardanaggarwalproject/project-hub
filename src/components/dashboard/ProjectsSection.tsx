@@ -10,13 +10,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, History, Eye, ArrowRight, Star, AlertCircle } from "lucide-react";
+import { Plus, History, Eye, ExternalLink, ArrowRight, Star, AlertCircle } from "lucide-react";
 import type { Project, ProjectStatus } from "@/types/project";
 
 interface ProjectsSectionProps {
   projects: Project[];
   projectStatuses: ProjectStatus[];
-  onOpenModal: (type: "memo" | "eod", projectId: string) => void;
+  onOpenModal: (type: "memo" | "eod", projectId: string, date?: string) => void;
   onToggleActive: (projectId: string, currentStatus: boolean) => void;
   onHistoryClick: (projectId: string) => void;
 }
@@ -93,64 +93,86 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                         )}
                       </div>
                       <div className="flex flex-wrap gap-1.5">
-                        {status?.hasTodayMemo ? (
-                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 text-xs cursor-default">
-                            ✓ Memo
-                          </Badge>
-                        ) : (
-                          <Badge
-                            className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-50 text-xs cursor-pointer transition-colors"
-                            onClick={() => onOpenModal("memo", project.id)}
-                          >
-                            ⏳ Memo Pending
-                          </Badge>
-                        )}
+                        <Badge
+                          className={`text-xs cursor-pointer transition-colors ${
+                            status?.hasTodayMemo
+                              ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
+                              : "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
+                          }`}
+                          onClick={() => onOpenModal("memo", project.id)}
+                        >
+                          {status?.hasTodayMemo ? "✓ Memo" : "⏳ Memo Pending"}
+                        </Badge>
 
-                        {status?.hasTodayEod ? (
-                          <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 text-xs cursor-default">
-                            ✓ EOD
-                          </Badge>
-                        ) : (
-                          <Badge
-                            className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-50 text-xs cursor-pointer transition-colors"
-                            onClick={() => onOpenModal("eod", project.id)}
-                          >
-                            ⏳ EOD Pending
-                          </Badge>
-                        )}
+                        <Badge
+                          className={`text-xs cursor-pointer transition-colors ${
+                            status?.hasTodayEod
+                              ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
+                              : "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
+                          }`}
+                          onClick={() => onOpenModal("eod", project.id)}
+                        >
+                          {status?.hasTodayEod ? "✓ EOD" : "⏳ EOD Pending"}
+                        </Badge>
 
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        onClick={() => onOpenModal("memo", project.id)}
-                        title="Add Update"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                        title="History"
-                        onClick={() => onHistoryClick(project.id)}
-                      >
-                        <History className="h-4 w-4" />
-                      </Button>
-                      <Link href={`/user/projects/${project.id}`}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
-                          title="View Project"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </Link>
+                        {!(status?.hasTodayMemo && status?.hasTodayEod) && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  onClick={() => onOpenModal("memo", project.id)}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Add Update</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                onClick={() => onHistoryClick(project.id)}
+                              >
+                                <History className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>History</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link href={`/user/projects/${project.id}`}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>View Project</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <div className="w-px h-6 bg-slate-200 mx-1" />
                       <Switch
                         checked={true}

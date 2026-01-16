@@ -174,12 +174,12 @@ export function ProjectDetailsModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Maximum width increased for large screens - uses custom max-w value for better display */}
-      <DialogContent className="max-w-[90vw] lg:max-w-7xl max-h-[90vh] overflow-y-auto p-0 bg-app-card border border-app">
+      <DialogContent className="max-w-[90vw] lg:max-w-7xl max-h-[90vh] p-0 bg-app-card border border-app flex flex-col rounded-2xl overflow-hidden">
         {isLoading || !project ? (
           // Loading skeleton placeholder - matches split-panel layout
           <>
             <DialogTitle className="sr-only">Loading project details...</DialogTitle>
-            <div className="flex flex-col lg:flex-row min-h-[600px]">
+            <div className="flex flex-col lg:flex-row h-[650px]">
 
               {/* Left Panel Skeleton */}
               <div className="w-full lg:w-2/5 p-8 bg-app-sidebar border-r border-app space-y-6">
@@ -215,15 +215,26 @@ export function ProjectDetailsModal({
                   </div>
                   <Skeleton className="h-24 w-full rounded-lg" />
                 </div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-4" />
+                    <Skeleton className="h-3 w-28" />
+                  </div>
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-6 w-full rounded-lg" />
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Right Panel Skeleton */}
-              <div className="flex-1 p-8 space-y-8 bg-app-card">
+              <div className="flex-1 p-8 bg-app-card">
                 {/* Resources Skeleton */}
                 <div className="space-y-4">
                   <Skeleton className="h-7 w-48" />
                   <div className="space-y-3">
-                    {[1, 2].map((i) => (
+                    {[1, 2, 3, 4].map((i) => (
                       <div key={i} className="flex items-center justify-between p-4 bg-app-subtle rounded-xl">
                         <div className="flex items-center gap-4 flex-1">
                           <Skeleton className="h-10 w-10 rounded-lg" />
@@ -237,22 +248,6 @@ export function ProjectDetailsModal({
                     ))}
                   </div>
                 </div>
-
-                {/* Team Members Skeleton */}
-                <div className="space-y-4">
-                  <Skeleton className="h-7 w-40" />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="flex items-center gap-4 p-4 bg-app-subtle rounded-xl">
-                        <Skeleton className="h-12 w-12 rounded-full" />
-                        <div className="flex-1 space-y-2">
-                          <Skeleton className="h-5 w-24" />
-                          <Skeleton className="h-4 w-20" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
           </>
@@ -260,7 +255,7 @@ export function ProjectDetailsModal({
           <>
             <DialogTitle className="sr-only">{project.name}</DialogTitle>
             {/* Split Layout: Left Info Panel + Right Content Panel */}
-            <div className="flex flex-col lg:flex-row min-h-[600px]">
+            <div className="flex flex-col lg:flex-row h-[650px]">
 
               {/* ===== LEFT PANEL: Project Info ===== */}
               <div className="w-full lg:w-2/5 p-8 bg-app-sidebar border-r border-app">
@@ -287,9 +282,64 @@ export function ProjectDetailsModal({
                     <FolderKanban className="h-4 w-4" />
                     Project Name
                   </div>
-                  <h2 className="text-2xl font-bold text-app-heading mb-3">
-                    {project.name}
-                  </h2>
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <h2 className="text-2xl font-bold text-app-heading">
+                      {project.name}
+                    </h2>
+                    {/* Team Members - Grouped Avatar Bubbles */}
+                    {project.team.length > 0 && (
+                      <div className="flex items-center flex-shrink-0">
+                        {project.team.slice(0, 4).map((member, index) => (
+                          <TooltipProvider key={member.id}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Avatar className={cn(
+                                  "h-8 w-8 cursor-pointer border-2 border-white dark:border-slate-800 text-xs font-bold text-white transition-transform hover:scale-110 hover:z-10",
+                                  index !== 0 && "-ml-2",
+                                  index % 6 === 0 && "bg-purple-500",
+                                  index % 6 === 1 && "bg-pink-500",
+                                  index % 6 === 2 && "bg-blue-500",
+                                  index % 6 === 3 && "bg-indigo-500",
+                                  index % 6 === 4 && "bg-emerald-500",
+                                  index % 6 === 5 && "bg-orange-500"
+                                )}>
+                                  <AvatarImage src={member.image || ""} alt={member.name} />
+                                  <AvatarFallback className="text-xs font-bold bg-inherit text-white">
+                                    {member.name
+                                      .split(" ")
+                                      .map((n) => n[0])
+                                      .join("")
+                                      .toUpperCase()
+                                      .slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p className="font-semibold">{member.name}</p>
+                                <p className="text-xs text-muted-foreground capitalize">{member.role}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ))}
+                        {project.team.length > 4 && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="h-8 w-8 -ml-2 rounded-full bg-slate-400 dark:bg-slate-600 border-2 border-white dark:border-slate-800 flex items-center justify-center text-xs font-bold text-white cursor-pointer">
+                                  +{project.team.length - 4}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p className="text-xs">
+                                  {project.team.slice(4).map(m => m.name).join(", ")}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   {project.isMemoRequired && (
                     <div className="inline-flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700 rounded-lg">
                       <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
@@ -305,28 +355,41 @@ export function ProjectDetailsModal({
                   )}
                 </div>
 
-                {/* Client/Owner */}
-                {project.clientName && (
-                  <div className="mb-6">
+                {/* Client/Owner and Created Date - Side by Side */}
+                <div className="mb-6 grid grid-cols-2 gap-4">
+                  {/* Client/Owner */}
+                  {project.clientName ? (
+                    <div>
+                      <div className="flex items-center gap-2 text-app-muted text-xs font-bold uppercase mb-2">
+                        <Building2 className="h-4 w-4" />
+                        Owned by
+                      </div>
+                      <p className="text-sm font-semibold text-app-heading">
+                        {project.clientName}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center gap-2 text-app-muted text-xs font-bold uppercase mb-2">
+                        <Building2 className="h-4 w-4" />
+                        Owned by
+                      </div>
+                      <p className="text-sm font-semibold text-app-muted">
+                        Not assigned
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Created Date */}
+                  <div>
                     <div className="flex items-center gap-2 text-app-muted text-xs font-bold uppercase mb-2">
-                      <Building2 className="h-4 w-4" />
-                      Owned by
+                      <Calendar className="h-4 w-4" />
+                      Created
                     </div>
                     <p className="text-sm font-semibold text-app-heading">
-                      {project.clientName}
+                      {formatDate(project.createdAt)}
                     </p>
                   </div>
-                )}
-
-                {/* Created Date */}
-                <div className="mb-6">
-                  <div className="flex items-center gap-2 text-app-muted text-xs font-bold uppercase mb-2">
-                    <Calendar className="h-4 w-4" />
-                    Created
-                  </div>
-                  <p className="text-sm font-semibold text-app-heading">
-                    {formatDate(project.createdAt)}
-                  </p>
                 </div>
 
                 {/* Description */}
@@ -335,7 +398,7 @@ export function ProjectDetailsModal({
                     <FileText className="h-4 w-4" />
                     Description
                   </div>
-                  <div className="border border-dashed border-app rounded-lg p-6 bg-app-hover">
+                  <div className="border border-dashed border-app rounded-lg p-6 bg-app-hover max-h-[280px] overflow-y-auto">
                     {project.description ? (
                       <p className="text-sm text-app-body leading-relaxed">
                         {project.description}
@@ -355,15 +418,15 @@ export function ProjectDetailsModal({
                 </div>
               </div>
 
-              {/* ===== RIGHT PANEL: Resources & Team ===== */}
-              <div className="flex-1 p-8 space-y-8 bg-app-card">
+              {/* ===== RIGHT PANEL: Resources (Scrollable) ===== */}
+              <div className="flex-1 p-8 bg-app-card flex flex-col h-full">
+                {/* Header */}
+                <h3 className="text-xl font-bold text-app-heading border-l-4 border-blue-600 dark:border-blue-500 pl-3 mb-4 flex-shrink-0">
+                  Resources & Links
+                </h3>
 
-                {/* Resources & Links Section */}
-                <div className="space-y-4">
-                  <h3 className="text-xl font-bold text-app-heading border-l-4 border-blue-600 dark:border-blue-500 pl-3">
-                    Resources & Links
-                  </h3>
-
+                {/* Scrollable Resources Container */}
+                <div className="flex-1 overflow-y-auto pr-2 min-h-0">
                   {filteredLinks.length > 0 ? (
                     <div className="space-y-3">
                       <TooltipProvider delayDuration={300}>
@@ -424,75 +487,17 @@ export function ProjectDetailsModal({
                       </TooltipProvider>
                     </div>
                   ) : (
-                    <div className="border border-dashed border-app rounded-xl p-8 text-center bg-app-subtle">
-                      <Link2 className="h-10 w-10 text-app-icon mx-auto mb-3" />
-                      <p className="text-sm font-medium text-app-muted mb-1">No links added yet</p>
-                      <p className="text-xs text-app-muted">
-                        Add project links like Live URL, Staging, Figma designs, etc.
-                      </p>
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <Link2 className="h-12 w-12 text-app-icon mx-auto mb-3 opacity-50" />
+                        <p className="text-sm font-medium text-app-muted mb-1">No links added yet</p>
+                        <p className="text-xs text-app-muted">
+                          Add project links like Live URL, Staging, Figma designs, etc.
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
-
-                {/* Team Members Section */}
-                {project.team.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xl font-bold text-app-heading border-l-4 border-blue-600 dark:border-blue-500 pl-3">
-                        Team Members
-                      </h3>
-                      <span className="text-sm text-app-muted font-semibold">
-                        {project.team.length} {project.team.length === 1 ? 'Member' : 'Members'}
-                      </span>
-                    </div>
-
-                    <div className="max-h-[400px] overflow-y-auto pr-2">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {project.team.map((member, index) => (
-                        <div
-                          key={member.id}
-                          className="flex items-center gap-4 p-4 bg-app-subtle hover:bg-app-hover transition-colors rounded-xl"
-                        >
-                          <Avatar className={cn(
-                            "h-14 w-14 flex-shrink-0 text-sm font-bold text-white",
-                            index % 6 === 0 && "bg-purple-500",
-                            index % 6 === 1 && "bg-pink-500",
-                            index % 6 === 2 && "bg-blue-500",
-                            index % 6 === 3 && "bg-indigo-500",
-                            index % 6 === 4 && "bg-emerald-500",
-                            index % 6 === 5 && "bg-orange-500"
-                          )}>
-                            <AvatarImage src={member.image || ""} alt={member.name} />
-                            <AvatarFallback className="text-sm font-bold bg-inherit text-white">
-                              {member.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")
-                                .toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-app-heading truncate mb-2">
-                              {member.name}
-                            </p>
-                            <Badge className={cn(
-                              "px-2 py-0.5 text-xs font-bold uppercase w-fit",
-                              member.role.toLowerCase() === 'developer' && "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30",
-                              member.role.toLowerCase() === 'tester' && "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30",
-                              member.role.toLowerCase() === 'admin' && "bg-green-600 text-white border-green-700 dark:bg-green-600 dark:border-green-700"
-                            )}>
-                              {member.role.toLowerCase() === 'developer' && <Code2 className="h-3 w-3 mr-1 inline" />}
-                              {member.role.toLowerCase() === 'tester' && <CheckCircle2 className="h-3 w-3 mr-1 inline" />}
-                              {member.role.toLowerCase() === 'admin' && <Star className="h-3 w-3 mr-1 inline" />}
-                              {member.role}
-                            </Badge>
-                          </div>
-                        </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </>

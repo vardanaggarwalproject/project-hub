@@ -4,7 +4,7 @@ import { eodReports, user, projects } from "@/lib/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { eodSchema } from "@/lib/validations/reports";
-import { dateComparisonClause } from "@/lib/db/utils";
+import { dateComparisonClause, dateRangeComparisonClause } from "@/lib/db/utils";
 
 /**
  * GET /api/eods
@@ -25,8 +25,32 @@ export async function GET(req: Request) {
 
         if (projectId) conditions.push(eq(eodReports.projectId, projectId));
         if (userId) conditions.push(eq(eodReports.userId, userId));
+
+        // Handle date range or single date filtering using createdAt (Submission Date)
+        const fromDate = searchParams.get("fromDate");
+        const toDate = searchParams.get("toDate");
+        const dateParam = searchParams.get("date");
+
+        if (fromDate && toDate) {
+            const start = new Date(fromDate);
+            const end = new Date(toDate);
+            if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                conditions.push(dateRangeComparisonClause(eodReports.createdAt, start, end));
+            }
+        } else if (dateParam) {
+            const filterDate = new Date(dateParam);
+            if (!isNaN(filterDate.getTime())) {
+                conditions.push(dateComparisonClause(eodReports.createdAt, filterDate));
+            }
+        } else if (fromDate) {
+            const start = new Date(fromDate);
+            if (!isNaN(start.getTime())) {
+                conditions.push(dateComparisonClause(eodReports.createdAt, start));
+            }
+        }
+
         if (search) {
-            conditions.push(sql`(${eodReports.clientUpdate} ILIKE ${`%${search}%`} OR ${eodReports.actualUpdate} ILIKE ${`%${search}%`} OR ${user.name} ILIKE ${`%${search}%`})`);
+            conditions.push(sql`${user.name} ILIKE ${`%${search}%`}`);
         }
 
         if (conditions.length > 0) {
@@ -55,10 +79,12 @@ export async function GET(req: Request) {
             .where(whereClause)
             .limit(limit)
             .offset(offset)
-            .orderBy(desc(eodReports.reportDate));
+            .orderBy(desc(eodReports.createdAt));
 
         const totalResult = await db.select({ count: sql<number>`count(*)` })
             .from(eodReports)
+            .leftJoin(user, eq(eodReports.userId, user.id))
+            .leftJoin(projects, eq(eodReports.projectId, projects.id))
             .where(whereClause);
 
         const total = Number(totalResult[0]?.count || 0);
@@ -94,8 +120,8 @@ export async function POST(req: Request) {
         const { clientUpdate, actualUpdate, projectId, userId, reportDate } = validation.data;
 
         // Convert to Date object - this preserves the date in local timezone
-        const dateObj = new Date(reportDate);
-        dateObj.setHours(0, 0, 0, 0);
+        // We append T00:00:00 to ensure it's treated as a local date at midnight
+        const dateObj = new Date(reportDate + "T00:00:00");
 
         // Check duplicate - compare date parts at UTC
         const existing = await db.select().from(eodReports)

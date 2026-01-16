@@ -395,7 +395,7 @@ export default function AdminProjectsPage() {
                                                                             </Badge>
                                                                         </TooltipTrigger>
                                                                         <TooltipContent side="top" className="max-w-xs">
-                                                                            <p className="text-xs font-medium">This project requires detailed memos (minimum 140 characters)</p>
+                                                                            <p className="text-xs font-medium">This project requires detailed memos (maximum 140 characters)</p>
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 </TooltipProvider>

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Plus, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +29,8 @@ export default function NewProjectPage() {
     const [description, setDescription] = useState("");
     const [clientId, setClientId] = useState("");
     const [assignedUserIds, setAssignedUserIds] = useState<string[]>([]);
-    
+    const [isMemoRequired, setIsMemoRequired] = useState(false);
+
     const [clients, setClients] = useState<Client[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -58,9 +60,9 @@ export default function NewProjectPage() {
     }, []);
 
     const toggleUser = (userId: string) => {
-        setAssignedUserIds(prev => 
-            prev.includes(userId) 
-                ? prev.filter(id => id !== userId) 
+        setAssignedUserIds(prev =>
+            prev.includes(userId)
+                ? prev.filter(id => id !== userId)
                 : [...prev, userId]
         );
     };
@@ -78,7 +80,8 @@ export default function NewProjectPage() {
                     description,
                     clientId,
                     assignedUserIds,
-                    status: "active"
+                    status: "active",
+                    isMemoRequired
                 })
             });
 
@@ -102,7 +105,7 @@ export default function NewProjectPage() {
     return (
         <div className="max-w-3xl mx-auto py-8">
             <h2 className="text-3xl font-bold tracking-tight text-[#0f172a] mb-6">Create Project</h2>
-            
+
             <form onSubmit={handleSubmit}>
                 <div className="grid gap-6 md:grid-cols-3">
                     <div className="md:col-span-2 space-y-6">
@@ -114,10 +117,10 @@ export default function NewProjectPage() {
                             <CardContent className="p-6 space-y-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-slate-500">Project Name</Label>
-                                    <Input 
-                                        id="name" 
-                                        placeholder="e.g. Website Redesign" 
-                                        required 
+                                    <Input
+                                        id="name"
+                                        placeholder="e.g. Website Redesign"
+                                        required
                                         className="h-11 border-slate-200 focus-visible:ring-blue-500 font-medium"
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
@@ -142,14 +145,31 @@ export default function NewProjectPage() {
 
                                 <div className="space-y-2">
                                     <Label htmlFor="description" className="text-xs font-bold uppercase tracking-wider text-slate-500">Project Description</Label>
-                                    <textarea 
-                                        id="description" 
+                                    <textarea
+                                        id="description"
                                         rows={4}
-                                        placeholder="Briefly describe the project scope and goals..." 
+                                        placeholder="Briefly describe the project scope and goals..."
                                         className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-medium transition-all"
-                                        value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
                                     />
+                                </div>
+
+                                <div className="flex items-center space-x-2 pt-2">
+                                    <Checkbox
+                                        id="isMemoRequired"
+                                        checked={isMemoRequired}
+                                        onCheckedChange={(checked) => setIsMemoRequired(!!checked)}
+                                    />
+                                    <div className="grid gap-1.5 leading-none">
+                                        <Label
+                                            htmlFor="isMemoRequired"
+                                            className="text-sm font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                        >
+                                            Require Memos
+                                        </Label>
+                                        <p className="text-xs text-slate-500">
+                                            If enabled, developers will be reminded to submit daily memos for this project.
+                                        </p>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -164,8 +184,8 @@ export default function NewProjectPage() {
                             <CardContent className="p-6 flex-1 overflow-y-auto max-h-[400px]">
                                 <div className="space-y-3">
                                     {users.length > 0 ? users.map(user => (
-                                        <div 
-                                            key={user.id} 
+                                        <div
+                                            key={user.id}
                                             className={cn(
                                                 "flex items-center gap-3 p-2.5 rounded-lg border transition-all cursor-pointer hover:border-blue-100 hover:bg-blue-50/30",
                                                 assignedUserIds.includes(user.id) ? "border-blue-500 bg-blue-50/50 shadow-sm" : "border-slate-100"

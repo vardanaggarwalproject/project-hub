@@ -6,6 +6,7 @@ import { authClient } from "@/lib/auth-client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +17,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -56,6 +58,7 @@ interface Project {
     description: string;
     status: string;
     clientId: string | null;
+    isMemoRequired: boolean;
     team: User[];
 }
 
@@ -76,14 +79,15 @@ export default function EditProjectPage() {
     const [project, setProject] = useState<Project | null>(null);
     const [clients, setClients] = useState<Client[]>([]);
     const [availableUsers, setAvailableUsers] = useState<User[]>([]);
-    
+
     // Form State
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [status, setStatus] = useState("active");
     const [clientId, setClientId] = useState<string>("none");
+    const [isMemoRequired, setIsMemoRequired] = useState(false);
     const [team, setTeam] = useState<User[]>([]);
-    
+
     // Original state for diffing
     const [originalTeamIds, setOriginalTeamIds] = useState<Set<string>>(new Set());
 
@@ -99,12 +103,13 @@ export default function EditProjectPage() {
                 const projectRes = await fetch(`/api/projects/${projectId}`);
                 if (!projectRes.ok) throw new Error("Failed to fetch project");
                 const projectData = await projectRes.json();
-                
+
                 setProject(projectData);
                 setName(projectData.name);
                 setDescription(projectData.description || "");
                 setStatus(projectData.status);
                 setClientId(projectData.clientId || "none");
+                setIsMemoRequired(projectData.isMemoRequired || false);
                 setTeam(projectData.team || []);
                 setOriginalTeamIds(new Set((projectData.team || []).map((u: User) => u.id)));
 
@@ -173,13 +178,14 @@ export default function EditProjectPage() {
         setIsSaving(true);
         try {
             const currentTeamIds = team.map(u => u.id);
-            
+
             const payload = {
                 name,
                 description,
                 status,
                 clientId: clientId === "none" ? null : clientId,
-                assignedUserIds: currentTeamIds
+                assignedUserIds: currentTeamIds,
+                isMemoRequired
             };
 
             const res = await fetch(`/api/projects/${projectId}`, {
@@ -194,7 +200,7 @@ export default function EditProjectPage() {
             const socket = getSocket();
             if (socket && socket.connected) {
                 const currentIdSet = new Set(currentTeamIds);
-                
+
                 // Find added users
                 currentTeamIds.forEach(userId => {
                     if (!originalTeamIds.has(userId)) {
@@ -210,9 +216,9 @@ export default function EditProjectPage() {
                 // Find removed users
                 originalTeamIds.forEach(userId => {
                     if (!currentIdSet.has(userId)) {
-                        const user = availableUsers.find(u => u.id === userId) || 
-                                   // Fallback if user is not in available list (unlikely if fetched all)
-                                   { name: "User" }; 
+                        const user = availableUsers.find(u => u.id === userId) ||
+                            // Fallback if user is not in available list (unlikely if fetched all)
+                            { name: "User" };
                         socket.emit("assignment-removed", {
                             projectId,
                             userId,
@@ -248,10 +254,10 @@ export default function EditProjectPage() {
         setTeam(team.filter(u => u.id !== userId));
     };
 
-    const filteredUsers = availableUsers.filter(u => 
+    const filteredUsers = availableUsers.filter(u =>
         !team.some(member => member.id === u.id) &&
-        (u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
-         u.email.toLowerCase().includes(userSearch.toLowerCase()))
+        (u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+            u.email.toLowerCase().includes(userSearch.toLowerCase()))
     );
 
     if (isLoading) {
@@ -306,7 +312,7 @@ export default function EditProjectPage() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
+                                <AlertDialogAction
                                     onClick={(e) => {
                                         e.preventDefault();
                                         handleDelete();
@@ -318,8 +324,8 @@ export default function EditProjectPage() {
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
-                    <Button 
-                        onClick={handleSave} 
+                    <Button
+                        onClick={handleSave}
                         disabled={isSaving}
                         className="bg-blue-600 hover:bg-blue-700 min-w-[100px]"
                     >
@@ -346,14 +352,14 @@ export default function EditProjectPage() {
                         <CardContent className="space-y-4 pt-6">
                             <div className="space-y-2">
                                 <label className="text-xs font-bold uppercase text-slate-500">Project Name</label>
-                                <Input 
-                                    value={name} 
-                                    onChange={(e) => setName(e.target.value)} 
+                                <Input
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
                                     className="font-semibold"
                                     placeholder="Enter project name"
                                 />
                             </div>
-                            
+
                             <div className="grid sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold uppercase text-slate-500">Status</label>
@@ -361,8 +367,8 @@ export default function EditProjectPage() {
                                         <SelectTrigger className={cn(
                                             "font-medium",
                                             status === "active" ? "text-emerald-600 bg-emerald-50 border-emerald-200" :
-                                            status === "completed" ? "text-blue-600 bg-blue-50 border-blue-200" :
-                                            "text-slate-600 bg-slate-50"
+                                                status === "completed" ? "text-blue-600 bg-blue-50 border-blue-200" :
+                                                    "text-slate-600 bg-slate-50"
                                         )}>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -391,12 +397,29 @@ export default function EditProjectPage() {
 
                             <div className="space-y-2">
                                 <label className="text-xs font-bold uppercase text-slate-500">Description</label>
-                                <Textarea 
-                                    value={description} 
-                                    onChange={(e) => setDescription(e.target.value)} 
-                                    className="min-h-[120px] resize-none"
+                                <Textarea
+                                    value={description}
                                     placeholder="Project description and goals..."
                                 />
+                            </div>
+
+                            <div className="flex items-center space-x-2 pt-2">
+                                <Checkbox
+                                    id="isMemoRequired"
+                                    checked={isMemoRequired}
+                                    onCheckedChange={(checked) => setIsMemoRequired(!!checked)}
+                                />
+                                <div className="grid gap-1.5 leading-none">
+                                    <Label
+                                        htmlFor="isMemoRequired"
+                                        className="text-sm font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                        Require Memos
+                                    </Label>
+                                    <p className="text-xs text-slate-500">
+                                        If enabled, developers will be reminded to submit daily memos for this project.
+                                    </p>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -421,7 +444,7 @@ export default function EditProjectPage() {
                                     <div className="absolute top-0 left-0 w-full bg-white shadow-xl rounded-xl border border-blue-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                                         <div className="p-2 border-b flex items-center gap-2 bg-slate-50">
                                             <Search className="h-4 w-4 text-slate-400" />
-                                            <input 
+                                            <input
                                                 className="flex-1 bg-transparent border-none text-sm focus:outline-none"
                                                 placeholder="Search users..."
                                                 autoFocus
@@ -435,7 +458,7 @@ export default function EditProjectPage() {
                                         <div className="max-h-[200px] overflow-y-auto p-1">
                                             {filteredUsers.length > 0 ? (
                                                 filteredUsers.map(user => (
-                                                    <div 
+                                                    <div
                                                         key={user.id}
                                                         className="p-2 hover:bg-blue-50 rounded-lg cursor-pointer flex items-center gap-2 group transition-colors"
                                                         onClick={() => addToTeam(user)}
@@ -458,9 +481,9 @@ export default function EditProjectPage() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <Button 
-                                        variant="outline" 
-                                        className="w-full justify-start text-muted-foreground border-dashed" 
+                                    <Button
+                                        variant="outline"
+                                        className="w-full justify-start text-muted-foreground border-dashed"
                                         onClick={() => setShowUserSearch(true)}
                                     >
                                         <Plus className="h-4 w-4 mr-2" />
@@ -478,7 +501,7 @@ export default function EditProjectPage() {
                                                 {member.image ? (
                                                     <img src={member.image} alt={member.name} className="h-full w-full rounded-full object-cover" />
                                                 ) : (
-                                                     member.name.charAt(0)
+                                                    member.name.charAt(0)
                                                 )}
                                             </div>
                                             <div className="min-w-0">
@@ -486,9 +509,9 @@ export default function EditProjectPage() {
                                                 <p className="text-[10px] text-slate-500 uppercase tracking-wider">{member.role}</p>
                                             </div>
                                         </div>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
                                             className="h-7 w-7 text-slate-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                                             onClick={() => removeFromTeam(member.id)}
                                         >
@@ -505,7 +528,7 @@ export default function EditProjectPage() {
                             </div>
                         </CardContent>
                     </Card>
-                    
+
                     {/* Warning Card Removed */}
                 </div>
             </div>

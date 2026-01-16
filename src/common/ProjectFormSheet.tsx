@@ -424,7 +424,7 @@ export function ProjectFormSheet({
                     Require 140 Character Memo
                   </Label>
                   <p className="text-xs text-app-muted">
-                    When enabled, developers must provide a minimum 140 character memo for this project
+                    When enabled, developers must provide a maximum 140 character memo for this project
                   </p>
                 </div>
                 <Switch
@@ -438,7 +438,7 @@ export function ProjectFormSheet({
                 <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md animate-in fade-in slide-in-from-top-1 duration-200">
                   <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                   <p className="text-xs text-amber-800 dark:text-amber-200">
-                    Team members assigned to this project will be required to submit a detailed memo (minimum 140 characters) daily.
+                    Team members assigned to this project will be required to submit a detailed memo (maximum 140 characters) daily.
                   </p>
                 </div>
               )}
