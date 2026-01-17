@@ -1,1 +1,3 @@
-ALTER TABLE "links" ADD COLUMN "allowed_roles" jsonb;
+-- Empty migration because allowed_roles column already exists
+-- statement-breakpoint
+SELECT 1;

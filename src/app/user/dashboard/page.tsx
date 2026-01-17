@@ -87,12 +87,49 @@ export default function UserDashboardPage() {
       }
     };
 
+    const onProjectUpdated = (data: { projectId: string; project: Project }) => {
+      // Check if this project is assigned to the current user
+      setMyProjects((prev) => {
+        const index = prev.findIndex((p) => p.id === data.projectId);
+        if (index === -1) {
+          // If not in current active projects, it might have become active or been updated elsewhere
+          // For safety and correctness of stats/missing updates, just refetch
+          fetchDashboardData();
+          return prev;
+        }
+        
+        const newProjects = [...prev];
+        newProjects[index] = { ...newProjects[index], ...data.project };
+        
+        // If status changed to non-active, it should be removed from dashboard
+        if (data.project.status !== 'active') {
+          return newProjects.filter(p => p.id !== data.projectId);
+        }
+        
+        return newProjects;
+      });
+      
+      // Always refresh to ensure statuses and missing updates are correct
+      fetchDashboardData();
+    };
+
+    const onAssignmentUpdated = (data: { projectId: string; userId: string; isActive: boolean }) => {
+      if (data.userId === session?.user?.id) {
+        // If the toggle was for the current user, refresh everything
+        fetchDashboardData();
+      }
+    };
+
     if (socket) {
       socket.on("project-deleted", onProjectDeleted);
       socket.on("project-created", onProjectCreated);
+      socket.on("project-updated", onProjectUpdated);
+      socket.on("assignment-updated", onAssignmentUpdated);
       return () => {
         socket.off("project-deleted", onProjectDeleted);
         socket.off("project-created", onProjectCreated);
+        socket.off("project-updated", onProjectUpdated);
+        socket.off("assignment-updated", onAssignmentUpdated);
       };
     }
   }, [session]);
@@ -132,8 +169,8 @@ export default function UserDashboardPage() {
         : [];
       setProjectAssignments(assignments);
 
-      // Filter to show only "Actively Working" projects on dashboard
-      const activeProjects = userProjects.filter((p: Project) => p.isActive === true);
+      // Filter to show only "Actively Working" projects on dashboard that are also globally active
+      const activeProjects = userProjects.filter((p: Project) => p.isActive === true && p.status === 'active');
       setMyProjects(activeProjects);
 
       // Calculate project statuses (only for active projects)

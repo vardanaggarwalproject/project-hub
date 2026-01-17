@@ -138,12 +138,32 @@ export default function UserProjectsPage() {
             }
         };
 
+        const onProjectUpdated = (data: { projectId: string; project: Project }) => {
+            console.log("🔄 Project updated event received for:", data.projectId);
+            setProjects(prev => prev.map(p => 
+                p.id === data.projectId ? { ...p, ...data.project } : p
+            ));
+        };
+
+        const onAssignmentUpdated = (data: { projectId: string; userId: string; isActive: boolean }) => {
+            if (data.userId === session?.user?.id) {
+                console.log("⚡ Assignment updated event received for:", data.projectId);
+                setProjects(prev => prev.map(p => 
+                    p.id === data.projectId ? { ...p, isActive: data.isActive } : p
+                ));
+            }
+        };
+
         socket.on("project-deleted", onProjectDeleted);
         socket.on("project-created", onProjectCreated);
+        socket.on("project-updated", onProjectUpdated);
+        socket.on("assignment-updated", onAssignmentUpdated);
 
         return () => {
             socket.off("project-deleted", onProjectDeleted);
             socket.off("project-created", onProjectCreated);
+            socket.off("project-updated", onProjectUpdated);
+            socket.off("assignment-updated", onAssignmentUpdated);
         };
     }, [projects.length, session]);
 
@@ -379,11 +399,11 @@ export default function UserProjectsPage() {
                                                         {project.status !== 'active' ? (
                                                              <Tooltip>
                                                                  <TooltipTrigger asChild>
-                                                                     <div className="cursor-not-allowed opacity-50">
+                                                                     <div className="cursor-not-allowed">
                                                                          <Switch
                                                                              checked={false}
                                                                              disabled={true}
-                                                                             className="scale-90"
+                                                                             className="scale-90 data-[state=unchecked]:bg-slate-200 dark:data-[state=unchecked]:bg-slate-700"
                                                                          />
                                                                      </div>
                                                                  </TooltipTrigger>

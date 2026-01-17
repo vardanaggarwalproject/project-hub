@@ -89,6 +89,20 @@ export async function PATCH(
             );
         }
 
+        // Emit socket event for real-time sync across sessions
+        try {
+            const io = (global as any).io;
+            if (io) {
+                io.emit("assignment-updated", {
+                    projectId,
+                    userId,
+                    isActive: updated[0].isActive
+                });
+            }
+        } catch (socketError) {
+            console.error("Failed to emit assignment-updated socket event:", socketError);
+        }
+
         return NextResponse.json({
             success: true,
             isActive: updated[0].isActive
