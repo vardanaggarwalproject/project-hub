@@ -92,10 +92,11 @@ export default function AdminProjectDetailPage() {
         }
     }, [session, projectId]);
 
-    const filteredLinks = links.filter(link =>
-        link.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (link.description?.toLowerCase() || "").includes(searchQuery.toLowerCase())
-    );
+    const filteredLinks = links.filter(link => {
+        const nameMatch = (link?.name || "").toLowerCase().includes(searchQuery.toLowerCase());
+        const descMatch = (link?.description || "").toLowerCase().includes(searchQuery.toLowerCase());
+        return nameMatch || descMatch;
+    });
 
     if (isLoading) {
         return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -149,9 +149,11 @@ export function ProjectHistoryDialog({
       
       // A date is "valid for updates" only if it's after activation and before today
       // AND it's a weekday (Mon-Fri) OR there is existing data (to allow viewing history)
+      // OR it's today (to always show pending badges for today)
       const hasAnyData = dayMemos.length > 0 || !!eod;
       const isWeekend = dateTime.getDay() === 0 || dateTime.getDay() === 6;
-      const isValidDate = hasAnyData || (dateTime >= validStartDate && dateTime <= today && !isWeekend);
+      const isToday = isSameDay(date, new Date());
+      const isValidDate = hasAnyData || (dateTime >= validStartDate && dateTime <= today && (!isWeekend || isToday));
 
       days.push({
         date,
@@ -314,9 +316,9 @@ export function ProjectHistoryDialog({
     setModalMode("edit");
   };
 
-  const referenceDataFetcher = async (type: "memo" | "eod", pid: string, date: string) => {
+  const referenceDataFetcher = useCallback(async (type: "memo" | "eod", pid: string, date: string) => {
     return null; // Dashboard optimization: use local data or skip
-  };
+  }, []);
 
   const handleSubmit = async (data: {
     type: "memo" | "eod";
@@ -400,8 +402,8 @@ export function ProjectHistoryDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] md:max-w-5xl max-h-[90vh] flex flex-col gap-0 p-0 rounded-2xl overflow-hidden border-0 shadow-2xl">
-        <DialogHeader className="px-8 py-6 border-b border-slate-100 bg-white sticky top-0 z-10">
-          <DialogTitle className="text-2xl font-bold tracking-tight flex items-center gap-3 text-slate-900">
+        <DialogHeader className="px-6 py-3.5 border-b border-slate-100 bg-white sticky top-0 z-10">
+          <DialogTitle className="text-xl font-bold tracking-tight flex items-center gap-3 text-slate-900">
             Update History <span className="text-slate-300 font-light">|</span> <span className="text-blue-600 font-semibold">{project?.name}</span>
             {userAssignment && !userAssignment.isActive && (
               <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-slate-200 uppercase text-[10px] font-bold py-0.5 px-2">
@@ -411,7 +413,7 @@ export function ProjectHistoryDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8 bg-slate-50/30 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 bg-slate-50/30 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-24 w-full" />
@@ -419,7 +421,7 @@ export function ProjectHistoryDialog({
             </div>
           ) : (
             <ErrorBoundary>
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <StatsCards stats={stats} />
                 <div className="border rounded-xl bg-white overflow-hidden shadow-sm">
                   <CalendarHeader
@@ -431,6 +433,7 @@ export function ProjectHistoryDialog({
                   <CalendarGrid
                     calendarDays={calendarDays}
                     onDayClick={handleDayClick}
+                    isMemoRequired={project?.isMemoRequired}
                   />
                 </div>
               </div>

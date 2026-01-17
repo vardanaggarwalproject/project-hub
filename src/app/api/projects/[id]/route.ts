@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { projects, clients, user, userProjectAssignments, chatGroups, links } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -43,8 +43,8 @@ export async function GET(
         })
             .from(projects)
             .leftJoin(clients, eq(projects.clientId, clients.id))
-       
-       
+
+
             .where(eq(projects.id, id))
             .limit(1);
 
@@ -112,6 +112,14 @@ export async function PATCH(
 
         const { name, description, status, clientId, assignedUserIds, links: projectLinks, isMemoRequired } = validation.data;
 
+        // Get current project status before update
+        const currentProject = await db.select({ status: projects.status })
+            .from(projects)
+            .where(eq(projects.id, id))
+            .limit(1);
+
+        const oldStatus = currentProject[0]?.status;
+
         // Update project metadata
         await db.update(projects)
             .set({
@@ -124,19 +132,74 @@ export async function PATCH(
             })
             .where(eq(projects.id, id));
 
+        // If status changed from active to on-hold or completed, reset all assignments to inactive
+        if (oldStatus === 'active' && (status === 'on-hold' || status === 'completed')) {
+            await db.update(userProjectAssignments)
+                .set({ isActive: false })
+                .where(eq(userProjectAssignments.projectId, id));
+        }
+
         // Update team assignments if provided
         if (assignedUserIds !== undefined) {
-            // Remove existing assignments
-            await db.delete(userProjectAssignments)
+            // 1. First, cleanup ANY existing duplicates for this project to ensure data integrity
+            const allExisting = await db.select()
+                .from(userProjectAssignments)
                 .where(eq(userProjectAssignments.projectId, id));
 
-            // Add new assignments
-            if (assignedUserIds.length > 0) {
+            const userToAssignments = new Map<string, any[]>();
+            allExisting.forEach(a => {
+                if (!userToAssignments.has(a.userId)) userToAssignments.set(a.userId, []);
+                userToAssignments.get(a.userId)!.push(a);
+            });
+
+            for (const [userId, assignments] of userToAssignments.entries()) {
+                if (assignments.length > 1) {
+                    // Keep the one that is active, or has the latest updatedAt
+                    const sorted = assignments.sort((a, b) => {
+                        if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+                        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+                    });
+
+                    const toKeep = sorted[0];
+                    const toDelete = sorted.slice(1).map(a => a.id);
+
+                    await db.delete(userProjectAssignments)
+                        .where(inArray(userProjectAssignments.id, toDelete));
+                }
+            }
+
+            // 2. Now get the cleaned assignments for comparison
+            const cleanedAssignments = await db.select()
+                .from(userProjectAssignments)
+                .where(eq(userProjectAssignments.projectId, id));
+
+            // De-duplicate incoming IDs
+            const uniqueAssignedUserIds = Array.from(new Set(assignedUserIds));
+            const existingUserIds = cleanedAssignments.map(a => a.userId);
+
+            // 3. Determine users to add and remove
+            const usersToAdd = uniqueAssignedUserIds.filter(uid => !existingUserIds.includes(uid));
+            const usersToRemove = existingUserIds.filter(uid => !uniqueAssignedUserIds.includes(uid));
+
+            // 4. Remove unassigned users
+            if (usersToRemove.length > 0) {
+                await db.delete(userProjectAssignments)
+                    .where(
+                        and(
+                            eq(userProjectAssignments.projectId, id),
+                            inArray(userProjectAssignments.userId, usersToRemove)
+                        )
+                    );
+            }
+
+            // 5. Add new users
+            if (usersToAdd.length > 0) {
                 await db.insert(userProjectAssignments).values(
-                    assignedUserIds.map(userId => ({
+                    usersToAdd.map(userId => ({
                         id: crypto.randomUUID(),
                         userId,
-                        projectId: id
+                        projectId: id,
+                        isActive: false // New assignments start as inactive by default
                     }))
                 );
             }
@@ -188,6 +251,40 @@ export async function PATCH(
             await db.update(chatGroups)
                 .set({ name: `${name} Chat` })
                 .where(eq(chatGroups.projectId, id));
+        }
+
+        // Emit socket event for real-time updates
+        try {
+            const io = (global as any).io;
+            if (io) {
+                // Fetch updated project with client name for the socket event
+                const updatedProjectData = await db.select({
+                    id: projects.id,
+                    name: projects.name,
+                    description: projects.description,
+                    status: projects.status,
+                    totalTime: projects.totalTime,
+                    completedTime: projects.completedTime,
+                    createdAt: projects.createdAt,
+                    updatedAt: projects.updatedAt,
+                    clientId: projects.clientId,
+                    clientName: clients.name,
+                    isMemoRequired: projects.isMemoRequired,
+                })
+                    .from(projects)
+                    .leftJoin(clients, eq(projects.clientId, clients.id))
+                    .where(eq(projects.id, id))
+                    .limit(1);
+
+                if (updatedProjectData.length > 0) {
+                    io.emit("project-updated", {
+                        projectId: id,
+                        project: updatedProjectData[0]
+                    });
+                }
+            }
+        } catch (socketError) {
+            console.error("Failed to emit socket event:", socketError);
         }
 
         return NextResponse.json({ message: "Project updated successfully" });

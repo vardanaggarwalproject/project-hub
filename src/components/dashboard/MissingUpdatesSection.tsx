@@ -35,9 +35,9 @@ export const MissingUpdatesSection = React.memo(function MissingUpdatesSection({
           {missingUpdates.map((missing) => (
             <div
               key={missing.id}
-              className="p-4 hover:bg-slate-50 transition-colors duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              className="px-4 py-3 hover:bg-slate-50 transition-colors duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <h3 className="text-sm font-semibold text-slate-800">
                   {formatDisplayDate(missing.date).split(",")[0]} — {missing.projectName}
                 </h3>

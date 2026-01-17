@@ -41,6 +41,26 @@ export async function PATCH(
             );
         }
 
+        // Fetch project status to ensure it's active
+        const projectRes = await db.query.projects.findFirst({
+            where: (projects, { eq }) => eq(projects.id, projectId),
+            columns: { status: true }
+        });
+
+        if (!projectRes) {
+            return NextResponse.json(
+                { error: "Project not found" },
+                { status: 404 }
+            );
+        }
+
+        if (projectRes.status !== 'active') {
+            return NextResponse.json(
+                { error: `Cannot activate project because it is ${projectRes.status}` },
+                { status: 403 }
+            );
+        }
+
         // Update the assignment
         const updateData: any = {
             isActive: isActive,
@@ -67,6 +87,20 @@ export async function PATCH(
                 { error: "Assignment not found" },
                 { status: 404 }
             );
+        }
+
+        // Emit socket event for real-time sync across sessions
+        try {
+            const io = (global as any).io;
+            if (io) {
+                io.emit("assignment-updated", {
+                    projectId,
+                    userId,
+                    isActive: updated[0].isActive
+                });
+            }
+        } catch (socketError) {
+            console.error("Failed to emit assignment-updated socket event:", socketError);
         }
 
         return NextResponse.json({

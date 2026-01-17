@@ -19,7 +19,7 @@ export const StatsCards = React.memo(function StatsCards({
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <Card className="border border-slate-200 rounded-xl hover:border-slate-300 hover:shadow-sm transition-all duration-200">
-        <CardContent className="p-4">
+        <CardContent className="px-5">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-blue-50 rounded-lg">
               <FileText className="h-4 w-4 text-blue-600" />
@@ -40,7 +40,7 @@ export const StatsCards = React.memo(function StatsCards({
       </Card>
 
       <Card className="border border-slate-200 rounded-xl hover:border-slate-300 hover:shadow-sm transition-all duration-200">
-        <CardContent className="p-4">
+        <CardContent className="px-5">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-orange-50 rounded-lg">
               <ClipboardCheck className="h-4 w-4 text-orange-600" />

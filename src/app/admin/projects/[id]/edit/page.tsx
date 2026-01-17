@@ -326,13 +326,13 @@ export default function EditProjectPage() {
                     </AlertDialog>
                     <Button
                         onClick={handleSave}
-                        disabled={isSaving}
+                        disabled={isSaving || isLoading}
                         className="bg-blue-600 hover:bg-blue-700 min-w-[120px] font-bold shadow-md"
                     >
                         {isSaving ? "Saving..." : (
                             <>
                                 <Save className="h-4 w-4 mr-2" />
-                                Save Changes
+                                {isLoading ? "Loading..." : "Save Changes"}
                             </>
                         )}
                     </Button>

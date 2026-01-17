@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
+import { ClearFilterButton } from "@/components/ui/clear-filter-button";
 import { format } from "date-fns";
 import { ProjectSelect } from "@/components/admin/ProjectSelect";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -287,9 +288,8 @@ export default function AdminMemosPage() {
                                 placeholder="Filter by submitted date..."
                                 className="w-[280px]"
                             />
-                            <Button
-                                variant="outline"
-                                size="sm"
+                            <ClearFilterButton 
+                                isActive={!!(searchQuery || selectedProject || dateRange || show140Only || showUniversalOnly)}
                                 onClick={() => {
                                     setSearchQuery("");
                                     setSelectedProject("");
@@ -297,11 +297,7 @@ export default function AdminMemosPage() {
                                     setShow140Only(false);
                                     setShowUniversalOnly(false);
                                 }}
-                                className="h-10 px-4 text-xs font-semibold whitespace-nowrap bg-white border-slate-200 hover:bg-slate-50"
-                            >
-                                <X className="h-4 w-4 mr-2" />
-                                Clear
-                            </Button>
+                            />
                         </div>
                     </div>
                 </div>

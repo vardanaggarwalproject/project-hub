@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { getSocket } from "@/lib/socket";
 
 interface ProjectDetailsModalProps {
   open: boolean;
@@ -104,10 +105,30 @@ export function ProjectDetailsModal({
   }) || [];
 
   // Fetch project details when modal opens
+  // Fetch project details when modal opens
   useEffect(() => {
     if (open && projectId) {
       fetchProjectDetails();
     }
+    
+    // Listen for real-time updates
+    const socket = getSocket();
+    if (!socket) return;
+
+    const onProjectUpdated = (data: { projectId: string; project: any }) => { // project type might vary
+        if (data.projectId === projectId && open) {
+             // Re-fetch full details to get relations like team/links which might not be in the event payload
+             // Or if payload is full, use it. Usually payload is partial or just main table.
+             // Safer to refetch for complex relations.
+             fetchProjectDetails(); 
+        }
+    };
+
+    socket.on("project-updated", onProjectUpdated);
+
+    return () => {
+        socket.off("project-updated", onProjectUpdated);
+    };
   }, [open, projectId]);
 
   /**

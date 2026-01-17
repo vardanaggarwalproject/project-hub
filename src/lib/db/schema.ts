@@ -165,6 +165,10 @@ export const userProjectAssignments = pgTable(
       foreignColumns: [user.id],
       name: "user_project_assignments_user_id_user_id_fk",
     }),
+    unique("user_project_assignments_user_id_project_id_unique").on(
+      table.userId,
+      table.projectId
+    ),
   ]
 );
 

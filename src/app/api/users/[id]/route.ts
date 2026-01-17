@@ -10,6 +10,7 @@ const ALLOWED_ROLES = ["admin", "developer", "tester", "designer"] as const;
 const updateUserSchema = z.object({
     name: z.string().min(1).optional(),
     role: z.enum(ALLOWED_ROLES).optional(),
+    image: z.string().url().optional(),
 });
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -37,9 +38,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             return NextResponse.json({ error: validation.error.format() }, { status: 400 });
         }
 
-        const { name, role } = validation.data;
+        const { name, role, image } = validation.data;
         const updateData: any = { updatedAt: new Date().toISOString() };
         if (name) updateData.name = name;
+        if (image) updateData.image = image;
 
         if (role) {
             const roleExists = await db.select().from(roles).where(eq(roles.name, role));

@@ -72,7 +72,7 @@ export async function GET(req: Request) {
             whereClause = and(...conditions);
         }
 
-        const projectList = await db.select({
+        const rawProjectList = await db.select({
             id: projects.id,
             name: projects.name,
             status: projects.status,
@@ -94,13 +94,23 @@ export async function GET(req: Request) {
                 currentUserId ? eq(userProjectAssignments.userId, currentUserId) : sql`false`
             ))
             .where(whereClause)
-            .limit(limit)
-            .offset(offset)
             .orderBy(desc(projects.updatedAt));
+
+        // Deduplicate projectList by ID, prioritizing isActive: true
+        const dedupedMap = new Map();
+        for (const p of rawProjectList) {
+            if (!dedupedMap.has(p.id) || (!dedupedMap.get(p.id).isActive && p.isActive)) {
+                dedupedMap.set(p.id, p);
+            }
+        }
+
+        const allDedupedProjects = Array.from(dedupedMap.values());
+        const total = allDedupedProjects.length;
+        const projectList = allDedupedProjects.slice(offset, offset + limit);
 
         // Fetch assignments for these projects
         const projectIds = projectList.map(p => p.id);
-        const allAssignments = projectIds.length > 0
+        const rawAssignments = projectIds.length > 0
             ? await db.select({
                 projectId: userProjectAssignments.projectId,
                 user: {
@@ -115,6 +125,16 @@ export async function GET(req: Request) {
                 .innerJoin(user, eq(userProjectAssignments.userId, user.id))
                 .where(inArray(userProjectAssignments.projectId, projectIds))
             : [];
+
+        // Deduplicate assignments per project
+        const assignmentMap = new Map();
+        for (const a of rawAssignments) {
+            const key = `${a.projectId}-${a.user.id}`;
+            if (!assignmentMap.has(key)) {
+                assignmentMap.set(key, a);
+            }
+        }
+        const allAssignments = Array.from(assignmentMap.values());
 
         const projectsWithTeam = projectList.map(project => {
             // Calculate progress based on completedTime and totalTime
@@ -135,12 +155,6 @@ export async function GET(req: Request) {
                     .map(a => a.user)
             };
         });
-
-        const totalResult = await db.select({ count: sql<number>`count(*)` })
-            .from(projects)
-            .where(whereClause);
-
-        const total = Number(totalResult[0]?.count || 0);
 
         return NextResponse.json({
             data: projectsWithTeam,

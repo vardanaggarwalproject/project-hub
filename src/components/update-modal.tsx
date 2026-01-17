@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,8 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Calendar, AlertCircle, Copy } from "lucide-react";
+import { AlertCircle, Copy, Clock, Calendar } from "lucide-react";
 import type { Project } from "@/types/project";
 import type { Memo, EOD } from "@/types/report";
 import { MEMO_MAX_LENGTH } from "@/lib/constants";
@@ -108,6 +107,41 @@ export function UpdateModal({
   } | null>(null);
   const [localMode, setLocalMode] = useState<"view" | "edit">(mode);
   const [isLoading, setIsLoading] = useState(false);
+  const [cachedReferenceData, setCachedReferenceData] = useState<Record<string, {type: string; content: string} | null>>({});
+
+  // Simplified logic to find the most recent previous update
+  const previousUpdate = useMemo(() => {
+    if (!selectedProjectId || !selectedDate) return null;
+
+    const projectMemos = existingMemos
+        .filter(m => m.projectId === selectedProjectId && getLocalDateString(m.reportDate) < selectedDate)
+        .sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
+
+    const projectEods = existingEods
+        .filter(e => e.projectId === selectedProjectId && getLocalDateString(e.reportDate) < selectedDate)
+        .sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
+
+    if (modalTab === "memo") {
+        if (projectMemos.length === 0) return null;
+        
+        const lastDate = getLocalDateString(projectMemos[0].reportDate);
+        const dayMemos = projectMemos.filter(m => getLocalDateString(m.reportDate) === lastDate);
+        
+        return {
+            date: lastDate,
+            universal: dayMemos.find(m => m.memoType === 'universal')?.memoContent || 
+                       (!projects.find(p => p.id === selectedProjectId)?.isMemoRequired ? dayMemos.find(m => m.memoType === 'short')?.memoContent : ""),
+            short: dayMemos.find(m => m.memoType === 'short')?.memoContent || ""
+        };
+    } else {
+        if (projectEods.length === 0) return null;
+        return {
+            date: getLocalDateString(projectEods[0].reportDate),
+            client: projectEods[0].clientUpdate,
+            internal: projectEods[0].actualUpdate
+        };
+    }
+  }, [modalTab, selectedProjectId, selectedDate, existingMemos, existingEods, projects]);
 
   // Helper for localStorage keys
   const getDraftKey = (projectId: string, date: string, type: "memo" | "eod") => 
@@ -146,7 +180,7 @@ export function UpdateModal({
     saveDraft();
   }, [memoContent, shortMemoContent, clientUpdate, internalUpdate, selectedProjectId, selectedDate, modalTab, localMode, isOpen]);
 
-  // Combined Effect to handle initialization (Data Fetching + Mode Determination + State Sync)
+  // Combined Effect to handle initialization
   useEffect(() => {
     if (!isOpen) {
         wasOpen.current = false;
@@ -154,17 +188,20 @@ export function UpdateModal({
     }
 
     const initializeModal = async () => {
-      setIsLoading(true);
-      
       const isOpening = !wasOpen.current;
       wasOpen.current = true;
 
-      // Determine Target Values (Props if just opened, State if already open)
       const targetProjectId = isOpening ? initialProjectId : selectedProjectId;
       const targetDate = isOpening ? initialDate : selectedDate;
       const targetTab = isOpening ? initialTab : modalTab;
+
+      const contextChanged = prevContext.current.projectId !== targetProjectId || 
+                           prevContext.current.date !== targetDate;
       
-      // If opening, sync state immediately
+      if (isOpening || contextChanged) {
+        setIsLoading(true);
+      }
+      
       if (isOpening) {
           setMemoContent(initialMemoContent);
           setShortMemoContent(initialShortMemoContent);
@@ -177,17 +214,21 @@ export function UpdateModal({
       }
 
       try {
-        // 1. Fetch Reference Data (using targets)
+        const cacheKey = `${targetProjectId}_${targetDate}_${targetTab}`;
         if (referenceDataFetcher && targetProjectId && targetDate) {
-           const data = await referenceDataFetcher(
-             targetTab,
-             targetProjectId,
-             targetDate
-           );
-           setReferenceData(data);
+           if (!cachedReferenceData[cacheKey]) {
+                const data = await referenceDataFetcher(
+                    targetTab,
+                    targetProjectId,
+                    targetDate
+                );
+                setReferenceData(data);
+                setCachedReferenceData(prev => ({ ...prev, [cacheKey]: data }));
+           } else {
+                setReferenceData(cachedReferenceData[cacheKey]);
+           }
         }
 
-        // 2. Determine Mode & Content
         const dateStr = targetDate; 
         let foundContent: { memo?: string; shortMemo?: string; client?: string; internal?: string } | null = null;
         let exists = false;
@@ -221,10 +262,7 @@ export function UpdateModal({
                 setInternalUpdate(foundContent.internal || "");
             }
         } else {
-            // Default to Edit mode (Add)
             setLocalMode("edit");
-            
-            // 3. Try to Load Draft from localStorage
             const draftKey = getDraftKey(targetProjectId, targetDate, targetTab);
             const savedDraft = localStorage.getItem(draftKey);
             let draftFound = false;
@@ -245,7 +283,6 @@ export function UpdateModal({
                 }
             }
 
-            // 4. Initial content from props (only if just opening and no draft)
             if (!draftFound && isOpening) {
                 if (targetTab === "memo") {
                      setMemoContent(initialMemoContent);
@@ -256,7 +293,6 @@ export function UpdateModal({
                 }
             } 
             
-            // 5. Clear if context (Project or Date) changed and no draft/initial content
             if (!draftFound && !isOpening) {
                 const contextChanged = prevContext.current.projectId !== targetProjectId || 
                                      prevContext.current.date !== targetDate;
@@ -273,13 +309,12 @@ export function UpdateModal({
             }
         }
 
-        // Update prevContext after processing
         prevContext.current = { projectId: targetProjectId, date: targetDate };
 
       } catch (error) {
         console.error("Failed to initialize modal", error);
       } finally {
-         setTimeout(() => setIsLoading(false), 300);
+         setIsLoading(false);
       }
     };
 
@@ -287,7 +322,6 @@ export function UpdateModal({
 
   }, [isOpen, modalTab, selectedDate, selectedProjectId, existingMemos, existingEods, initialProjectId, initialDate, initialTab, initialMemoContent, initialShortMemoContent, initialClientUpdate, initialInternalUpdate, mode, referenceDataFetcher, isMemoRequired]);
 
-  // Handle Edit Click (Internal)
   const handleInternalEditClick = () => {
     const dateStr = selectedDate;
     let exists = false;
@@ -306,13 +340,11 @@ export function UpdateModal({
   };
 
   const handleSubmit = async () => {
-    // Validate memo maximum length for projects that require 140 chars max
     if (modalTab === "memo" && isMemoRequired && memoContent.length > 140) {
         toast.error(`This project requires a memo within 140 characters (maximum). Current: ${memoContent.length}/140`);
         return;
     }
 
-    // Authority check for date manually entered or selected
     if (minDate && selectedDate && selectedDate < minDate) {
         toast.error(`Access Denied: You cannot submit updates for dates before your project allocation (${minDate}).`);
         return;
@@ -320,10 +352,6 @@ export function UpdateModal({
 
     if (showDatePicker && selectedDate) {
         const isMemo = modalTab === "memo";
-        
-        // Find ANY entry that matches the target criteria
-        // For memos, we now might have multiple. Conflict if ANY exist for a DIFFERENT context?
-        // Actually, if ANY exists, we are "editing" or "switching".
         
         const conflictExists = isMemo
             ? existingMemos.some(m => 
@@ -335,10 +363,8 @@ export function UpdateModal({
                 getLocalDateString(e.reportDate) === selectedDate
               );
             
-        // Check if we are editing the SAME record (heuristically)
         const isSameRecord = selectedDate === initialDate && modalTab === initialTab && selectedProjectId === initialProjectId;
         
-        // If conflict exists and we switched context (date/type/project), we must block.
         if (conflictExists && !isSameRecord) {
              toast.error(`A ${modalTab === "memo" ? "Memo" : "EOD Report"} already exists for this date. Please edit that entry instead.`);
              return;
@@ -356,13 +382,10 @@ export function UpdateModal({
         clientUpdate,
         internalUpdate,
       });
-      // Clear drafts on success
       localStorage.removeItem(getDraftKey(selectedProjectId, selectedDate, "memo"));
       localStorage.removeItem(getDraftKey(selectedProjectId, selectedDate, "eod"));
-      // Only close if submission was successful (no error thrown)
       onClose();
     } catch (error) {
-      // Error is already handled by parent component
       console.error("Failed to submit", error);
     } finally {
       setIsSubmitting(false);
@@ -396,37 +419,6 @@ export function UpdateModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 bg-white scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-          {isLoading ? (
-            <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="flex gap-4 mb-2">
-                    <Skeleton className="h-10 w-full rounded-xl bg-slate-100" />
-                    <Skeleton className="h-10 w-full rounded-xl bg-slate-100" />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-6">
-                    {showProjectSelect && (
-                        <div className="space-y-2">
-                            <Skeleton className="h-4 w-20 bg-slate-100" />
-                            <Skeleton className="h-11 w-full rounded-lg bg-slate-100" />
-                        </div>
-                    )}
-                    {showDatePicker && (
-                        <div className="space-y-2">
-                            <Skeleton className="h-4 w-16 bg-slate-100" />
-                            <Skeleton className="h-11 w-full rounded-lg bg-slate-100" />
-                        </div>
-                    )}
-                </div>
-                
-                <Skeleton className="h-28 w-full rounded-xl bg-slate-100" />
-                
-                <div className="space-y-2">
-                     <Skeleton className="h-4 w-32 bg-slate-100" />
-                     <Skeleton className="h-40 w-full rounded-xl bg-slate-100" />
-                </div>
-            </div>
-          ) : (
-            <>
           <Tabs
             value={modalTab}
             onValueChange={(val) => setModalTab(val as "memo" | "eod")}
@@ -490,148 +482,245 @@ export function UpdateModal({
               )}
           </div>
 
-          {referenceData && (
-            <div className="bg-slate-50/80 border border-slate-100 rounded-lg p-5 shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs">ℹ️</span>
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        {referenceData.type}
-                    </span>
+          {isLoading ? (
+            <div className="space-y-6 animate-in fade-in duration-300">
+                <Skeleton className="h-28 w-full rounded-xl bg-slate-100" />
+                <div className="space-y-2">
+                     <Skeleton className="h-4 w-32 bg-slate-100" />
+                     <Skeleton className="h-40 w-full rounded-xl bg-slate-100" />
                 </div>
-              <div className="text-sm text-slate-600 leading-relaxed font-normal whitespace-pre-wrap max-h-40 overflow-y-auto pl-1">
-                {referenceData.content}
-              </div>
             </div>
-          )}
+          ) : (
+            <>
+              {previousUpdate === null && !isViewMode && (
+                <div className="bg-slate-50/80 border border-slate-200/60 rounded-xl p-5 flex items-start gap-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-500">
+                    <div className="shrink-0 w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100">
+                        <AlertCircle className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-bold text-slate-700 tracking-tight mb-1">Previous update not present</h4>
+                        <p className="text-xs text-slate-500/90 leading-relaxed max-w-sm">
+                            No history found for this project before {selectedDate}.
+                        </p>
+                    </div>
+                </div>
+              )}
 
+              {referenceData && referenceData.type.toLowerCase().includes("reference") && (
+                <div className="bg-slate-50/80 border border-slate-100 rounded-lg p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs">ℹ️</span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                            {referenceData.type}
+                        </span>
+                    </div>
+                  <div className="text-sm text-slate-600 leading-relaxed font-normal whitespace-pre-wrap max-h-40 overflow-y-auto pl-1">
+                    {referenceData.content}
+                  </div>
+                </div>
+              )}
 
+              {modalTab === "memo" ? (
+                <div className="space-y-6">
+                  {/* Universal Memo */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="universal-memo" className="text-sm font-semibold text-slate-700 ml-1">
+                          Universal Memo (Required)
+                      </Label>
+                      {!isViewMode && isMemoRequired && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setMemoContent(shortMemoContent)}
+                          className="h-7 px-2.5 text-[10px] font-semibold text-blue-600 border-blue-100 bg-blue-50/50 hover:bg-blue-100 hover:border-blue-200 hover:text-blue-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Copy className="h-3 w-3" />
+                          Same as 140chars Memo
+                        </Button>
+                      )}
+                    </div>
+                    {previousUpdate && !isViewMode && (
+                      <div className="mb-3 px-4 py-3 bg-blue-50/40 border border-blue-100/40 rounded-xl relative group transition-all hover:bg-blue-50/60 shadow-sm/50">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                                <Clock className="h-3 w-3 text-blue-400" />
+                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                                    Previous Universal Memo
+                                </span>
+                            </div>
+                            <span className="text-[9px] font-semibold text-slate-400 bg-white/80 px-2 py-0.5 rounded-full border border-slate-100 shadow-sm">
+                                {previousUpdate.date}
+                            </span>
+                        </div>
+                        <div className="text-xs text-slate-600 line-clamp-4 leading-relaxed font-normal italic pl-1 border-l-2 border-blue-100/50 ml-0.5">
+                            "{previousUpdate.universal || "No content found"}"
+                        </div>
+                      </div>
+                    )}
+                    <Textarea
+                      id="universal-memo"
+                      value={memoContent}
+                      onChange={(e) => setMemoContent(e.target.value)}
+                      placeholder="Universal memo content for all team members..."
+                      className="min-h-[150px] resize-none rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all p-4 leading-relaxed"
+                      readOnly={isViewMode}
+                    />
+                  </div>
 
-          {modalTab === "memo" ? (
-            <div className="space-y-6">
-              {/* Universal Memo - Required for all */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="universal-memo" className="text-sm font-semibold text-slate-700 ml-1">
-                      Universal Memo (Required)
-                  </Label>
-                  {!isViewMode && isMemoRequired && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setMemoContent(shortMemoContent)}
-                      className="h-7 px-2.5 text-[11px] font-semibold text-blue-600 border-blue-100 bg-blue-50/50 hover:bg-blue-100 hover:border-blue-200 hover:text-blue-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
-                    >
-                      <Copy className="h-3 w-3" />
-                      Same as 140chars Memo
-                    </Button>
+                  {/* 140 Char Memo */}
+                  {isMemoRequired && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="short-memo" className="text-sm font-semibold text-slate-700 ml-1">
+                                140chars Memo (Required for this project)
+                            </Label>
+                            {!isViewMode && (
+                                <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShortMemoContent(memoContent.slice(0, 140))}
+                                className="h-7 px-2.5 text-[10px] font-semibold text-blue-600 border-blue-100 bg-blue-50/50 hover:bg-blue-100 hover:border-blue-200 hover:text-blue-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
+                                >
+                                <Copy className="h-3 w-3" />
+                                Same as Universal Memo
+                                </Button>
+                            )}
+                        </div>
+                        <span className={cn(
+                            "text-xs font-normal",
+                            shortMemoContent.length > MEMO_MAX_LENGTH ? "text-red-500" : "text-slate-400"
+                        )}>
+                            {shortMemoContent.length}/{MEMO_MAX_LENGTH}
+                        </span>
+                      </div>
+                      {previousUpdate && !isViewMode && (
+                        <div className="mb-3 px-4 py-3 bg-blue-50/40 border border-blue-100/40 rounded-xl relative group transition-all hover:bg-blue-50/60 shadow-sm/50">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-1.5">
+                                    <Clock className="h-3 w-3 text-blue-400" />
+                                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                                        Previous 140chars Memo
+                                    </span>
+                                </div>
+                                <span className="text-[9px] font-semibold text-slate-400 bg-white/80 px-2 py-0.5 rounded-full border border-slate-100 shadow-sm">
+                                    {previousUpdate.date}
+                                </span>
+                            </div>
+                            <div className="text-xs text-slate-600 line-clamp-2 leading-relaxed font-normal italic pl-1 border-l-2 border-blue-100/50 ml-0.5">
+                                "{previousUpdate.short || "No content recorded"}"
+                            </div>
+                        </div>
+                      )}
+                      <Textarea
+                        id="short-memo"
+                        value={shortMemoContent}
+                        onChange={(e) => setShortMemoContent(e.target.value.slice(0, 140))}
+                        placeholder="Short 140char summary..."
+                        className="min-h-[100px] resize-none rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all p-4 leading-relaxed"
+                        maxLength={140}
+                        readOnly={isViewMode}
+                      />
+                    </div>
                   )}
                 </div>
-                <Textarea
-                  id="universal-memo"
-                  value={memoContent}
-                  onChange={(e) => setMemoContent(e.target.value)}
-                  placeholder="Universal memo content for all team members..."
-                  className="min-h-[150px] resize-none rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all p-4 leading-relaxed"
-                  readOnly={isViewMode}
-                />
-              </div>
-
-              {/* 140 Char Memo - Only if project requires it */}
-              {isMemoRequired && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Label htmlFor="short-memo" className="text-sm font-semibold text-slate-700 ml-1">
-                            140chars Memo (Required for this project)
+              ) : (
+                <div className="space-y-6">
+                  {/* Client Update */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="client" className="text-sm font-semibold text-slate-700 ml-1">
+                        Client Update
                         </Label>
                         {!isViewMode && (
                             <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setShortMemoContent(memoContent.slice(0, 140))}
-                            className="h-7 px-2.5 text-[11px] font-semibold text-blue-600 border-blue-100 bg-blue-50/50 hover:bg-blue-100 hover:border-blue-200 hover:text-blue-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
+                            onClick={() => setClientUpdate(internalUpdate)}
+                            className="h-7 px-2.5 text-[10px] font-semibold text-purple-600 border-purple-100 bg-purple-50/50 hover:bg-purple-100 hover:border-purple-200 hover:text-purple-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
                             >
                             <Copy className="h-3 w-3" />
-                            Same as Universal Memo
+                            Same as Internal Update
                             </Button>
                         )}
                     </div>
-                    <span className={cn(
-                        "text-xs font-normal",
-                        shortMemoContent.length > MEMO_MAX_LENGTH ? "text-red-500" : "text-slate-400"
-                    )}>
-                        {shortMemoContent.length}/{MEMO_MAX_LENGTH}
-                    </span>
+                    {previousUpdate && !isViewMode && (
+                      <div className="mb-3 px-4 py-3 bg-purple-50/40 border border-purple-100/40 rounded-xl relative group transition-all hover:bg-purple-50/60 shadow-sm/50">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                                <Clock className="h-3 w-3 text-purple-400" />
+                                <span className="text-[10px] font-bold text-purple-600 uppercase tracking-wider">
+                                    Previous Client Update
+                                </span>
+                            </div>
+                            <span className="text-[9px] font-semibold text-slate-400 bg-white/80 px-2 py-0.5 rounded-full border border-slate-100 shadow-sm">
+                                {previousUpdate.date}
+                            </span>
+                        </div>
+                        <div className="text-xs text-slate-600 line-clamp-4 leading-relaxed font-normal italic pl-1 border-l-2 border-purple-100/50 ml-0.5">
+                            "{previousUpdate.client || "No content recorded"}"
+                        </div>
+                      </div>
+                    )}
+                    <Textarea
+                      id="client"
+                      value={clientUpdate}
+                      onChange={(e) => setClientUpdate(e.target.value)}
+                      placeholder="Summary suitable for client review..."
+                      className="min-h-[120px] rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all p-4 leading-relaxed"
+                      readOnly={isViewMode}
+                    />
                   </div>
-                  <Textarea
-                    id="short-memo"
-                    value={shortMemoContent}
-                    onChange={(e) => setShortMemoContent(e.target.value.slice(0, 140))}
-                    placeholder="Short 140char summary..."
-                    className="min-h-[100px] resize-none rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all p-4 leading-relaxed"
-                    maxLength={140}
-                    readOnly={isViewMode}
-                  />
+
+                  {/* Internal Update */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="internal" className="text-sm font-semibold text-slate-700 ml-1">
+                        Internal Update
+                        </Label>
+                        {!isViewMode && (
+                            <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setInternalUpdate(clientUpdate)}
+                            className="h-7 px-2.5 text-[10px] font-semibold text-purple-600 border-purple-100 bg-purple-50/50 hover:bg-purple-100 hover:border-purple-200 hover:text-purple-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
+                            >
+                            <Copy className="h-3 w-3" />
+                            Same as Client Update
+                            </Button>
+                        )}
+                    </div>
+                    {previousUpdate && !isViewMode && (
+                      <div className="mb-3 px-4 py-3 bg-purple-50/40 border border-purple-100/40 rounded-xl relative group transition-all hover:bg-purple-50/60 shadow-sm/50">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                                <Clock className="h-3 w-3 text-purple-400" />
+                                <span className="text-[10px] font-bold text-purple-600 uppercase tracking-wider">
+                                    Previous Internal Update
+                                </span>
+                            </div>
+                            <span className="text-[9px] font-semibold text-slate-400 bg-white/80 px-2 py-0.5 rounded-full border border-slate-100 shadow-sm">
+                                {previousUpdate.date}
+                            </span>
+                        </div>
+                        <div className="text-xs text-slate-600 line-clamp-4 leading-relaxed font-normal italic pl-1 border-l-2 border-purple-100/50 ml-0.5">
+                            "{previousUpdate.internal || "No content recorded"}"
+                        </div>
+                      </div>
+                    )}
+                    <Textarea
+                      id="internal"
+                      value={internalUpdate}
+                      onChange={(e) => setInternalUpdate(e.target.value)}
+                      placeholder="Detailed technical update for the team..."
+                      className="min-h-[120px] rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all p-4 leading-relaxed"
+                      readOnly={isViewMode}
+                    />
+                  </div>
                 </div>
               )}
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                    <Label htmlFor="client" className="text-sm font-semibold text-slate-700 ml-1">
-                    Client Update
-                    </Label>
-                    {!isViewMode && (
-                        <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setClientUpdate(internalUpdate)}
-                        className="h-7 px-2.5 text-[11px] font-semibold text-purple-600 border-purple-100 bg-purple-50/50 hover:bg-purple-100 hover:border-purple-200 hover:text-purple-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
-                        >
-                        <Copy className="h-3 w-3" />
-                        Same as Internal Update
-                        </Button>
-                    )}
-                </div>
-                <Textarea
-                  id="client"
-                  value={clientUpdate}
-                  onChange={(e) => setClientUpdate(e.target.value)}
-                  placeholder="Summary suitable for client review..."
-                  className="min-h-[120px] rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all p-4 leading-relaxed"
-                  readOnly={isViewMode}
-                />
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                    <Label htmlFor="internal" className="text-sm font-semibold text-slate-700 ml-1">
-                    Internal Update
-                    </Label>
-                    {!isViewMode && (
-                        <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setInternalUpdate(clientUpdate)}
-                        className="h-7 px-2.5 text-[11px] font-semibold text-purple-600 border-purple-100 bg-purple-50/50 hover:bg-purple-100 hover:border-purple-200 hover:text-purple-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
-                        >
-                        <Copy className="h-3 w-3" />
-                        Same as Client Update
-                        </Button>
-                    )}
-                </div>
-                <Textarea
-                  id="internal"
-                  value={internalUpdate}
-                  onChange={(e) => setInternalUpdate(e.target.value)}
-                  placeholder="Detailed technical update for the team..."
-                  className="min-h-[120px] rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all p-4 leading-relaxed"
-                  readOnly={isViewMode}
-                />
-              </div>
-            </div>
-          )}
-          </>
+            </>
           )}
         </div>
 
@@ -659,9 +748,14 @@ export function UpdateModal({
               onClick={handleSubmit}
               disabled={isSubmitting}
               size="default"
-              className="flex-1 sm:flex-initial rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow-md transition-all"
+              className={cn(
+                "flex-1 sm:flex-initial rounded-lg font-semibold shadow-md transition-all",
+                modalTab === "memo" 
+                  ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200" 
+                  : "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-200"
+              )}
             >
-              {isSubmitting ? "Saving..." : "Save Update"}
+              {isSubmitting ? "Saving..." : (hasExistingRecord ? "Update Record" : "Save Update")}
             </Button>
           )}
         </DialogFooter>

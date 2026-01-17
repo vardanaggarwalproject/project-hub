@@ -57,6 +57,7 @@ import { ProjectDetailsModal } from "@/common/ProjectDetailsModal";
 import { toast } from "sonner";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
+import { ClearFilterButton } from "@/components/ui/clear-filter-button";
 
 interface Project {
     id: string;
@@ -336,6 +337,7 @@ export default function AdminProjectsPage() {
                             <SelectItem value="on-hold">On Hold</SelectItem>
                         </SelectContent>
                     </Select>
+
                     <DateRangePicker
                         value={dateRange}
                         onChange={(range) => {
@@ -344,6 +346,15 @@ export default function AdminProjectsPage() {
                         }}
                         placeholder="Filter by date"
                         className="w-full sm:w-[280px]"
+                    />
+                    <ClearFilterButton 
+                        isActive={!!(search || statusFilter !== "all" || dateRange)}
+                        onClick={() => {
+                            setSearch("");
+                            setStatusFilter("all");
+                            setDateRange(undefined);
+                            setPage(1);
+                        }}
                     />
                     {canManageProjects && (
                         <Button onClick={handleAddProject} className="bg-blue-600 hover:bg-blue-700 shadow-md whitespace-nowrap">
