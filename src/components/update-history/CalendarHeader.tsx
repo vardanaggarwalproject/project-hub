@@ -20,8 +20,8 @@ export const CalendarHeader = React.memo(function CalendarHeader({
   onNextMonth,
 }: CalendarHeaderProps) {
   return (
-    <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-      <h2 className="text-lg font-semibold text-slate-900">
+    <div className="p-3 px-5 border-b border-slate-100 flex items-center justify-between">
+      <h2 className="text-base font-semibold text-slate-900">
         {format(currentMonth, "MMMM yyyy")} - {projectName || "Project"}
       </h2>
       <div className="flex gap-2">

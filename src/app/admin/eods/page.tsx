@@ -35,6 +35,7 @@ import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
+import { ClearFilterButton } from "@/components/ui/clear-filter-button";
 import {
     Table,
     TableBody,
@@ -254,19 +255,14 @@ export default function AdminEODPage() {
                                 placeholder="Filter by submitted date..."
                                 className="w-[280px]"
                             />
-                            <Button
-                                variant="outline"
-                                size="sm"
+                            <ClearFilterButton 
+                                isActive={!!(searchQuery || selectedProject || dateRange)}
                                 onClick={() => {
                                     setSearchQuery("");
                                     setSelectedProject("");
                                     setDateRange(undefined);
                                 }}
-                                className="h-10 px-4 text-xs font-semibold whitespace-nowrap bg-white border-slate-200 hover:bg-slate-50"
-                            >
-                                <X className="h-4 w-4 mr-2" />
-                                Clear
-                            </Button>
+                            />
                         </div>
                     </div>
                 </div>

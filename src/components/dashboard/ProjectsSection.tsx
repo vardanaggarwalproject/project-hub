@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Plus, History, Eye, ExternalLink, ArrowRight, Star, AlertCircle } from "lucide-react";
 import type { Project, ProjectStatus } from "@/types/project";
+import { cn } from "@/lib/utils";
 
 interface ProjectsSectionProps {
   projects: Project[];
@@ -19,6 +20,7 @@ interface ProjectsSectionProps {
   onOpenModal: (type: "memo" | "eod", projectId: string, date?: string) => void;
   onToggleActive: (projectId: string, currentStatus: boolean) => void;
   onHistoryClick: (projectId: string) => void;
+  onViewProject?: (projectId: string) => void;
 }
 
 /**
@@ -30,6 +32,7 @@ export const ProjectsSection = React.memo(function ProjectsSection({
   onOpenModal,
   onToggleActive,
   onHistoryClick,
+  onViewProject,
 }: ProjectsSectionProps) {
   return (
     <div>
@@ -64,7 +67,7 @@ export const ProjectsSection = React.memo(function ProjectsSection({
               return (
                 <div
                   key={project.id}
-                  className="p-4 hover:bg-slate-50 transition-colors duration-150"
+                  className="px-4 py-3 hover:bg-slate-50 transition-colors duration-150"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
@@ -156,15 +159,26 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Link href={`/user/projects/${project.id}`}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </Button>
-                            </Link>
+                              {onViewProject ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
+                                  onClick={() => onViewProject(project.id)}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <Link href={`/user/projects/${project.id}`}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                              )}
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>View Project</p>
@@ -172,14 +186,29 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                         </Tooltip>
                       </TooltipProvider>
                       <div className="w-px h-6 bg-slate-200 mx-1" />
-                      <Switch
-                        checked={project.isActive}
-                        onCheckedChange={() =>
-                          onToggleActive(project.id, project.isActive || false)
-                        }
-                        className="scale-90 cursor-pointer"
-                        title="Toggle Active Status"
-                      />
+                      {project.status !== 'active' ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="cursor-not-allowed opacity-50">
+                               <Switch
+                                checked={false}
+                                disabled={true}
+                                className="scale-90"
+                              />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Cannot activate: Project is marked as {project.status} by Admin</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Switch
+                          checked={project.isActive}
+                          onCheckedChange={() => onToggleActive(project.id, project.isActive || false)}
+                          className="scale-90 cursor-pointer"
+                          title="Toggle Active Status"
+                        />
+                      )}
                     </div>
                   </div>
                 </div>

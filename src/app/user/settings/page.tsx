@@ -1,64 +1,61 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { User, Bell, Shield, Palette, Plus } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState } from "react";
+import { Separator } from "@/components/ui/separator";
+import { SidebarNav } from "@/components/settings/sidebar-nav";
+import { User, Palette, Bell, Shield } from "lucide-react";
+import { ProfileSettings } from "@/components/settings/profile-settings";
+import { AppearanceSettings } from "@/components/settings/appearance-settings";
+import { PlaceholderSettings } from "@/components/settings/placeholder-settings";
+
+const sidebarNavItems = [
+  {
+    title: "Profile",
+    href: "profile",
+    icon: <User className="w-4 h-4" />,
+  },
+  {
+    title: "Appearance",
+    href: "appearance",
+    icon: <Palette className="w-4 h-4" />,
+  },
+  {
+    title: "Notifications",
+    href: "notifications",
+    icon: <Bell className="w-4 h-4" />,
+  },
+  {
+    title: "Security",
+    href: "security",
+    icon: <Shield className="w-4 h-4" />,
+  },
+];
 
 export default function UserSettingsPage() {
+    const [activeTab, setActiveTab] = useState("profile");
+
     return (
-         <div className="space-y-6">
-            <div>
-                <h2 className="text-3xl font-bold tracking-tight text-[#0f172a]">Settings</h2>
-                <p className="text-muted-foreground">Customize your account and organization preferences</p>
+        <div className="hidden space-y-6 pb-16 md:block max-w-7xl mx-auto">
+            <div className="space-y-0.5">
+                <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
+                <p className="text-muted-foreground">
+                    Manage your account settings and set e-mail preferences.
+                </p>
             </div>
-
-            <Tabs defaultValue="profile" className="space-y-6">
-                <TabsList className="bg-white p-1 border h-auto flex-wrap sm:flex-nowrap justify-start">
-                    <TabsTrigger value="profile" className="data-[state=active]:bg-slate-100 font-bold px-6 py-2.5">
-                        <User className="h-4 w-4 mr-2" />
-                        Profile
-                    </TabsTrigger>
-                    <TabsTrigger value="notifications" className="data-[state=active]:bg-slate-100 font-bold px-6 py-2.5">
-                        <Bell className="h-4 w-4 mr-2" />
-                        Notifications
-                    </TabsTrigger>
-                    <TabsTrigger value="security" className="data-[state=active]:bg-slate-100 font-bold px-6 py-2.5">
-                        <Shield className="h-4 w-4 mr-2" />
-                        Security
-                    </TabsTrigger>
-                    <TabsTrigger value="appearance" className="data-[state=active]:bg-slate-100 font-bold px-6 py-2.5">
-                        <Palette className="h-4 w-4 mr-2" />
-                        Appearance
-                    </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="profile">
-                    <Card className="border-none shadow-sm">
-                        <CardHeader>
-                            <CardTitle>Profile Information</CardTitle>
-                            <CardDescription>Update your personal details and how others see you.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="h-20 w-20 rounded-full bg-slate-100 flex items-center justify-center text-muted-foreground border-2 border-dashed border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
-                                <Plus className="h-6 w-6" />
-                            </div>
-                            <p className="text-sm text-muted-foreground italic">Profile editing module coming soon...</p>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-                
-                <TabsContent value="notifications">
-                    <Card className="border-none shadow-sm">
-                        <CardHeader>
-                            <CardTitle>Preferences</CardTitle>
-                            <CardDescription>Choose what updates you want to receive.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                             <p className="text-sm text-muted-foreground italic">Notification settings coming soon...</p>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
-         </div>
-    )
+            <Separator className="my-6" />
+            <div className="flex flex-col space-y-8 lg:flex-row lg:space-y-0 lg:gap-12">
+                <aside className="lg:w-1/5 overflow-hidden">
+                    <SidebarNav items={sidebarNavItems} activeTab={activeTab} onTabChange={setActiveTab} />
+                </aside>
+                <div className="flex-1 lg:max-w-2xl">
+                    <div className="space-y-6 animate-in fade-in-50 slide-in-from-bottom-4 duration-500">
+                         {activeTab === "profile" && <ProfileSettings />}
+                         {activeTab === "appearance" && <AppearanceSettings />}
+                         {activeTab === "notifications" && <PlaceholderSettings title="Notifications" icon={<Bell className="h-10 w-10 opacity-20"/>} />}
+                         {activeTab === "security" && <PlaceholderSettings title="Security" icon={<Shield className="h-10 w-10 opacity-20"/>} />}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }

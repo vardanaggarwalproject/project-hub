@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSocket } from "@/lib/socket";
@@ -11,6 +11,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { ProjectsSection } from "@/components/dashboard/ProjectsSection";
 import { ProjectHistoryDialog } from "@/components/project/ProjectHistoryDialog";
+import { ProjectDetailsModal } from "@/common/ProjectDetailsModal";
 import { MissingUpdatesSection } from "@/components/dashboard/MissingUpdatesSection";
 import type { Project, ProjectStatus, ProjectAssignment } from "@/types/project";
 import type { MissingUpdate, Memo, EOD } from "@/types/report";
@@ -41,6 +42,11 @@ export default function UserDashboardPage() {
   const [initialDate, setInitialDate] = useState<string>("");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  
+  // Details modal states
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [viewProjectId, setViewProjectId] = useState<string | null>(null);
+
   const [allMemos, setAllMemos] = useState<Memo[]>([]);
   const [allEods, setAllEods] = useState<EOD[]>([]);
 
@@ -282,13 +288,43 @@ export default function UserDashboardPage() {
     setInitialProjectId(projectId);
     setInitialDate(targetDate);
     
-    // Reset initial contents
+    // Default values if no existing report (will be overwritten if exists)
     setInitialMemoContent("");
-    setInitialShortMemoContent(""); // added
-    setInitialClientUpdate("");
+    setInitialShortMemoContent(""); 
+    setInitialClientUpdate(""); 
     setInitialInternalUpdate("");
+
+    // Find existing report if any
+    const dateStr = targetDate;
+    if (type === "memo") {
+        const existingMemo = allMemos.find(m => m.projectId === projectId && getLocalDateString(new Date(m.reportDate)) === dateStr);
+        if (existingMemo) {
+             setInitialMemoContent(existingMemo.memoContent || "");
+             // find short memo too
+             const shortMemo = allMemos.find(m => m.projectId === projectId && m.memoType === 'short' && getLocalDateString(new Date(m.reportDate)) === dateStr);
+             setInitialShortMemoContent(shortMemo?.memoContent || "");
+        }
+    } else {
+         const existingEod = allEods.find(e => e.projectId === projectId && getLocalDateString(new Date(e.reportDate)) === dateStr);
+         if (existingEod) {
+             setInitialClientUpdate(existingEod.clientUpdate || "");
+             setInitialInternalUpdate(existingEod.actualUpdate || "");
+         }
+    }
     
     setIsModalOpen(true);
+  };
+
+  const handleViewProject = (projectId: string) => {
+    setViewProjectId(projectId);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleCloseDetailsModal = (open: boolean) => {
+    setIsDetailsModalOpen(open);
+    if (!open) {
+      setViewProjectId(null);
+    }
   };
 
   const closeModal = () => {
@@ -303,6 +339,45 @@ export default function UserDashboardPage() {
     currentStatus: boolean
   ) => {
     if (!session?.user?.id) return;
+
+    // Check project status first
+    // Note: myProjects in dashboard is ALREADY filtered to only isActive=true projects (lines 136-137)
+    // However, if we want to support toggling OFFLINE projects ON, we might need allProjects soon?
+    // Wait, line 136 says: setMyProjects(activeProjects); 
+    // This means the user CANNOT see inactive projects on the dashboard currently?
+    // Let's verify... ProjectsSection uses `myProjects` which is `activeProjects`.
+    // BUT the toggle allows turning them OFF. This logic is fine for turning off.
+    // What about turning ON? The dashboard seems to ONLY show active projects.
+    // IF the user uses "View All" (UserProjectsPage), they can see inactive ones.
+    // BUT wait, ProjectsSection HAS a switch. If I turn it OFF, it stays in the list until refresh?
+    // Or it might disappear. 
+    
+    // Regardless, I should add the safety check here just in case.
+    // But I might not have access to the full project object if it was filtered out?
+    // Actually, `myProjects` contains the state. 
+
+    // The logic requested is: "if the project is on hold ... restricted ... toggle"
+    // Since dashboard implementation is:
+    // const activeProjects = userProjects.filter((p: Project) => p.isActive === true);
+    // setMyProjects(activeProjects);
+    
+    // Effectively, the dashboard projects ARE active. 
+    // BUT, what if the project ITSELF (admin status) is 'On Hold', but assignment is 'Active'?
+    // That's the edge case. Admin sets it to 'On Hold', but user still has it 'Active'.
+    // User tries to toggle it off (or on if it was effectively confusing).
+    // Actually, if Admin sets to On Hold, user shouldn't be work on it.
+    // If user tries to toggle it, we should check status.
+    
+    // We need to find the project in `userProjects` (which we don't have in scope here, only `myProjects`).
+    // `myProjects` serves the UI.
+    // Let's rely on `myProjects` since it comes from API.
+    
+    const project = myProjects.find(p => p.id === projectId);
+    if (project && project.status !== 'active') { // Admin status check
+         const capitalizedStatus = project.status.charAt(0).toUpperCase() + project.status.slice(1);
+         toast.error(`Cannot activate project. Status is currently "${capitalizedStatus}".`);
+         return;
+    }
 
     try {
       await projectsApi.toggleActive(projectId, session.user.id, !currentStatus);
@@ -321,7 +396,7 @@ export default function UserDashboardPage() {
   /**
    * Fetch reference data for modal (not used much anymore as we use local state)
    */
-  const referenceDataFetcher = async (
+  const referenceDataFetcher = useCallback(async (
     type: "memo" | "eod",
     projectId: string,
     date: string
@@ -330,7 +405,7 @@ export default function UserDashboardPage() {
     // is also used for the logic in UpdateModal to decide mode.
     // Let's keep it simple and just return the latest from local state if needed.
     return null; 
-  };
+  }, []);
 
   /**
    * Handle memo/EOD submission from modal
@@ -477,6 +552,7 @@ export default function UserDashboardPage() {
             setSelectedProjectId(pid);
             setIsHistoryOpen(true);
           }}
+          onViewProject={handleViewProject}
         />
 
         {/* Missing Updates */}
@@ -523,6 +599,13 @@ export default function UserDashboardPage() {
           onClose={() => setIsHistoryOpen(false)}
           projectId={selectedProjectId || ""}
           userId={session?.user?.id || ""}
+        />
+
+        <ProjectDetailsModal
+          open={isDetailsModalOpen}
+          onOpenChange={handleCloseDetailsModal}
+          projectId={viewProjectId}
+          userRole={session?.user?.role}
         />
       </div>
     </ErrorBoundary>

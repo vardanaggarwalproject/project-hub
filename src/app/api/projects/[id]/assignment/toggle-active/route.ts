@@ -41,6 +41,26 @@ export async function PATCH(
             );
         }
 
+        // Fetch project status to ensure it's active
+        const projectRes = await db.query.projects.findFirst({
+            where: (projects, { eq }) => eq(projects.id, projectId),
+            columns: { status: true }
+        });
+
+        if (!projectRes) {
+            return NextResponse.json(
+                { error: "Project not found" },
+                { status: 404 }
+            );
+        }
+
+        if (projectRes.status !== 'active') {
+            return NextResponse.json(
+                { error: `Cannot activate project because it is ${projectRes.status}` },
+                { status: 403 }
+            );
+        }
+
         // Update the assignment
         const updateData: any = {
             isActive: isActive,

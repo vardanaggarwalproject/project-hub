@@ -7,6 +7,7 @@ import type { DayStatus } from "@/types/report";
 interface CalendarGridProps {
   calendarDays: DayStatus[];
   onDayClick: (day: DayStatus, type: "memo" | "eod") => void;
+  isMemoRequired?: boolean;
 }
 
 /**
@@ -15,6 +16,7 @@ interface CalendarGridProps {
 export const CalendarGrid = React.memo(function CalendarGrid({
   calendarDays,
   onDayClick,
+  isMemoRequired,
 }: CalendarGridProps) {
   return (
     <>
@@ -23,7 +25,7 @@ export const CalendarGrid = React.memo(function CalendarGrid({
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
           <div
             key={day}
-            className="p-4 text-center text-xs font-bold text-slate-500 uppercase tracking-widest"
+            className="p-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest"
           >
             {day}
           </div>
@@ -35,30 +37,29 @@ export const CalendarGrid = React.memo(function CalendarGrid({
         {calendarDays.map((day, idx) => (
           <div
             key={idx}
-            className={`min-h-[140px] p-3 flex flex-col gap-2 transition-all duration-200 group relative ${day.isOtherMonth ? "bg-slate-50/50 opacity-40" : "bg-white hover:bg-slate-50"
+            className={`min-h-[110px] p-2 flex flex-col gap-1 transition-all duration-200 group relative ${day.isOtherMonth ? "bg-slate-50/50 opacity-40 uppercase" : "bg-white hover:bg-slate-50"
               } ${day.isToday ? "bg-blue-50/30 ring-inset ring-2 ring-blue-500/10 z-10" : ""}`}
             onClick={() => {
-              // Optional: Add entire cell click handler logic if desired, 
-              // currently handled by badges. But clicking empty space could trigger "Add".
-              // Keeping it badge-only for now to avoid confusion, or can enable cell click.
+              // Cell click could trigger add if needed
             }}
           >
             {day.isToday && (
-              <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-blue-500 ring-4 ring-blue-500/20" />
+              <div className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-blue-500 ring-2 ring-blue-500/20" />
             )}
-            <div className={`text-sm font-bold ${day.isToday ? "text-blue-600" : "text-slate-700"}`}>
+            <div className={`text-xs font-bold ${day.isToday ? "text-blue-600" : "text-slate-700"}`}>
               {format(day.date, "d")}
             </div>
 
-            <div className="flex flex-col gap-1.5 mt-auto">
-              {!day.isOtherMonth && (day.isValidDate || day.hasMemo || day.hasEOD) && (
+            <div className="flex flex-col gap-1 mt-auto">
+              {!day.isOtherMonth && (day.isValidDate || day.hasUniversal || day.hasShort || day.hasEOD) && (
                 <>
-                  {(day.hasMemo || day.isValidDate) && (
+                  {/* Universal Memo */}
+                  {(day.isValidDate || day.hasUniversal) && (
                     <Badge
                       variant="outline"
                       className={cn(
-                        "w-full justify-center text-[10px] cursor-pointer py-1 rounded-md border shadow-sm transition-all duration-200 active:scale-95",
-                        day.hasMemo
+                        "w-full justify-center text-[9px] cursor-pointer py-0.5 rounded-md border shadow-sm transition-all duration-200 active:scale-95",
+                        day.hasUniversal
                           ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
                           : day.isToday
                             ? "bg-amber-50 text-amber-700 border-amber-200 border-dashed"
@@ -66,30 +67,43 @@ export const CalendarGrid = React.memo(function CalendarGrid({
                       )}
                       onClick={() => onDayClick(day, "memo")}
                     >
-                      {day.hasMemo 
-                        ? "✓ Memo" 
-                        : day.isToday 
-                          ? "Pend. Memo" 
-                          : !day.hasUniversal 
-                            ? "Miss. Univ." 
-                            : "Miss. 140ch"}
+                      {day.hasUniversal ? "✓ Univ. Memo" : day.isToday ? "Pend. Univ." : "Miss. Univ."}
                     </Badge>
                   )}
 
-                  {(day.hasEOD || day.isValidDate) && (
+                  {/* 140ch Memo - Only if project requires it */}
+                  {isMemoRequired && (day.isValidDate || day.hasShort) && (
                     <Badge
                       variant="outline"
                       className={cn(
-                        "w-full justify-center text-[10px] cursor-pointer py-1 rounded-md border shadow-sm transition-all duration-200 active:scale-95",
+                        "w-full justify-center text-[9px] cursor-pointer py-0.5 rounded-md border shadow-sm transition-all duration-200 active:scale-95",
+                        day.hasShort
+                          ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                          : day.isToday
+                            ? "bg-rose-50 text-rose-700 border-rose-200 border-dashed"
+                            : "bg-red-50 text-red-700 border-red-200"
+                      )}
+                      onClick={() => onDayClick(day, "memo")}
+                    >
+                      {day.hasShort ? "✓ 140ch Memo" : day.isToday ? "Pend. 140ch" : "Miss. 140ch"}
+                    </Badge>
+                  )}
+
+                  {/* EOD Report */}
+                  {(day.isValidDate || day.hasEOD) && (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-center text-[9px] cursor-pointer py-0.5 rounded-md border shadow-sm transition-all duration-200 active:scale-95",
                         day.hasEOD
-                          ? "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+                          ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
                           : day.isToday
                             ? "bg-amber-50 text-amber-700 border-amber-200 border-dashed"
                             : "bg-red-50 text-red-700 border-red-200"
                       )}
                       onClick={() => onDayClick(day, "eod")}
                     >
-                      {day.hasEOD ? "✓ EOD" : day.isToday ? "Pend. EOD" : "Miss. EOD"}
+                      {day.hasEOD ? "✓ EOD Report" : day.isToday ? "Pend. EOD" : "Miss. EOD"}
                     </Badge>
                   )}
                 </>
@@ -100,22 +114,22 @@ export const CalendarGrid = React.memo(function CalendarGrid({
       </div>
 
       {/* Legend */}
-      < div className="p-4 bg-white border-t border-slate-100 flex flex-wrap gap-4 text-xs" >
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-green-100 border border-green-200"></div>
-          <span className="text-slate-600">Completed (click to view)</span>
+      < div className="p-3 px-5 bg-white border-t border-slate-100 flex flex-wrap gap-x-6 gap-y-2 text-[10px]" >
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded bg-green-50 border border-green-200"></div>
+          <span className="text-slate-600 font-medium">Completed Update</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-amber-100 border border-amber-200"></div>
-          <span className="text-slate-600">Pending Today (click to add)</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded bg-amber-50 border border-amber-200 border-dashed"></div>
+          <span className="text-slate-600 font-medium">Pending Today</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-red-100 border border-red-200"></div>
-          <span className="text-slate-600">Missing Past (click to add)</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded bg-red-50 border border-red-200"></div>
+          <span className="text-slate-600 font-medium">Missing Past</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-blue-50 border border-blue-500"></div>
-          <span className="text-slate-600">Today</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded bg-blue-50 border-2 border-blue-500/20"></div>
+          <span className="text-slate-600 font-medium">Today</span>
         </div>
       </div >
     </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Card } from "@/components/ui/card";
@@ -261,7 +261,7 @@ export default function UpdatesHistoryPage() {
   /**
    * Fetch reference data for modal (memo or EOD for selected date)
    */
-  const referenceDataFetcher = async (
+  const referenceDataFetcher = useCallback(async (
     type: "memo" | "eod",
     projectId: string,
     date: string
@@ -310,7 +310,7 @@ export default function UpdatesHistoryPage() {
       handleApiError(error, "Fetch reference data");
       return null;
     }
-  };
+  }, [session?.user?.id]);
 
   /**
    * Handle memo/EOD submission from modal
