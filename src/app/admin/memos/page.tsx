@@ -22,7 +22,8 @@ import {
     Copy,
     AlignLeft,
     X,
-    ShieldCheck
+    ShieldCheck,
+    AlertCircle
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
@@ -59,7 +60,7 @@ import {
 interface Memo {
     id: string;
     memoContent: string;
-    memoType: 'short' | 'detailed';
+    memoType: 'short' | 'universal';
     reportDate: Date;
     createdAt: Date;
     projectName: string;
@@ -95,7 +96,7 @@ export default function AdminMemosPage() {
     );
     const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
     const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get("search") || "");
-    const [activeDualMemos, setActiveDualMemos] = useState<{ short?: Memo, detailed?: Memo } | null>(null);
+    const [activeDualMemos, setActiveDualMemos] = useState<{ short?: Memo, universal?: Memo } | null>(null);
     const [isFetchingDual, setIsFetchingDual] = useState(false);
     const [show140Only, setShow140Only] = useState(false);
     const [showUniversalOnly, setShowUniversalOnly] = useState(false);
@@ -386,9 +387,13 @@ export default function AdminMemosPage() {
                                                             {memo.isMemoRequired && (
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
-                                                                        <div className="flex items-center justify-center p-1 rounded-full bg-blue-100/50 text-blue-600 hover:bg-blue-100 transition-colors cursor-help">
-                                                                            <ShieldCheck className="h-3.5 w-3.5" />
-                                                                        </div>
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className="bg-amber-50 text-amber-700 border-amber-300 text-[9px] px-1.5 py-0 h-4 cursor-help font-bold"
+                                                                        >
+                                                                            <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                                                                            140
+                                                                        </Badge>
                                                                     </TooltipTrigger>
                                                                     <TooltipContent side="top">
                                                                         <p className="text-[10px] font-bold uppercase tracking-wider">Detailed Memo Required</p>
@@ -454,7 +459,7 @@ export default function AdminMemosPage() {
                                                                     const memos = resData.data;
                                                                     setActiveDualMemos({
                                                                         short: memos.find((m: any) => m.memoType === 'short'),
-                                                                        detailed: memos.find((m: any) => m.memoType === 'detailed')
+                                                                        universal: memos.find((m: any) => m.memoType === 'universal')
                                                                     });
                                                                 }
                                                             } catch (error) {
@@ -480,12 +485,9 @@ export default function AdminMemosPage() {
                                                             <div className="p-6 border-b border-slate-100 bg-slate-50/30">
                                                                 <div className="flex items-center justify-between">
                                                                     <div className="flex items-center gap-4">
-                                                                        <Avatar className="h-12 w-12 border-2 border-white shadow-md">
-                                                                            <AvatarImage src={memo.user.image || ""} />
-                                                                            <AvatarFallback className="bg-blue-100 text-blue-700 font-bold text-sm">
-                                                                                {memo.user.name.substring(0, 2).toUpperCase()}
-                                                                            </AvatarFallback>
-                                                                        </Avatar>
+                                                                        <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 text-blue-600 dark:text-blue-400 shadow-sm transition-transform hover:scale-105">
+                                                                            <FolderKanban className="h-5 w-5" />
+                                                                        </div>
                                                                         <div className="flex-1 min-w-0">
                                                                             <DialogTitle className="text-xl font-bold text-slate-900 tracking-tight">
                                                                                 Daily Memo Report
@@ -496,7 +498,12 @@ export default function AdminMemosPage() {
                                                                         </div>
                                                                     </div>
                                                                     <div className="flex flex-col items-end gap-1">
-                                                                        {/* Removed unnecessary labels */}
+                                                                        <Avatar className="h-10 w-10 border-2 border-white shadow-md">
+                                                                            <AvatarImage src={memo.user.image || ""} />
+                                                                            <AvatarFallback className="bg-blue-100 text-blue-700 font-bold text-xs">
+                                                                                {memo.user.name.substring(0, 2).toUpperCase()}
+                                                                            </AvatarFallback>
+                                                                        </Avatar>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -536,9 +543,9 @@ export default function AdminMemosPage() {
                                                                             <Button
                                                                                 variant="ghost"
                                                                                 size="sm"
-                                                                                onClick={() => activeDualMemos?.short && copyToClipboard(activeDualMemos.short.memoContent)}
+                                                                                onClick={() => activeDualMemos?.universal && copyToClipboard(activeDualMemos.universal.memoContent)}
                                                                                 className="h-7 text-[10px] font-bold text-slate-400 hover:text-blue-600 hover:bg-blue-50"
-                                                                                disabled={!activeDualMemos?.short}
+                                                                                disabled={!activeDualMemos?.universal}
                                                                             >
                                                                                 <Copy className="h-3 w-3 mr-1.5" /> Copy
                                                                             </Button>
@@ -546,9 +553,9 @@ export default function AdminMemosPage() {
                                                                         <div className="p-5 min-h-[80px]">
                                                                             {isFetchingDual ? (
                                                                                 <div className="h-4 w-3/4 bg-slate-100 animate-pulse rounded" />
-                                                                            ) : activeDualMemos?.short ? (
+                                                                            ) : activeDualMemos?.universal ? (
                                                                                 <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                                                                                    {activeDualMemos.short.memoContent}
+                                                                                    {activeDualMemos.universal.memoContent}
                                                                                 </div>
                                                                             ) : (
                                                                                 <div className="text-sm text-slate-400 italic">Empty</div>
@@ -561,15 +568,21 @@ export default function AdminMemosPage() {
                                                                         <div className="border border-blue-100/50 rounded-2xl overflow-hidden bg-white shadow-sm ring-1 ring-blue-50/50">
                                                                             <div className="px-4 py-3 border-b border-blue-50 bg-blue-50/20 flex items-center justify-between">
                                                                                 <div className="flex items-center gap-2">
-                                                                                    <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+                                                                                    <Badge
+                                                                                        variant="outline"
+                                                                                        className="bg-amber-50 text-amber-700 border-amber-300 text-[9px] px-1.5 py-0 h-4 cursor-help font-bold"
+                                                                                    >
+                                                                                        <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                                                                                        140
+                                                                                    </Badge>
                                                                                     <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">140 Char Memo</p>
                                                                                 </div>
                                                                                 <Button
                                                                                     variant="ghost"
                                                                                     size="sm"
-                                                                                    onClick={() => activeDualMemos?.detailed && copyToClipboard(activeDualMemos.detailed.memoContent)}
+                                                                                    onClick={() => activeDualMemos?.short && copyToClipboard(activeDualMemos.short.memoContent)}
                                                                                     className="h-7 text-[10px] font-bold text-blue-400 hover:text-blue-600 hover:bg-blue-50/50"
-                                                                                    disabled={!activeDualMemos?.detailed}
+                                                                                    disabled={!activeDualMemos?.short}
                                                                                 >
                                                                                     <Copy className="h-3 w-3 mr-1.5" /> Copy
                                                                                 </Button>
@@ -577,9 +590,9 @@ export default function AdminMemosPage() {
                                                                             <div className="p-5 min-h-[80px]">
                                                                                 {isFetchingDual ? (
                                                                                     <div className="h-4 w-3/4 bg-slate-100 animate-pulse rounded" />
-                                                                                ) : activeDualMemos?.detailed ? (
+                                                                                ) : activeDualMemos?.short ? (
                                                                                     <div className="text-sm text-slate-700 leading-relaxed font-semibold whitespace-pre-wrap">
-                                                                                        {activeDualMemos.detailed.memoContent}
+                                                                                        {activeDualMemos.short.memoContent}
                                                                                     </div>
                                                                                 ) : (
                                                                                     <div className="text-sm text-slate-400 italic">Empty</div>
@@ -600,12 +613,12 @@ export default function AdminMemosPage() {
                                                                     <Button
                                                                         variant="outline"
                                                                         size="sm"
-                                                                        onClick={() => {
-                                                                            const combined = [];
-                                                                            if (activeDualMemos?.short) combined.push(`Universal Memo:\n${activeDualMemos.short.memoContent}`);
-                                                                            if (activeDualMemos?.detailed) combined.push(`140 Char Memo:\n${activeDualMemos.detailed.memoContent}`);
-                                                                            copyToClipboard(combined.join("\n\n") || memo.memoContent);
-                                                                        }}
+                                                                            onClick={() => {
+                                                                                const combined = [];
+                                                                                if (activeDualMemos?.universal) combined.push(`Universal Memo:\n${activeDualMemos.universal.memoContent}`);
+                                                                                if (activeDualMemos?.short) combined.push(`140 Char Memo:\n${activeDualMemos.short.memoContent}`);
+                                                                                copyToClipboard(combined.join("\n\n") || memo.memoContent);
+                                                                            }}
                                                                         className="h-8 text-[10px] font-bold border-slate-200 hover:bg-white"
                                                                     >
                                                                         Copy Combined

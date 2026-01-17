@@ -146,7 +146,17 @@ export async function POST(req: Request) {
             ));
 
         if (existing.length > 0) {
-            return NextResponse.json({ error: "EOD already exists for this date" }, { status: 409 });
+            const updatedReport = await db.update(eodReports)
+                .set({
+                    clientUpdate,
+                    actualUpdate,
+                    createdAt: new Date() // Treat update as a new submission date? Or keep original?
+                    // The user says "they are also correctly update with that" referring to dates.
+                    // So updating createdAt (submitted date) seems correct.
+                })
+                .where(eq(eodReports.id, existing[0].id))
+                .returning();
+            return NextResponse.json(updatedReport[0], { status: 200 });
         }
 
         const newReport = await db.insert(eodReports).values({
