@@ -1,9 +1,54 @@
 import { db } from "@/lib/db";
-import { memos } from "@/lib/db/schema";
+import { memos, user, projects } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { memoSchema } from "@/lib/validations/reports";
 import { dateComparisonClause } from "@/lib/db/utils";
+
+/**
+ * GET /api/memos/[id]
+ * Fetch a single memo with details
+ */
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const report = await db.select({
+      id: memos.id,
+      memoContent: memos.memoContent,
+      memoType: memos.memoType,
+      reportDate: memos.reportDate,
+      createdAt: memos.createdAt,
+      projectId: memos.projectId,
+      userId: memos.userId,
+      projectName: projects.name,
+      isMemoRequired: projects.isMemoRequired,
+      user: {
+        id: user.id,
+        name: user.name,
+        image: user.image,
+        role: user.role
+      }
+    })
+      .from(memos)
+      .leftJoin(user, eq(memos.userId, user.id))
+      .leftJoin(projects, eq(memos.projectId, projects.id))
+      .where(eq(memos.id, id))
+      .limit(1);
+
+    if (report.length === 0) {
+      return NextResponse.json({ error: "Memo not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(report[0]);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Failed to fetch memo" }, { status: 500 });
+  }
+}
 
 /**
  * PUT /api/memos/[id]

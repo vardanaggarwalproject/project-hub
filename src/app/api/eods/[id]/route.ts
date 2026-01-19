@@ -1,9 +1,54 @@
 import { db } from "@/lib/db";
-import { eodReports } from "@/lib/db/schema";
+import { eodReports, user, projects } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { eodSchema } from "@/lib/validations/reports";
 import { dateComparisonClause } from "@/lib/db/utils";
+
+/**
+ * GET /api/eods/[id]
+ * Fetch a single EOD report with details
+ */
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const report = await db.select({
+      id: eodReports.id,
+      clientUpdate: eodReports.clientUpdate,
+      actualUpdate: eodReports.actualUpdate,
+      reportDate: eodReports.reportDate,
+      createdAt: eodReports.createdAt,
+      projectId: eodReports.projectId,
+      userId: eodReports.userId,
+      projectName: projects.name,
+      isMemoRequired: projects.isMemoRequired,
+      user: {
+        id: user.id,
+        name: user.name,
+        image: user.image,
+        role: user.role
+      }
+    })
+      .from(eodReports)
+      .leftJoin(user, eq(eodReports.userId, user.id))
+      .leftJoin(projects, eq(eodReports.projectId, projects.id))
+      .where(eq(eodReports.id, id))
+      .limit(1);
+
+    if (report.length === 0) {
+      return NextResponse.json({ error: "EOD not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(report[0]);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Failed to fetch EOD" }, { status: 500 });
+  }
+}
 
 /**
  * PUT /api/eods/[id]
