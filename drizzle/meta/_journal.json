@@ -36,6 +36,13 @@
       "when": 1768643396240,
       "tag": "0007_soft_black_crow",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1768808612319,
+      "tag": "0008_chunky_thing",
+      "breakpoints": true
     }
   ]
 }
