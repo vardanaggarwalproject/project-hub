@@ -63,13 +63,13 @@ export async function GET(req: Request) {
         }
 
         const querySelection: any = {
-            id: memos.id,
-            memoContent: memos.memoContent,
-            memoType: memos.memoType,
+            id: sql<string>`MAX(${memos.id})`,
+            memoContent: sql<string>`COALESCE(MAX(CASE WHEN ${memos.memoType} = 'universal' THEN ${memos.memoContent} END), MAX(${memos.memoContent}))`,
+            memoType: sql<string>`MAX(${memos.memoType})`,
             projectId: memos.projectId,
             userId: memos.userId,
             reportDate: memos.reportDate,
-            createdAt: memos.createdAt,
+            createdAt: sql<Date>`MAX(${memos.createdAt})`,
         };
 
         if (!summary) {
@@ -83,20 +83,34 @@ export async function GET(req: Request) {
             };
         }
 
-        let query = db.select(querySelection).from(memos);
+        let query = db.select(querySelection).from(memos) as any;
 
         if (!summary) {
-            query = query.leftJoin(user, eq(memos.userId, user.id)) as any;
-            query = query.leftJoin(projects, eq(memos.projectId, projects.id)) as any;
+            query = query.leftJoin(user, eq(memos.userId, user.id));
+            query = query.leftJoin(projects, eq(memos.projectId, projects.id));
         }
 
-        const allMemos = await query
+
+        const allMemos = await (query
             .where(whereClause)
+            .groupBy(
+                sql`${memos.userId}`,
+                sql`${memos.projectId}`,
+                sql`${memos.reportDate}`,
+                ...(summary ? [] : [
+                    sql`${projects.name}`,
+                    sql`${projects.isMemoRequired}`,
+                    sql`${user.id}`,
+                    sql`${user.name}`,
+                    sql`${user.image}`,
+                    sql`${user.role}`
+                ])
+            ) as any)
             .limit(limit)
             .offset(offset)
-            .orderBy(desc(memos.createdAt));
+            .orderBy(desc(sql`MAX(${memos.createdAt})`));
 
-        let totalQuery = db.select({ count: sql<number>`count(*)` }).from(memos);
+        let totalQuery = db.select({ count: sql<number>`count(DISTINCT CONCAT(${memos.userId}, ${memos.projectId}, ${memos.reportDate}))` }).from(memos);
 
         // If we have filters that require the projects table, we must join it
         if (isMemoRequiredParam !== null || search) {

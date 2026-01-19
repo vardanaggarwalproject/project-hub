@@ -99,7 +99,7 @@ export default function AdminEODPage() {
     );
     const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
     const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get("search") || "");
-    const [activeAssociatedMemos, setActiveAssociatedMemos] = useState<{ short?: any, detailed?: any } | null>(null);
+    const [activeAssociatedMemos, setActiveAssociatedMemos] = useState<{ short?: any, universal?: any } | null>(null);
     const [isFetchingMemos, setIsFetchingMemos] = useState(false);
 
     const [reports, setReports] = useState<EODReport[]>([]);
@@ -363,7 +363,7 @@ export default function AdminEODPage() {
                                                                         const memos = resData.data;
                                                                         setActiveAssociatedMemos({
                                                                             short: memos.find((m: any) => m.memoType === 'short'),
-                                                                            detailed: memos.find((m: any) => m.memoType === 'detailed')
+                                                                            universal: memos.find((m: any) => m.memoType === 'universal')
                                                                         });
                                                                     }
                                                                 } catch (error) {
@@ -485,9 +485,9 @@ export default function AdminEODPage() {
                                                                                                     <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Universal Memo</p>
                                                                                                 </div>
                                                                                                 <div className="min-h-[40px]">
-                                                                                                    {activeAssociatedMemos?.short ? (
+                                                                                                    {activeAssociatedMemos?.universal ? (
                                                                                                         <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-                                                                                                            {activeAssociatedMemos.short.memoContent}
+                                                                                                            {activeAssociatedMemos.universal.memoContent}
                                                                                                         </p>
                                                                                                     ) : (
                                                                                                         <p className="text-sm text-slate-400 dark:text-slate-600 italic">No universal memo</p>
@@ -498,16 +498,16 @@ export default function AdminEODPage() {
                                                                                             {/* 140 Char Memo Card */}
                                                                                             <div className={cn(
                                                                                                 "bg-blue-500/5 border rounded-xl p-4 transition-colors",
-                                                                                                report.isMemoRequired ? "border-blue-100 dark:border-blue-900/30 shadow-sm" : "border-slate-100 dark:border-white/5 opacity-60"
+                                                                                                report.isMemoRequired ? "border-blue-100 dark:border-blue-900/30 shadow-sm" : "border-slate-100 dark:border-white/5 hidden"
                                                                                             )}>
                                                                                                 <div className="flex items-center gap-2 mb-2.5">
-                                                                                                    <div className={cn("h-1.5 w-1.5 rounded-full", report.isMemoRequired ? "bg-amber-500" : "bg-slate-300")} />
+                                                                                                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-[9px] px-1.5 py-0 h-4 cursor-help font-bold"><AlertCircle className="h-2.5 w-2.5 mr-0.5" />140</Badge>
                                                                                                     <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">140 Char Memo</p>
                                                                                                 </div>
                                                                                                 <div className="min-h-[40px]">
-                                                                                                    {activeAssociatedMemos?.detailed ? (
+                                                                                                    {activeAssociatedMemos?.short ? (
                                                                                                         <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-                                                                                                            {activeAssociatedMemos.detailed.memoContent}
+                                                                                                            {activeAssociatedMemos.short.memoContent}
                                                                                                         </p>
                                                                                                     ) : (
                                                                                                         <p className="text-sm text-slate-400 dark:text-slate-600 italic">
