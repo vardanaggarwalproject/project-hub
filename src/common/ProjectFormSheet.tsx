@@ -184,8 +184,10 @@ export function ProjectFormSheet({
           clientId,
           assignedUserIds: team.map((u) => u.id),
           links: validLinks.map((link) => ({
+            id: link.id,
             label: link.label,
             value: link.value,
+            allowedRoles: link.allowedRoles || globalAllowedRoles,
           })),
           isMemoRequired,
         }),
