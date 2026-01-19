@@ -355,6 +355,7 @@ export const assets = pgTable(
     projectId: text("project_id").notNull(),
     clientId: text("client_id"),
     uploadedBy: text("uploaded_by").notNull(),
+    allowedRoles: jsonb("allowed_roles").$type<string[]>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
