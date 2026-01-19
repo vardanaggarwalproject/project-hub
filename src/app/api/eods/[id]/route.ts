@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { eodReports } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { eodSchema } from "@/lib/validations/reports";
 import { dateComparisonClause } from "@/lib/db/utils";
 
@@ -10,7 +10,7 @@ import { dateComparisonClause } from "@/lib/db/utils";
  * Update an existing EOD
  */
 export async function PUT(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -86,7 +86,7 @@ export async function PUT(
  * Delete an EOD
  */
 export async function DELETE(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {

@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { assets, userProjectAssignments } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { z } from "zod";
@@ -13,10 +13,11 @@ const assetUpdateSchema = z.object({
 });
 
 export async function PATCH(
-    req: Request,
-    { params }: { params: { id: string } }
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await auth.api.getSession({
             headers: await headers(),
         });
@@ -25,7 +26,6 @@ export async function PATCH(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const id = params.id;
         const body = await req.json();
         const validation = assetUpdateSchema.safeParse(body);
 
@@ -86,10 +86,11 @@ export async function PATCH(
 }
 
 export async function DELETE(
-    req: Request,
-    { params }: { params: { id: string } }
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await auth.api.getSession({
             headers: await headers(),
         });
@@ -98,10 +99,11 @@ export async function DELETE(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const id = params.id;
-
         // Check ownership or admin status
-        const [existingAsset] = await db.select()
+        const [existingAsset] = await db.select({
+            id: assets.id,
+            projectId: assets.projectId,
+        })
             .from(assets)
             .where(eq(assets.id, id))
             .limit(1);

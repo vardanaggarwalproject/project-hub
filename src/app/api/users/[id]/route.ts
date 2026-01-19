@@ -2,7 +2,7 @@
 import { db } from "@/lib/db";
 import { user, roles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const ALLOWED_ROLES = ["admin", "developer", "tester", "designer"] as const;
@@ -13,7 +13,7 @@ const updateUserSchema = z.object({
     image: z.string().url().optional(),
 });
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
         const fetchedUser = await db.select().from(user).where(eq(user.id, id));
@@ -28,7 +28,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
 }
 
-export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
         const body = await req.json();
@@ -66,7 +66,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 }
 
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
         const deleted = await db.delete(user).where(eq(user.id, id)).returning();

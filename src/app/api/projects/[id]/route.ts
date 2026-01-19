@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { projects, clients, user, userProjectAssignments, chatGroups, links, assets } from "@/lib/db/schema";
 import { eq, sql, and, inArray } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const updateProjectSchema = z.object({
@@ -22,7 +22,7 @@ const updateProjectSchema = z.object({
 export const dynamic = 'force-dynamic';
 
 export async function GET(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
@@ -131,7 +131,7 @@ export async function GET(
 }
 
 export async function PATCH(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
@@ -273,7 +273,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
