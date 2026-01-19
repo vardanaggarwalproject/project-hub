@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { links, userProjectAssignments } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -14,7 +14,7 @@ const updateLinkSchema = z.object({
 });
 
 export async function PATCH(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
@@ -87,7 +87,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {

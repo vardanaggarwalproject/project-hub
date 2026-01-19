@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { memos } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { memoSchema } from "@/lib/validations/reports";
 import { dateComparisonClause } from "@/lib/db/utils";
 
@@ -10,7 +10,7 @@ import { dateComparisonClause } from "@/lib/db/utils";
  * Update an existing memo
  */
 export async function PUT(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -20,18 +20,19 @@ export async function PUT(
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: validation.error.issues },
+        { error: validation.error.format() },
         { status: 400 }
       );
     }
 
-    const { memoContent, projectId, userId, reportDate } = validation.data;
+    const { memoContent, projectId, userId, reportDate, memoType } =
+      validation.data;
 
     // Convert to Date object
     // We append T00:00:00 to ensure it's treated as a local date at midnight
     const dateObj = new Date(reportDate + "T00:00:00");
 
-    // Check if another memo exists for this user+project+date (excluding current memo)
+    // Check if another memo exists for this user+project+date+type (excluding current memo)
     const existing = await db
       .select()
       .from(memos)
@@ -39,6 +40,7 @@ export async function PUT(
         and(
           eq(memos.userId, userId),
           eq(memos.projectId, projectId),
+          eq(memos.memoType, memoType || 'short'),
           dateComparisonClause(memos.reportDate, dateObj)
         )
       );
@@ -48,7 +50,7 @@ export async function PUT(
 
     if (duplicates.length > 0) {
       return NextResponse.json(
-        { error: "Memo already exists for this date" },
+        { error: "Memo already exists for this date and type" },
         { status: 409 }
       );
     }
@@ -60,6 +62,7 @@ export async function PUT(
         memoContent,
         projectId,
         reportDate: dateObj,
+        memoType: memoType || "short",
         updatedAt: new Date(),
       })
       .where(eq(memos.id, id))
@@ -84,7 +87,7 @@ export async function PUT(
  * Delete a memo
  */
 export async function DELETE(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
