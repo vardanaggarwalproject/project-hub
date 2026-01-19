@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Copy, Clock, Calendar } from "lucide-react";
+import { AlertCircle, Copy, Clock, Calendar, Pencil, Trash2, X, Check } from "lucide-react";
 import type { Project } from "@/types/project";
 import type { Memo, EOD } from "@/types/report";
 import { MEMO_MAX_LENGTH } from "@/lib/constants";
@@ -65,6 +65,11 @@ interface UpdateModalProps {
     clientUpdate?: string;
     internalUpdate?: string;
   }) => Promise<void>;
+  onDelete?: (
+    type: "memo" | "eod",
+    projectId: string,
+    date: string
+  ) => Promise<void>;
 }
 
 /**
@@ -92,6 +97,7 @@ export function UpdateModal({
   existingMemos = [],
   existingEods = [],
   onSubmit,
+  onDelete,
 }: UpdateModalProps) {
   const [modalTab, setModalTab] = useState<"memo" | "eod">(initialTab);
   const [selectedDate, setSelectedDate] = useState(initialDate);
@@ -108,6 +114,8 @@ export function UpdateModal({
   const [localMode, setLocalMode] = useState<"view" | "edit">(mode);
   const [isLoading, setIsLoading] = useState(false);
   const [cachedReferenceData, setCachedReferenceData] = useState<Record<string, {type: string; content: string} | null>>({});
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Simplified logic to find the most recent previous update
   const previousUpdate = useMemo(() => {
@@ -392,6 +400,23 @@ export function UpdateModal({
     }
   };
 
+  const handleDelete = async () => {
+    if (!onDelete || !selectedProjectId || !selectedDate) return;
+    
+    setIsDeleting(true);
+    try {
+      await onDelete(modalTab, selectedProjectId, selectedDate);
+      toast.success(`${modalTab === "memo" ? "Memo" : "EOD Report"} deleted successfully`);
+      onClose();
+    } catch (error) {
+      console.error("Failed to delete", error);
+      toast.error("Failed to delete update");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   const isViewMode = localMode === "view";
 
   const hasExistingRecord = modalTab === "memo"
@@ -481,6 +506,69 @@ export function UpdateModal({
                 </div>
               )}
           </div>
+
+          {/* Action Row for View Mode */}
+          {isViewMode && hasExistingRecord && !isLoading && (
+            <div className="flex items-center justify-between px-1 mb-4 animate-in fade-in slide-in-from-top-1 duration-300">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  Actions
+                </span>
+                <div className="h-px w-8 bg-slate-100" />
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {showDeleteConfirm ? (
+                  <div className="flex items-center gap-1 bg-red-50 border border-red-100 rounded-lg p-1 animate-in zoom-in-95 duration-200">
+                    <span className="text-[10px] font-bold text-red-600 px-2 uppercase">Confirm?</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="h-8 w-8 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-md"
+                      title="Confirm Delete"
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="h-8 w-8 text-slate-400 hover:bg-white hover:text-slate-600 rounded-md"
+                      title="Cancel"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleInternalEditClick}
+                      size="icon" 
+                      className="h-9 w-9 rounded-lg border-blue-100 bg-blue-50/30 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm"
+                      title="Edit Entry"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    
+                    {onDelete && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="h-9 w-9 rounded-lg border-red-100 bg-red-50/30 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-sm"
+                        title="Delete Entry"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {isLoading ? (
             <div className="space-y-6 animate-in fade-in duration-300">
@@ -724,22 +812,12 @@ export function UpdateModal({
           )}
         </div>
 
-        <DialogFooter className="px-6 py-5 border-t border-slate-100 bg-slate-50/50 flex flex-row justify-end gap-3 sticky bottom-0 z-10 transition-all">
-          {isViewMode && hasExistingRecord && (
-            <Button 
-              variant="outline" 
-              onClick={handleInternalEditClick}
-              size="default" 
-              className="flex-1 sm:flex-initial rounded-lg border-blue-200 hover:bg-blue-50 hover:text-blue-700 text-blue-600 font-medium"
-            >
-              Edit
-            </Button>
-          )}
+        <DialogFooter className="px-6 py-5 border-t border-slate-100 bg-slate-50/50 flex flex-row items-center justify-end gap-3 sticky bottom-0 z-10 transition-all">
           <Button 
             variant="outline" 
             onClick={onClose} 
             size="default" 
-            className="flex-1 sm:flex-initial rounded-lg border-slate-200 hover:bg-white hover:text-slate-700"
+            className="flex-1 sm:flex-initial h-10 rounded-lg border-slate-200 hover:bg-white hover:text-slate-700 font-medium"
           >
             {isViewMode ? "Close" : "Cancel"}
           </Button>
@@ -749,7 +827,7 @@ export function UpdateModal({
               disabled={isSubmitting}
               size="default"
               className={cn(
-                "flex-1 sm:flex-initial rounded-lg font-semibold shadow-md transition-all",
+                "flex-1 sm:flex-initial h-10 rounded-lg font-semibold shadow-md transition-all px-6",
                 modalTab === "memo" 
                   ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200" 
                   : "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-200"
