@@ -74,8 +74,8 @@ export function ProjectHistoryDialog({
       const [projectData, assignmentData, memosData, eodsData] = await Promise.all([
         projectsApi.getById(projectId),
         projectsApi.getAssignment(projectId, userId).catch(() => null),
-        memosApi.getByFilters(userId, projectId, 1000, true),
-        eodsApi.getByFilters(userId, projectId, 1000, true),
+        memosApi.getByFilters(userId, projectId, 1000, false),
+        eodsApi.getByFilters(userId, projectId, 1000, false),
       ]);
 
       setProject(projectData);
@@ -330,74 +330,140 @@ export function ProjectHistoryDialog({
     internalUpdate?: string;
   }) => {
     try {
-      if (data.type === "memo") {
+      const savePromises = [];
+
+      // Check for Memo content
+      const hasMemoContent = data.memoContent?.trim() || (project?.isMemoRequired && data.shortMemoContent?.trim());
+      
+      if (hasMemoContent) {
         if (!data.memoContent?.trim()) {
           toast.error("Universal memo is required");
           return;
         }
         
         if (project?.isMemoRequired && !data.shortMemoContent?.trim()) {
-            toast.error("140chars memo is required for this project");
-            return;
+          toast.error("140chars memo is required for this project");
+          return;
         }
 
         const memoList = [];
         memoList.push({
-            memoContent: data.memoContent,
-            memoType: 'universal',
-            projectId: data.projectId,
-            userId,
-            reportDate: data.date
+          memoContent: data.memoContent,
+          memoType: "universal",
+          projectId: data.projectId,
+          userId,
+          reportDate: data.date,
         });
 
         if (project?.isMemoRequired && data.shortMemoContent) {
-            memoList.push({
-                memoContent: data.shortMemoContent,
-                memoType: 'short',
-                projectId: data.projectId,
-                userId,
-                reportDate: data.date
-            });
+          memoList.push({
+            memoContent: data.shortMemoContent,
+            memoType: "short",
+            projectId: data.projectId,
+            userId,
+            reportDate: data.date,
+          });
         }
 
-        await memosApi.create({
+        savePromises.push(
+          memosApi.create({
             memos: memoList,
             projectId: data.projectId,
             userId,
-            reportDate: data.date
-        });
+            reportDate: data.date,
+          })
+        );
+      }
 
-        toast.success(`Memo saved successfully!`);
-      } else {
+      // Check for EOD content
+      const hasEodContent = data.internalUpdate?.trim() || data.clientUpdate?.trim();
+      
+      if (hasEodContent) {
         if (!data.internalUpdate?.trim()) {
           toast.error("Please enter internal update");
           return;
         }
+
         if (selectedEOD) {
-          await eodsApi.update(selectedEOD.id, {
-            clientUpdate: data.clientUpdate || "",
-            actualUpdate: data.internalUpdate,
-            projectId,
-            userId,
-            reportDate: data.date,
-          });
+          savePromises.push(
+            eodsApi.update(selectedEOD.id, {
+              clientUpdate: data.clientUpdate || "",
+              actualUpdate: data.internalUpdate,
+              projectId,
+              userId,
+              reportDate: data.date,
+            })
+          );
         } else {
-          await eodsApi.create({
-            clientUpdate: data.clientUpdate || "",
-            actualUpdate: data.internalUpdate,
-            projectId,
-            userId,
-            reportDate: data.date,
-          });
+          savePromises.push(
+            eodsApi.create({
+              clientUpdate: data.clientUpdate || "",
+              actualUpdate: data.internalUpdate,
+              projectId,
+              userId,
+              reportDate: data.date,
+            })
+          );
         }
-        toast.success(`EOD ${selectedEOD ? "updated" : "saved"} successfully!`);
       }
+
+      if (savePromises.length === 0) {
+        toast.error("No content to save");
+        return;
+      }
+
+      await Promise.all(savePromises);
+      toast.success("Update(s) saved successfully!");
       await fetchData();
     } catch (error) {
       handleApiError(error, "Submit update");
       throw error;
     }
-  };;
+  };
+
+  /**
+   * Handle memo/EOD deletion
+   */
+  const handleDelete = async (
+    type: "memo" | "eod",
+    projectId: string,
+    date: string
+  ) => {
+    try {
+      if (type === "memo") {
+        const memosToDelete = memos.filter(
+          (m) =>
+            m.projectId === projectId &&
+            getLocalDateString(new Date(m.reportDate)) === date
+        );
+
+        if (memosToDelete.length === 0) {
+          toast.error("No memo found to delete");
+          return;
+        }
+
+        await Promise.all(memosToDelete.map((m) => memosApi.delete(m.id)));
+      } else {
+        const eodToDelete = eods.find(
+          (e) =>
+            e.projectId === projectId &&
+            getLocalDateString(new Date(e.reportDate)) === date
+        );
+
+        if (!eodToDelete) {
+          toast.error("No EOD report found to delete");
+          return;
+        }
+
+        await eodsApi.delete(eodToDelete.id);
+      }
+
+      await fetchData();
+    } catch (error) {
+      handleApiError(error, "Delete update");
+      throw error;
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -462,6 +528,7 @@ export function ProjectHistoryDialog({
           referenceDataFetcher={referenceDataFetcher}
           existingMemos={memos}
           existingEods={eods}
+          onDelete={handleDelete}
         />
       </DialogContent>
     </Dialog>

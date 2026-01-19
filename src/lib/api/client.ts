@@ -222,6 +222,17 @@ export const memosApi = {
     const result = await handleResponse<any>(response);
     return mapMemo(result);
   },
+
+  /**
+   * Delete a memo
+   */
+  async delete(id: string): Promise<{ success: boolean }> {
+    const response = await fetch(`/api/memos/${id}`, {
+      method: "DELETE",
+      headers: API_CONFIG.headers,
+    });
+    return handleResponse<{ success: boolean }>(response);
+  },
 };
 
 /**
@@ -281,5 +292,16 @@ export const eodsApi = {
     });
     const result = await handleResponse<any>(response);
     return mapEOD(result);
+  },
+
+  /**
+   * Delete an EOD
+   */
+  async delete(id: string): Promise<{ success: boolean }> {
+    const response = await fetch(`/api/eods/${id}`, {
+      method: "DELETE",
+      headers: API_CONFIG.headers,
+    });
+    return handleResponse<{ success: boolean }>(response);
   },
 };
