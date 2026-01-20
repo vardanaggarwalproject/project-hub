@@ -38,7 +38,6 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { AdminReportDetail } from "@/components/admin/AdminReportDetail";
 import { toast } from "sonner";
 import {
     Table,
@@ -112,14 +111,21 @@ export default function AdminMemosPage() {
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [page, setPage] = useState(1);
     const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
+    const [isViewInitialized, setIsViewInitialized] = useState(false);
     const limit = 10;
 
-    const [isDetailOpen, setIsDetailOpen] = useState(false);
-    const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+    // Initialize View Mode from LocalStorage
+    useEffect(() => {
+        const savedView = localStorage.getItem("admin_memo_view_mode");
+        if (savedView === "calendar" || savedView === "table") {
+            setViewMode(savedView);
+        }
+        setIsViewInitialized(true);
+    }, []);
 
-    const handleViewReport = (id: string) => {
-        setSelectedReportId(id);
-        setIsDetailOpen(true);
+    const handleViewChange = (mode: "table" | "calendar") => {
+        setViewMode(mode);
+        localStorage.setItem("admin_memo_view_mode", mode);
     };
 
     // Load filters from localStorage
@@ -218,7 +224,7 @@ export default function AdminMemosPage() {
         });
     };
 
-    if (isLoading && memos.length === 0) return (
+    if (!isViewInitialized || (isLoading && memos.length === 0)) return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="space-y-2">
@@ -277,53 +283,55 @@ export default function AdminMemosPage() {
                     </div>
 
                     {/* Filter Toolbar */}
-                    <div className="space-y-4 bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-sm mt-4">
-                        <div className="flex flex-col lg:flex-row items-center gap-4">
-                            <div className="relative flex-1 w-full">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search by user name..."
-                                    className="pl-10 h-11 bg-white border-slate-200 focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl placeholder:text-muted-foreground/70"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                                <ProjectSelect
-                                    value={selectedProject}
-                                    onValueChange={(val) => {
-                                        setSelectedProject(val);
-                                        if (val) {
+                    <div className="bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-sm mt-4">
+                        {viewMode === "table" && (
+                            <div className="flex flex-col lg:flex-row items-center gap-4 mb-4 pb-4 border-b border-slate-100">
+                                <div className="relative flex-1 w-full">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search by user name..."
+                                        className="pl-10 h-11 bg-white border-slate-200 focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl placeholder:text-muted-foreground/70"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                                    <ProjectSelect
+                                        value={selectedProject}
+                                        onValueChange={(val) => {
+                                            setSelectedProject(val);
+                                            if (val) {
+                                                setShow140Only(false);
+                                                setShowUniversalOnly(false);
+                                            }
+                                        }}
+                                    />
+                                    <DateRangePicker
+                                        value={dateRange}
+                                        onChange={setDateRange}
+                                        placeholder="Filter by report date..."
+                                        className="w-[280px]"
+                                    />
+                                    <ClearFilterButton 
+                                        isActive={!!(searchQuery || selectedProject || dateRange || show140Only || showUniversalOnly)}
+                                        onClick={() => {
+                                            setSearchQuery("");
+                                            setSelectedProject("");
+                                            setDateRange(undefined);
                                             setShow140Only(false);
                                             setShowUniversalOnly(false);
-                                        }
-                                    }}
-                                />
-                                <DateRangePicker
-                                    value={dateRange}
-                                    onChange={setDateRange}
-                                    placeholder="Filter by submitted date..."
-                                    className="w-[280px]"
-                                />
-                                <ClearFilterButton 
-                                    isActive={!!(searchQuery || selectedProject || dateRange || show140Only || showUniversalOnly)}
-                                    onClick={() => {
-                                        setSearchQuery("");
-                                        setSelectedProject("");
-                                        setDateRange(undefined);
-                                        setShow140Only(false);
-                                        setShowUniversalOnly(false);
-                                    }}
-                                />
+                                        }}
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        )}
 
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-slate-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner w-fit">
                                 <Button 
                                     variant="ghost" 
                                     size="sm" 
-                                    onClick={() => setViewMode("table")}
+                                    onClick={() => handleViewChange("table")}
                                     className={cn(
                                         "h-8 px-4 text-[10px] uppercase tracking-wider font-black transition-all rounded-lg",
                                         viewMode === "table" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
@@ -334,7 +342,7 @@ export default function AdminMemosPage() {
                                 <Button 
                                     variant="ghost" 
                                     size="sm" 
-                                    onClick={() => setViewMode("calendar")}
+                                    onClick={() => handleViewChange("calendar")}
                                     className={cn(
                                         "h-8 px-4 text-[10px] uppercase tracking-wider font-black transition-all rounded-lg",
                                         viewMode === "calendar" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
@@ -344,41 +352,43 @@ export default function AdminMemosPage() {
                                 </Button>
                             </div>
 
-                            <div className="flex items-center gap-6">
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id="140-memos"
-                                        checked={show140Only}
-                                        onCheckedChange={(c) => {
-                                            setShow140Only(!!c);
-                                            if (!!c) {
-                                                setSelectedProject("");
-                                                setShowUniversalOnly(false);
-                                            }
-                                            setPage(1);
-                                        }}
-                                        className="data-[state=checked]:bg-blue-600 border-slate-300 rounded-md"
-                                    />
-                                    <Label htmlFor="140-memos" className="text-xs font-bold text-slate-600 uppercase tracking-widest cursor-pointer select-none">140 Char Memo</Label>
-                                </div>
+                            {viewMode === "table" && (
+                                <div className="flex items-center gap-6">
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id="140-memos"
+                                            checked={show140Only}
+                                            onCheckedChange={(c) => {
+                                                setShow140Only(!!c);
+                                                if (!!c) {
+                                                    setSelectedProject("");
+                                                    setShowUniversalOnly(false);
+                                                }
+                                                setPage(1);
+                                            }}
+                                            className="data-[state=checked]:bg-blue-600 border-slate-300 rounded-md"
+                                        />
+                                        <Label htmlFor="140-memos" className="text-xs font-bold text-slate-600 uppercase tracking-widest cursor-pointer select-none">140 Char Memo</Label>
+                                    </div>
 
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id="universal-memos"
-                                        checked={showUniversalOnly}
-                                        onCheckedChange={(c) => {
-                                            setShowUniversalOnly(!!c);
-                                            if (!!c) {
-                                                setSelectedProject("");
-                                                setShow140Only(false);
-                                            }
-                                            setPage(1);
-                                        }}
-                                        className="data-[state=checked]:bg-blue-600 border-slate-300 rounded-md"
-                                    />
-                                    <Label htmlFor="universal-memos" className="text-xs font-bold text-slate-600 uppercase tracking-widest cursor-pointer select-none">Universal Only</Label>
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id="universal-memos"
+                                            checked={showUniversalOnly}
+                                            onCheckedChange={(c) => {
+                                                setShowUniversalOnly(!!c);
+                                                if (!!c) {
+                                                    setSelectedProject("");
+                                                    setShow140Only(false);
+                                                }
+                                                setPage(1);
+                                            }}
+                                            className="data-[state=checked]:bg-blue-600 border-slate-300 rounded-md"
+                                        />
+                                        <Label htmlFor="universal-memos" className="text-xs font-bold text-slate-600 uppercase tracking-widest cursor-pointer select-none">Universal Only</Label>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -479,21 +489,191 @@ export default function AdminMemosPage() {
                                                     </Tooltip>
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6">
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="icon" 
-                                                                className="h-9 w-9 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 rounded-xl transition-all active:scale-95"
-                                                                onClick={() => handleViewReport(memo.id)}
-                                                            >
-                                                                <Eye className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p className="text-[10px] font-bold uppercase tracking-wider">View Full Report</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
+                                                    <Dialog onOpenChange={async (open) => {
+                                                        if (open) {
+                                                            setIsFetchingDual(true);
+                                                            setActiveDualMemos(null);
+                                                            try {
+                                                                const params = new URLSearchParams({
+                                                                    projectId: memo.projectId,
+                                                                    userId: memo.user.id, // Use memo.user.id
+                                                                    date: format(memo.reportDate, "yyyy-MM-dd"),
+                                                                    summary: "true"
+                                                                });
+                                                                const res = await fetch(`/api/memos?${params.toString()}`);
+                                                                const resData = await res.json();
+                                                                if (resData.data) {
+                                                                    const memos = resData.data;
+                                                                    setActiveDualMemos({
+                                                                        short: memos.find((m: any) => m.memoType === 'short'),
+                                                                        universal: memos.find((m: any) => m.memoType === 'universal')
+                                                                    });
+                                                                }
+                                                            } catch (error) {
+                                                                console.error("Error fetching dual memos", error);
+                                                            } finally {
+                                                                setIsFetchingDual(false);
+                                                            }
+                                                        }
+                                                    }}>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <DialogTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full">
+                                                                        <Eye className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DialogTrigger>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p className="text-[10px] font-bold uppercase tracking-wider">Click to view Memo</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                            <DialogContent className="max-w-2xl w-[95vw] sm:w-full rounded-2xl border border-slate-200 shadow-lg p-0 bg-white overflow-hidden max-h-[85vh] flex flex-col">
+                                                                <div className="p-6 border-b border-slate-100 bg-slate-50/30 flex-shrink-0">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <div className="flex items-center gap-4">
+                                                                            <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 text-blue-600 dark:text-blue-400 shadow-sm transition-transform hover:scale-105">
+                                                                                <FolderKanban className="h-5 w-5" />
+                                                                            </div>
+                                                                            <div className="flex-1 min-w-0">
+                                                                                <DialogTitle className="text-xl font-bold text-slate-900 tracking-tight">
+                                                                                    Daily Memo Report
+                                                                                </DialogTitle>
+                                                                                <p className="text-sm text-slate-500 font-medium">
+                                                                                    Reviewing updates from <span className="text-slate-900 font-bold">{memo.user.name}</span>
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex flex-col items-end gap-1">
+                                                                            <Avatar className="h-10 w-10 border-2 border-white shadow-md">
+                                                                                <AvatarImage src={memo.user.image || ""} />
+                                                                                <AvatarFallback className="bg-blue-100 text-blue-700 font-bold text-xs">
+                                                                                    {memo.user.name.substring(0, 2).toUpperCase()}
+                                                                                </AvatarFallback>
+                                                                            </Avatar>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+                                                                    {/* Project & Date Headers */}
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                                        <div className="bg-slate-50/80 border border-slate-100 rounded-2xl p-4 transition-all hover:bg-white hover:shadow-sm">
+                                                                            <div className="flex items-center gap-2 mb-1.5">
+                                                                                <FolderKanban className="h-3.5 w-3.5 text-blue-500" />
+                                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Project Assignment</p>
+                                                                            </div>
+                                                                            <p className="text-sm font-bold text-slate-900 truncate">
+                                                                                {memo.projectName}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="bg-slate-50/80 border border-slate-100 rounded-2xl p-4 transition-all hover:bg-white hover:shadow-sm">
+                                                                            <div className="flex items-center gap-2 mb-1.5">
+                                                                                <CalendarIcon className="h-3.5 w-3.5 text-blue-500" />
+                                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reporting Date</p>
+                                                                            </div>
+                                                                            <p className="text-sm font-bold text-slate-900">
+                                                                                {format(memo.reportDate, "MMMM d, yyyy")}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Memo Content Areas */}
+                                                                    <div className="space-y-4">
+                                                                        {/* Universal Memo Section */}
+                                                                        <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm ring-1 ring-slate-100/50">
+                                                                            <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                                                                    <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Universal Memo</p>
+                                                                                </div>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    onClick={() => activeDualMemos?.universal && copyToClipboard(activeDualMemos.universal.memoContent)}
+                                                                                    className="h-7 text-[10px] font-bold text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                                                                                    disabled={!activeDualMemos?.universal}
+                                                                                >
+                                                                                    <Copy className="h-3 w-3 mr-1.5" /> Copy
+                                                                                </Button>
+                                                                            </div>
+                                                                            <div className="p-5 min-h-[80px]">
+                                                                                {isFetchingDual ? (
+                                                                                    <div className="h-4 w-3/4 bg-slate-100 animate-pulse rounded" />
+                                                                                ) : activeDualMemos?.universal ? (
+                                                                                    <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                                                                        {activeDualMemos.universal.memoContent}
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="text-sm text-slate-400 italic">Empty</div>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* 140 Char Memo Section - Only if required */}
+                                                                        {memo.isMemoRequired && (
+                                                                            <div className="border border-blue-100/50 rounded-2xl overflow-hidden bg-white shadow-sm ring-1 ring-blue-50/50">
+                                                                                <div className="px-4 py-3 border-b border-blue-50 bg-blue-50/20 flex items-center justify-between">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <Badge
+                                                                                            variant="outline"
+                                                                                            className="bg-amber-50 text-amber-700 border-amber-300 text-[9px] px-1.5 py-0 h-4 cursor-help font-bold"
+                                                                                        >
+                                                                                            <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                                                                                            140
+                                                                                        </Badge>
+                                                                                        <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">140 Char Memo</p>
+                                                                                    </div>
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="sm"
+                                                                                        onClick={() => activeDualMemos?.short && copyToClipboard(activeDualMemos.short.memoContent)}
+                                                                                        className="h-7 text-[10px] font-bold text-blue-400 hover:text-blue-600 hover:bg-blue-50/50"
+                                                                                        disabled={!activeDualMemos?.short}
+                                                                                    >
+                                                                                        <Copy className="h-3 w-3 mr-1.5" /> Copy
+                                                                                    </Button>
+                                                                                </div>
+                                                                                <div className="p-5 min-h-[80px]">
+                                                                                    {isFetchingDual ? (
+                                                                                        <div className="h-4 w-3/4 bg-slate-100 animate-pulse rounded" />
+                                                                                    ) : activeDualMemos?.short ? (
+                                                                                        <div className="text-sm text-slate-700 leading-relaxed font-semibold whitespace-pre-wrap">
+                                                                                            {activeDualMemos.short.memoContent}
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <div className="text-sm text-slate-400 italic">Empty</div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between flex-shrink-0">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                                                                            Logged At: {format(memo.createdAt, "h:mm a, MMM d")}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex gap-2">
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                                onClick={() => {
+                                                                                    const combined = [];
+                                                                                    if (activeDualMemos?.universal) combined.push(`Universal Memo:\n${activeDualMemos.universal.memoContent}`);
+                                                                                    if (activeDualMemos?.short) combined.push(`140 Char Memo:\n${activeDualMemos.short.memoContent}`);
+                                                                                    copyToClipboard(combined.join("\n\n") || memo.memoContent);
+                                                                                }}
+                                                                            className="h-8 text-[10px] font-bold border-slate-200 hover:bg-white"
+                                                                        >
+                                                                            Copy Combined
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            </DialogContent>
+                                                    </Dialog>
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -544,13 +724,6 @@ export default function AdminMemosPage() {
                 </Card>
                 )}
             </div>
-
-            <AdminReportDetail 
-                isOpen={isDetailOpen}
-                onOpenChange={setIsDetailOpen}
-                reportId={selectedReportId}
-                type="memo"
-            />
         </TooltipProvider>
     );
 }

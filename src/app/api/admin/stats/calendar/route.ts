@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { eodReports, memos, user, projects, userProjectAssignments } from "@/lib/db/schema";
 import { eq, and, sql, between, gte, lte } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isWeekend, startOfWeek, endOfWeek, isAfter } from "date-fns";
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, isWeekend, startOfWeek, endOfWeek, isAfter, startOfDay } from "date-fns";
 import { dateComparisonClause } from "@/lib/db/utils";
 
 /**
@@ -44,11 +44,13 @@ export async function GET(req: Request) {
                 .where(between(memos.reportDate, fetchStart, fetchEnd))
         ]);
 
-        // 2. Fetch all active project assignments
+        // 2. Fetch all project assignments with their activation status
         const assignments = await db.select({
             userId: userProjectAssignments.userId,
             projectId: userProjectAssignments.projectId,
             assignedAt: userProjectAssignments.assignedAt,
+            isActive: userProjectAssignments.isActive,
+            lastActivatedAt: userProjectAssignments.lastActivatedAt,
         }).from(userProjectAssignments);
 
         const days = eachDayOfInterval({ start: fetchStart, end: fetchEnd });
@@ -60,6 +62,7 @@ export async function GET(req: Request) {
             const dateStr = format(day, "yyyy-MM-dd");
             const isDayWeekend = isWeekend(day);
             const isFuture = isAfter(day, todayAtMidnight);
+            const dayStart = startOfDay(day);
 
             // Filter submissions for this day (normalize reportDate to compare only YYYY-MM-DD)
             const dayEods = eodData.filter(e => format(new Date(e.reportDate), "yyyy-MM-dd") === dateStr);
@@ -69,7 +72,7 @@ export async function GET(req: Request) {
             const currentSubmissions = type === "eod" ? dayEods : dayMemos;
 
             // Unique users who submitted the current type
-            const uniqueUsersSubmittedCurrent = new Set(currentSubmissions.map(s => s.userId));
+            // const uniqueUsersSubmittedCurrent = new Set(currentSubmissions.map(s => s.userId));
 
             // Unique users who submitted BOTH (EOD and Memo)
             // This is for the "userCount" requirement: "users who have submitted their eod and memo"
@@ -78,30 +81,37 @@ export async function GET(req: Request) {
             const usersSubmittedBoth = Array.from(uniqueUsersEod).filter(uId => uniqueUsersMemo.has(uId));
 
             // Missed calculation: 
-            // We need to know which assignments were active on this day.
-            // For simplicity, we check: assignedAt <= day AND (if today or past, isActive is true or lastActivatedAt <= day)
-            // Actually, we'll just check if assignedAt <= day. 
-            // Better logic: if the assignment exists and was assigned before/on this day.
-            // And it should not be weekend (unless it's today and they submitted).
-            const activeAssignmentsOnDay = assignments.filter(a => {
-                const assignedDate = new Date(a.assignedAt);
-                assignedDate.setHours(0, 0, 0, 0);
-                return assignedDate <= day;
-            });
-
-            const uniquePairsActive = new Set(activeAssignmentsOnDay.map(a => `${a.userId}-${a.projectId}`));
+            // Only consider assignments that are CURRENTLY ACTIVE.
+            // And where the 'lastActivatedAt' is <= day.
+            // This means we don't count "missed" for days before they last activated the project.
+            // 1. Identify ALL uniquely submitted pairs (User + Project)
+            // This includes BOTH Active and Inactive users (Historical Data)
+            // Using a Set ensures that if a user submitted 2 memos (short + universal), it counts as 1.
             const uniquePairsSubmitted = new Set(currentSubmissions.map(s => `${s.userId}-${s.projectId}`));
 
-            // missedCount: Active assignments that have no submission for the current type
+            // 2. Identify Assignments that were ACTIVE on this day
+            const activeAssignmentsOnDay = assignments.filter(a => {
+                const assignedDate = startOfDay(new Date(a.assignedAt));
+                // Must be currently active AND assigned on/before this day
+                if (!a.isActive) return false;
+                if (assignedDate > day) return false;
+                return true;
+            });
+
+            // 3. Calculate "Missed" 
+            // Definition: Users who are CURRENTLY ACTIVE but did NOT submit.
+            // Inactive users are NOT counted as missed, even if they have no submission.
             let missedCount = 0;
-            // Only count "missed" for past/today and non-weekends
+            const uniquePairsActive = new Set(activeAssignmentsOnDay.map(a => `${a.userId}-${a.projectId}`));
+
             if (!isFuture && !isDayWeekend) {
+                // Check which ACTIVE assignments are NOT in the submitted set
                 missedCount = Array.from(uniquePairsActive).filter(pair => !uniquePairsSubmitted.has(pair)).length;
             }
 
             return {
                 date: day.toISOString(),
-                submittedCount: isFuture ? 0 : currentSubmissions.length,
+                submittedCount: isFuture ? 0 : uniquePairsSubmitted.size, // Count unique pairs (fixes memo double count + includes inactive)
                 missedCount: missedCount,
                 userCount: isFuture ? 0 : usersSubmittedBoth.length,
                 projectCount: isFuture ? 0 : new Set(activeAssignmentsOnDay.map(a => a.projectId)).size,

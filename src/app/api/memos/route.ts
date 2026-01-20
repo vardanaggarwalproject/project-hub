@@ -15,20 +15,23 @@ export async function GET(req: Request) {
         const projectId = searchParams.get("projectId");
         const userId = searchParams.get("userId");
         const search = searchParams.get("search");
-        const summary = searchParams.get("summary") === "true";
+        const summary = searchParams.get("summary") === "true"; // If true, return grouped data (but now we group by default for list too?)
+        // Actually, for the main list, we ALWAYS want grouped data to avoid duplicates (Universal + Short).
+        // But the 'summary' param was previously used for detailed view to get BOTH types.
+        // Let's make the default behavior "Grouped" for the list view, but ensure we return enough data.
+
         const page = parseInt(searchParams.get("page") || "1");
         const limit = parseInt(searchParams.get("limit") || "10");
         const isMemoRequiredParam = searchParams.get("isMemoRequired");
         const offset = (page - 1) * limit;
 
-        let query: any;
         let whereClause = undefined;
         const conditions = [];
 
         if (projectId) conditions.push(eq(memos.projectId, projectId));
         if (userId) conditions.push(eq(memos.userId, userId));
 
-        // Handle date range or single date filtering using createdAt (Submission Date)
+        // Handle date range or single date filtering
         const fromDate = searchParams.get("fromDate");
         const toDate = searchParams.get("toDate");
         const dateParam = searchParams.get("date");
@@ -37,17 +40,17 @@ export async function GET(req: Request) {
             const start = new Date(fromDate);
             const end = new Date(toDate);
             if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-                conditions.push(dateRangeComparisonClause(memos.createdAt, start, end));
+                conditions.push(dateRangeComparisonClause(memos.reportDate, start, end));
             }
         } else if (dateParam) {
             const filterDate = new Date(dateParam);
             if (!isNaN(filterDate.getTime())) {
-                conditions.push(dateComparisonClause(memos.createdAt, filterDate));
+                conditions.push(dateComparisonClause(memos.reportDate, filterDate));
             }
         } else if (fromDate) {
             const start = new Date(fromDate);
             if (!isNaN(start.getTime())) {
-                conditions.push(dateComparisonClause(memos.createdAt, start));
+                conditions.push(dateComparisonClause(memos.reportDate, start));
             }
         }
 
@@ -63,66 +66,77 @@ export async function GET(req: Request) {
             whereClause = and(...conditions);
         }
 
-        if (summary) {
-            // Grouped view for lists/summaries
-            const querySelection: any = {
-                id: sql<string>`MAX(${memos.id})`,
-                memoContent: sql<string>`COALESCE(MAX(CASE WHEN ${memos.memoType} = 'universal' THEN ${memos.memoContent} END), MAX(${memos.memoContent}))`,
-                memoType: sql<string>`MAX(${memos.memoType})`,
-                projectId: memos.projectId,
-                userId: memos.userId,
-                reportDate: memos.reportDate,
-                createdAt: sql<Date>`MAX(${memos.createdAt})`,
-            };
+        // If summary is true, we want individual records (detailed view)
+        // If summary is false, we want grouped records (list view, to avoid duplicates)
 
-            query = db.select(querySelection).from(memos)
-                .where(whereClause)
-                .groupBy(
-                    sql`${memos.userId}`,
-                    sql`${memos.projectId}`,
-                    sql`${memos.reportDate}`
-                );
-        } else {
-            // Detailed view returning all individual records
-            const querySelection: any = {
-                id: memos.id,
-                memoContent: memos.memoContent,
-                memoType: memos.memoType,
-                projectId: memos.projectId,
-                userId: memos.userId,
-                reportDate: memos.reportDate,
-                createdAt: memos.createdAt,
-                projectName: projects.name,
-                isMemoRequired: projects.isMemoRequired,
-                user: {
-                    id: user.id,
-                    name: user.name,
-                    image: user.image,
-                    role: user.role
-                }
-            };
+        const querySelection: any = summary ? {
+            id: memos.id,
+            memoContent: memos.memoContent,
+            memoType: memos.memoType,
+            projectId: memos.projectId,
+            userId: memos.userId,
+            reportDate: memos.reportDate,
+            createdAt: memos.createdAt,
+            projectName: projects.name,
+            isMemoRequired: projects.isMemoRequired,
+            user: {
+                id: user.id,
+                name: user.name,
+                image: user.image,
+                role: user.role
+            }
+        } : {
+            id: sql<string>`MAX(${memos.id})`, // Just pick one ID for key
+            memoContent: sql<string>`COALESCE(MAX(CASE WHEN ${memos.memoType} = 'universal' THEN ${memos.memoContent} END), MAX(${memos.memoContent}))`,
+            memoType: sql<string>`MAX(${memos.memoType})`, // Represents one of them
+            projectId: memos.projectId,
+            userId: memos.userId,
+            reportDate: memos.reportDate,
+            createdAt: sql<Date>`MAX(${memos.createdAt})`,
+            projectName: sql<string>`MAX(${projects.name})`,
+            isMemoRequired: sql<boolean>`BOOL_OR(${projects.isMemoRequired})`,
+            user: {
+                id: memos.userId,
+                name: sql<string>`MAX(${user.name})`,
+                image: sql<string>`MAX(${user.image})`,
+                role: sql<string>`MAX(${user.role})`
+            }
+        };
 
-            query = db.select(querySelection).from(memos)
-                .leftJoin(user, eq(memos.userId, user.id))
-                .leftJoin(projects, eq(memos.projectId, projects.id))
-                .where(whereClause);
-        }
+        const baseQuery = db.select(querySelection).from(memos)
+            .leftJoin(user, eq(memos.userId, user.id))
+            .leftJoin(projects, eq(memos.projectId, projects.id))
+            .where(whereClause);
+
+        const query = summary
+            ? baseQuery
+            : baseQuery.groupBy(
+                memos.userId,
+                memos.projectId,
+                memos.reportDate,
+            );
+
+        // Sorting
+        const orderByClause = summary
+            ? desc(memos.createdAt)
+            : desc(sql`MAX(${memos.createdAt})`);
 
         const allMemos = await query
             .limit(limit)
             .offset(offset)
-            .orderBy(desc(summary ? sql`MAX(${memos.createdAt})` : memos.createdAt));
+            .orderBy(orderByClause);
 
-        let totalQuery = db.select({ count: sql<number>`count(DISTINCT CONCAT(${memos.userId}, ${memos.projectId}, ${memos.reportDate}))` }).from(memos);
+        // Count distinct groups for pagination
+        let totalQuery = db.select({
+            count: sql<number>`count(DISTINCT CONCAT(${memos.userId}, ${memos.projectId}, ${memos.reportDate}))`
+        }).from(memos);
 
-        // If we have filters that require the projects table, we must join it
         if (isMemoRequiredParam !== null || search) {
             totalQuery = totalQuery.leftJoin(user, eq(memos.userId, user.id)) as any;
             totalQuery = totalQuery.leftJoin(projects, eq(memos.projectId, projects.id)) as any;
         }
 
         const totalResult = await totalQuery.where(whereClause);
-
         const total = Number(totalResult[0]?.count || 0);
 
         return NextResponse.json({

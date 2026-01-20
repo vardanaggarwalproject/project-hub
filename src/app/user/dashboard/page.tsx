@@ -145,7 +145,7 @@ export default function UserDashboardPage() {
       // Fetch user's projects, memos, and EODs - USE SUMMARY MODE for performance
       const [projectsData, memosData, eodsData] = await Promise.all([
         projectsApi.getAll(),
-        memosApi.getByFilters(userId, undefined, 3000, false),
+        memosApi.getByFilters(userId, undefined, 3000, true),
         eodsApi.getByFilters(userId, undefined, 3000, false),
       ]);
 

@@ -36,17 +36,17 @@ export async function GET(req: Request) {
             const start = new Date(fromDate);
             const end = new Date(toDate);
             if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-                conditions.push(dateRangeComparisonClause(eodReports.createdAt, start, end));
+                conditions.push(dateRangeComparisonClause(eodReports.reportDate, start, end));
             }
         } else if (dateParam) {
             const filterDate = new Date(dateParam);
             if (!isNaN(filterDate.getTime())) {
-                conditions.push(dateComparisonClause(eodReports.createdAt, filterDate));
+                conditions.push(dateComparisonClause(eodReports.reportDate, filterDate));
             }
         } else if (fromDate) {
             const start = new Date(fromDate);
             if (!isNaN(start.getTime())) {
-                conditions.push(dateComparisonClause(eodReports.createdAt, start));
+                conditions.push(dateComparisonClause(eodReports.reportDate, start));
             }
         }
 
@@ -58,49 +58,51 @@ export async function GET(req: Request) {
             whereClause = and(...conditions);
         }
 
+        // Use grouping to ensure strict uniqueness
         const querySelection: any = {
-            id: eodReports.id,
+            id: sql<string>`MAX(${eodReports.id})`,
             projectId: eodReports.projectId,
             userId: eodReports.userId,
-            clientUpdate: eodReports.clientUpdate,
-            actualUpdate: eodReports.actualUpdate,
+            clientUpdate: sql<string>`MAX(${eodReports.clientUpdate})`,
+            actualUpdate: sql<string>`MAX(${eodReports.actualUpdate})`,
             reportDate: eodReports.reportDate,
-            createdAt: eodReports.createdAt,
+            createdAt: sql<Date>`MAX(${eodReports.createdAt})`,
+            projectName: sql<string>`MAX(${projects.name})`,
+            isMemoRequired: sql<boolean>`BOOL_OR(${projects.isMemoRequired})`,
+            user: {
+                id: eodReports.userId,
+                name: sql<string>`MAX(${user.name})`,
+                image: sql<string>`MAX(${user.image})`,
+                role: sql<string>`MAX(${user.role})`
+            }
         };
 
-        if (!summary) {
-            querySelection.projectName = projects.name;
-            querySelection.isMemoRequired = projects.isMemoRequired;
-            querySelection.user = {
-                id: user.id,
-                name: user.name,
-                image: user.image,
-                role: user.role
-            };
-        }
-
-        let query = db.select(querySelection).from(eodReports);
-
-        if (!summary) {
-            query = query.leftJoin(user, eq(eodReports.userId, user.id)) as any;
-            query = query.leftJoin(projects, eq(eodReports.projectId, projects.id)) as any;
-        }
+        const query = db.select(querySelection).from(eodReports)
+            .leftJoin(user, eq(eodReports.userId, user.id))
+            .leftJoin(projects, eq(eodReports.projectId, projects.id))
+            .where(whereClause)
+            .groupBy(
+                eodReports.userId,
+                eodReports.projectId,
+                eodReports.reportDate
+            );
 
         const reports = await query
-            .where(whereClause)
             .limit(limit)
             .offset(offset)
-            .orderBy(desc(eodReports.createdAt));
+            .orderBy(desc(sql`MAX(${eodReports.createdAt})`));
 
-        let totalQuery = db.select({ count: sql<number>`count(*)` }).from(eodReports);
+        let totalQuery = db.select({
+            count: sql<number>`count(DISTINCT CONCAT(${eodReports.userId}, ${eodReports.projectId}, ${eodReports.reportDate}))`
+        }).from(eodReports);
 
         // If we have filters that require joining other tables (like search by user name)
         if (search) {
             totalQuery = totalQuery.leftJoin(user, eq(eodReports.userId, user.id)) as any;
+            totalQuery = totalQuery.leftJoin(projects, eq(eodReports.projectId, projects.id)) as any;
         }
 
         const totalResult = await totalQuery.where(whereClause);
-
         const total = Number(totalResult[0]?.count || 0);
 
         return NextResponse.json({

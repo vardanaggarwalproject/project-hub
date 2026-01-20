@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { eodReports, memos, user, projects, userProjectAssignments } from "@/lib/db/schema";
 import { eq, and, sql, between } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { format } from "date-fns";
+import { format, startOfDay } from "date-fns";
 import { dateComparisonClause } from "@/lib/db/utils";
 
 /**
@@ -27,23 +27,36 @@ export async function GET(req: Request) {
         if (targetDate > todayAtMidnight) {
             return NextResponse.json([]); // No details for future dates
         }
+
         // 1. Fetch all active assignments for that date
-        // (Similar logic to calendar stats)
         const assignments = await db.select({
             userId: userProjectAssignments.userId,
             userName: user.name,
+            // userImage: user.image, // Removed for UI cleanup
+            // userRole: user.role,   // Removed for UI cleanup
             projectId: userProjectAssignments.projectId,
             projectName: projects.name,
             assignedAt: userProjectAssignments.assignedAt,
+            isActive: userProjectAssignments.isActive,
+            lastActivatedAt: userProjectAssignments.lastActivatedAt,
         })
             .from(userProjectAssignments)
             .innerJoin(user, eq(userProjectAssignments.userId, user.id))
             .innerJoin(projects, eq(userProjectAssignments.projectId, projects.id));
 
         const activeOnDay = assignments.filter(a => {
-            const assigned = new Date(a.assignedAt);
-            assigned.setHours(0, 0, 0, 0);
-            return assigned <= targetDate;
+            // Must be currently active
+            if (!a.isActive) return false;
+
+            // Assignment must have existed on or before this day
+            const assignedDate = startOfDay(new Date(a.assignedAt));
+            if (assignedDate > targetDate) return false;
+
+            // IGNORE lastActivatedAt for past dates check if user is currently active
+            // const activatedDate = startOfDay(new Date(a.lastActivatedAt || a.assignedAt));
+            // if (activatedDate > targetDate) return false;
+
+            return true;
         });
 
         // 2. Fetch submissions for that date
@@ -73,19 +86,84 @@ export async function GET(req: Request) {
             submissionMap.set(`${s.userId}-${s.projectId}`, s);
         });
 
-        // 3. Combine to show all active users for those projects
-        const results = activeOnDay.map(a => {
-            const sub = submissionMap.get(`${a.userId}-${a.projectId}`);
-            return {
+        // 3. Combine to show: 
+        // - All currently ACTIVE users (Submitted or Missed)
+        // - Any INACTIVE users who have a submission (History)
+
+        const activeUserProjectPairs = new Set();
+        const results: any[] = [];
+
+        // A. Add all currently ACTIVE users
+        activeOnDay.forEach(a => {
+            const pairId = `${a.userId}-${a.projectId}`;
+            activeUserProjectPairs.add(pairId);
+
+            const sub = submissionMap.get(pairId);
+            results.push({
                 user: a.userName,
                 project: a.projectName,
                 submittedAt: sub ? format(new Date(sub.createdAt), "h:mm a") : "-",
                 status: sub ? "submitted" : "missed",
                 id: sub ? sub.id : null,
                 projectId: a.projectId,
-                userId: a.userId
-            };
+                userId: a.userId,
+                isActive: true
+            });
         });
+
+        // B. Add INACTIVE users who have a submission (History)
+        const inactiveSubmissions = submissions.filter(s => !activeUserProjectPairs.has(`${s.userId}-${s.projectId}`));
+
+        // Deduplicate inactive submissions (e.g. if multiple memos per user/project)
+        const uniqueInactivePairs = new Map();
+        inactiveSubmissions.forEach(s => {
+            const pairId = `${s.userId}-${s.projectId}`;
+            if (!uniqueInactivePairs.has(pairId)) {
+                uniqueInactivePairs.set(pairId, s);
+            }
+        });
+
+        if (uniqueInactivePairs.size > 0) {
+            const uniqueInactiveList = Array.from(uniqueInactivePairs.values());
+            const inactiveUserIds = uniqueInactiveList.map(s => s.userId);
+            const inactiveProjectIds = uniqueInactiveList.map(s => s.projectId);
+
+            // Fetch names for these inactive submissions
+            const inactiveDetails = await db.select({
+                userId: user.id,
+                userName: user.name,
+                projectId: projects.id,
+                projectName: projects.name
+            })
+                .from(user)
+                .innerJoin(userProjectAssignments, eq(user.id, userProjectAssignments.userId))
+                .innerJoin(projects, eq(projects.id, userProjectAssignments.projectId))
+                .where(
+                    and(
+                        sql`${user.id} IN ${inactiveUserIds}`,
+                        sql`${projects.id} IN ${inactiveProjectIds}`
+                    )
+                );
+
+            const paramMap = new Map();
+            inactiveDetails.forEach(d => paramMap.set(`${d.userId}-${d.projectId}`, d));
+
+            uniqueInactiveList.forEach(sub => {
+                const details = paramMap.get(`${sub.userId}-${sub.projectId}`);
+                if (details) {
+                    results.push({
+                        user: details.userName,
+                        project: details.projectName,
+                        submittedAt: format(new Date(sub.createdAt), "h:mm a"),
+                        status: "submitted",
+                        id: sub.id,
+                        projectId: sub.projectId,
+                        userId: sub.userId,
+                        isActive: false // These are inactive users
+                    });
+                }
+            });
+        }
 
         // Sort by submitted first, then name
         results.sort((a, b) => {

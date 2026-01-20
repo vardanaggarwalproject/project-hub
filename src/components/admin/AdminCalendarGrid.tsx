@@ -60,7 +60,7 @@ export const AdminCalendarGrid = React.memo(function AdminCalendarGrid({
                 {format(day.date, "d")}
               </div>
 
-              {!isFuture && stats && (
+              {!isFuture && stats && (stats.submittedCount > 0 || stats.missedCount > 0) && (
                 <div className="flex flex-col gap-1 mt-auto">
                   {/* Submitted Count */}
                   <Badge
