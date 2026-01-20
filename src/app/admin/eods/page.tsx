@@ -26,10 +26,12 @@ import {
     X,
     Clock,
     ShieldCheck,
-    AlertCircle
+    AlertCircle,
+    LayoutGrid,
 } from "lucide-react";
 
 import { ProjectSelect } from "@/components/admin/ProjectSelect";
+import { AdminCalendarView } from "@/components/admin/AdminCalendarView";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
@@ -106,7 +108,23 @@ export default function AdminEODPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [meta, setMeta] = useState<PaginationMeta | null>(null);
+    const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
+    const [isViewInitialized, setIsViewInitialized] = useState(false);
     const limit = 10;
+
+    // Initialize View Mode from LocalStorage
+    useEffect(() => {
+        const savedView = localStorage.getItem("admin_eod_view_mode");
+        if (savedView === "calendar" || savedView === "table") {
+            setViewMode(savedView);
+        }
+        setIsViewInitialized(true);
+    }, []);
+
+    const handleViewChange = (mode: "table" | "calendar") => {
+        setViewMode(mode);
+        localStorage.setItem("admin_eod_view_mode", mode);
+    };
 
     // Debounce search
     useEffect(() => {
@@ -177,7 +195,7 @@ export default function AdminEODPage() {
         });
     };
 
-    if (isLoading && reports.length === 0) return (
+    if (!isViewInitialized || (isLoading && reports.length === 0)) return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="space-y-2">
@@ -237,37 +255,71 @@ export default function AdminEODPage() {
                     </div>
 
                     {/* Filter Toolbar */}
-                    <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-sm mt-4">
-                        <div className="relative flex-1 w-full">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search by user name..."
-                                className="pl-10 h-10 bg-slate-50 border-slate-200 focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg placeholder:text-muted-foreground/70"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 lg:ml-auto">
-                            <ProjectSelect value={selectedProject} onValueChange={setSelectedProject} />
-                            <DateRangePicker
-                                value={dateRange}
-                                onChange={setDateRange}
-                                placeholder="Filter by submitted date..."
-                                className="w-[280px]"
-                            />
-                            <ClearFilterButton 
-                                isActive={!!(searchQuery || selectedProject || dateRange)}
-                                onClick={() => {
-                                    setSearchQuery("");
-                                    setSelectedProject("");
-                                    setDateRange(undefined);
-                                }}
-                            />
+                    <div className="bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-sm mt-4">
+                        {viewMode === "table" && (
+                            <div className="flex flex-col lg:flex-row items-center gap-4 mb-4 pb-4 border-b border-slate-100">
+                                <div className="relative flex-1 w-full">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search by user name..."
+                                        className="pl-10 h-11 bg-white border-slate-200 focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl placeholder:text-muted-foreground/70"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                                    <ProjectSelect value={selectedProject} onValueChange={setSelectedProject} />
+                                    <DateRangePicker
+                                        value={dateRange}
+                                        onChange={setDateRange}
+                                        placeholder="Filter by report date..."
+                                        className="w-[280px]"
+                                    />
+                                    <ClearFilterButton 
+                                        isActive={!!(searchQuery || selectedProject || dateRange)}
+                                        onClick={() => {
+                                            setSearchQuery("");
+                                            setSelectedProject("");
+                                            setDateRange(undefined);
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex justify-start">
+                            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner w-fit">
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => handleViewChange("table")}
+                                    className={cn(
+                                        "h-8 px-4 text-[10px] uppercase tracking-wider font-black transition-all rounded-lg",
+                                        viewMode === "table" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                    )}
+                                >
+                                    <LayoutGrid className="h-3.5 w-3.5 mr-2" /> Table
+                                </Button>
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => handleViewChange("calendar")}
+                                    className={cn(
+                                        "h-8 px-4 text-[10px] uppercase tracking-wider font-black transition-all rounded-lg",
+                                        viewMode === "calendar" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                    )}
+                                >
+                                    <CalendarIcon className="h-3.5 w-3.5 mr-2" /> Calendar
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <Card className="border-none shadow-md overflow-hidden bg-white/50 backdrop-blur-sm">
+                {viewMode === "calendar" ? (
+                    <AdminCalendarView type="eod" />
+                ) : (
+                    <Card className="border-none shadow-md overflow-hidden bg-white/50 backdrop-blur-sm">
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
                             <Table>
@@ -647,6 +699,7 @@ export default function AdminEODPage() {
                         )}
                     </CardContent>
                 </Card>
+                )}
             </div>
         </TooltipProvider >
     );
