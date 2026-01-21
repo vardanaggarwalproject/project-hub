@@ -17,6 +17,11 @@ export const roleEnum = pgEnum("role_enum", [
   "designer",
 ]);
 
+export const folderTypeEnum = pgEnum("folder_type_enum", [
+  "client",
+  "internal",
+]);
+
 export const roles = pgTable(
   "roles",
   {
@@ -129,6 +134,11 @@ export const projects = pgTable(
     status: text("status"),
     description: text("description"),
     isMemoRequired: boolean("is_memo_required").default(false).notNull(),
+    // Google Drive integration fields
+    driveFolderId: text("drive_folder_id"),
+    driveClientFolderId: text("drive_client_folder_id"),
+    driveInternalFolderId: text("drive_internal_folder_id"),
+    driveFolderCreatedAt: timestamp("drive_folder_created_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -356,6 +366,9 @@ export const assets = pgTable(
     clientId: text("client_id"),
     uploadedBy: text("uploaded_by").notNull(),
     allowedRoles: jsonb("allowed_roles").$type<string[]>(),
+    // Google Drive integration fields
+    driveFileId: text("drive_file_id"),
+    folderType: folderTypeEnum("folder_type"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

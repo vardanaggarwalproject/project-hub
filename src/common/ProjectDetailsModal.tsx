@@ -7,6 +7,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,6 +52,7 @@ import { getSocket } from "@/lib/socket";
 import { authClient } from "@/lib/auth-client";
 import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { UploadForm } from "@/components/drive/upload-form";
 
 interface ProjectDetailsModalProps {
   open: boolean;
@@ -555,40 +562,70 @@ export function ProjectDetailsModal({
 
                     {isAssetFormOpen ? (
                       <div className="bg-app-subtle p-5 rounded-xl border border-app mb-6">
-                        <form onSubmit={handleSaveAsset} className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label className="text-xs">Asset Name</Label>
-                              <Input className="h-9 text-sm" placeholder="e.g. Logo Set" value={assetTitle} onChange={(e) => setAssetTitle(e.target.value)} required />
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-xs">Resource Link</Label>
-                              <Input className="h-9 text-sm" placeholder="URL or file link" value={assetUrl} onChange={(e) => setAssetUrl(e.target.value)} required />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs">Visibility</Label>
-                            <div className="flex flex-wrap gap-3 p-3 bg-white dark:bg-app-card rounded-lg border border-app">
-                              {["admin", "developer", "tester", "designer"].map((role) => (
-                                <div key={role} className="flex items-center space-x-2">
-                                  <Checkbox 
-                                    id={`asset-role-${role}`} 
-                                    checked={assetRoles.includes(role)}
-                                    onCheckedChange={(checked) => checked ? setAssetRoles([...assetRoles, role]) : setAssetRoles(assetRoles.filter(r => r !== role))}
-                                    disabled={role === "admin"}
-                                  />
-                                  <Label htmlFor={`asset-role-${role}`} className="text-[10px] capitalize cursor-pointer">{role}</Label>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 pt-2">
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setIsAssetFormOpen(false)} className="flex-1 h-9">Cancel</Button>
-                            <Button type="submit" size="sm" className="flex-1 h-9 bg-purple-600 hover:bg-purple-700 text-white" disabled={isSavingAsset}>
-                              {isSavingAsset ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Asset"}
+                        <Tabs defaultValue="drive" className="w-full">
+                          <TabsList className="grid w-full grid-cols-2 mb-4">
+                            <TabsTrigger value="drive">Upload to Drive</TabsTrigger>
+                            <TabsTrigger value="link">Add Link</TabsTrigger>
+                          </TabsList>
+
+                          <TabsContent value="drive">
+                            <UploadForm
+                              projectId={projectId!}
+                              userRole={userRole as any}
+                              userEmail={session?.user?.email}
+                              onUploadSuccess={() => {
+                                setIsAssetFormOpen(false);
+                                fetchProjectDetails();
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setIsAssetFormOpen(false)}
+                              className="w-full mt-4 h-9"
+                            >
+                              Cancel
                             </Button>
-                          </div>
-                        </form>
+                          </TabsContent>
+
+                          <TabsContent value="link">
+                            <form onSubmit={handleSaveAsset} className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Asset Name</Label>
+                                  <Input className="h-9 text-sm" placeholder="e.g. Logo Set" value={assetTitle} onChange={(e) => setAssetTitle(e.target.value)} required />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Resource Link</Label>
+                                  <Input className="h-9 text-sm" placeholder="URL or file link" value={assetUrl} onChange={(e) => setAssetUrl(e.target.value)} required />
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs">Visibility</Label>
+                                <div className="flex flex-wrap gap-3 p-3 bg-white dark:bg-app-card rounded-lg border border-app">
+                                  {["admin", "developer", "tester", "designer"].map((role) => (
+                                    <div key={role} className="flex items-center space-x-2">
+                                      <Checkbox
+                                        id={`asset-role-${role}`}
+                                        checked={assetRoles.includes(role)}
+                                        onCheckedChange={(checked) => checked ? setAssetRoles([...assetRoles, role]) : setAssetRoles(assetRoles.filter(r => r !== role))}
+                                        disabled={role === "admin"}
+                                      />
+                                      <Label htmlFor={`asset-role-${role}`} className="text-[10px] capitalize cursor-pointer">{role}</Label>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 pt-2">
+                                <Button type="button" variant="ghost" size="sm" onClick={() => setIsAssetFormOpen(false)} className="flex-1 h-9">Cancel</Button>
+                                <Button type="submit" size="sm" className="flex-1 h-9 bg-purple-600 hover:bg-purple-700 text-white" disabled={isSavingAsset}>
+                                  {isSavingAsset ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Asset"}
+                                </Button>
+                              </div>
+                            </form>
+                          </TabsContent>
+                        </Tabs>
                       </div>
                     ) : filteredAssets.length > 0 ? (
                       <div className="space-y-2">
