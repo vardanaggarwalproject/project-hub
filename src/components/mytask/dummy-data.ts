@@ -1,16 +1,22 @@
 export type Priority = "low" | "medium" | "high";
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  image: string | null;
+  role: string;
+}
+
 export interface Task {
   id: string;
   title: string;
   description?: string;
   priority: Priority;
   dueDate?: string;
-  assignee?: {
-    name: string;
-    avatar?: string;
-    initials: string;
-  };
+  assignees: User[];
+  tags?: string[];
+  projectId?: string;
 }
 
 export interface Column {
@@ -38,6 +44,45 @@ export const COLUMN_COLORS = [
   { name: "Pink", value: "#EC4899", light: "#FCE7F3" },
 ];
 
+// Dummy users
+const dummyUsers: User[] = [
+  {
+    id: "user-1",
+    name: "Alice Johnson",
+    email: "alice@example.com",
+    image: null,
+    role: "Developer",
+  },
+  {
+    id: "user-2",
+    name: "Bob Smith",
+    email: "bob@example.com",
+    image: null,
+    role: "Developer",
+  },
+  {
+    id: "user-3",
+    name: "Charlie Davis",
+    email: "charlie@example.com",
+    image: null,
+    role: "Designer",
+  },
+  {
+    id: "user-4",
+    name: "Diana Evans",
+    email: "diana@example.com",
+    image: null,
+    role: "Developer",
+  },
+  {
+    id: "user-5",
+    name: "Eve Martinez",
+    email: "eve@example.com",
+    image: null,
+    role: "Tester",
+  },
+];
+
 // Dummy data for the Kanban board
 export const dummyBoard: Board = {
   id: "board-1",
@@ -54,11 +99,8 @@ export const dummyBoard: Board = {
           description: "Create high-fidelity mockups for the new landing page with updated branding",
           priority: "high",
           dueDate: "2026-01-25",
-          assignee: {
-            name: "Alice Johnson",
-            initials: "AJ",
-            avatar: undefined,
-          },
+          assignees: [dummyUsers[0]],
+          tags: ["design", "ui"],
         },
         {
           id: "task-2",
@@ -66,10 +108,8 @@ export const dummyBoard: Board = {
           description: "Configure GitHub Actions for automated testing and deployment",
           priority: "medium",
           dueDate: "2026-01-28",
-          assignee: {
-            name: "Bob Smith",
-            initials: "BS",
-          },
+          assignees: [dummyUsers[1]],
+          tags: ["devops"],
         },
         {
           id: "task-3",
@@ -77,20 +117,16 @@ export const dummyBoard: Board = {
           description: "Document all REST API endpoints with examples",
           priority: "low",
           dueDate: "2026-02-01",
-          assignee: {
-            name: "Charlie Davis",
-            initials: "CD",
-          },
+          assignees: [dummyUsers[2]],
+          tags: ["docs"],
         },
         {
           id: "task-4",
           title: "Update dependencies",
           description: "Update all npm packages to latest stable versions",
           priority: "low",
-          assignee: {
-            name: "Bob Smith",
-            initials: "BS",
-          },
+          assignees: [dummyUsers[1]],
+          tags: ["maintenance"],
         },
       ],
     },

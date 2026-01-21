@@ -32,6 +32,7 @@ interface ColumnProps {
   onEditColumn?: (column: ColumnType) => void;
   onEditTask?: (task: Task) => void;
   onDeleteTask?: (taskId: string) => void;
+  onViewDetailTask?: (task: Task) => void;
   children?: React.ReactNode;
 }
 
@@ -43,6 +44,7 @@ export function Column({
   onEditColumn,
   onEditTask,
   onDeleteTask,
+  onViewDetailTask,
   children,
 }: ColumnProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -134,7 +136,8 @@ export function Column({
                     {column.title}
                   </div>
                   <div
-                    className="flex items-center justify-center w-7 h-7 px-1.5 rounded-full bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-xs font-semibold border-[2px] border-dashed"
+                    className="flex items-center justify-center w-6 h-6 px-1 text-center
+                     rounded-full bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-xs font-semibold border border-dashed"
                     style={getCountBadgeBorderStyle()}
                   >
                     {column.tasks.length}
@@ -207,6 +210,7 @@ export function Column({
                       task={task}
                       onEdit={onEditTask}
                       onDelete={onDeleteTask}
+                      onViewDetail={onViewDetailTask}
                     />
                   ))
                 )}

@@ -2,7 +2,7 @@
 
 import { Calendar, MoreVertical, Trash2, Edit, Circle } from "lucide-react";
 import { Task, getPriorityColor, formatDate } from "./dummy-data";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -10,20 +10,37 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface TaskCardProps {
   task: Task;
   onEdit?: (task: Task) => void;
   onDelete?: (taskId: string) => void;
+  onViewDetail?: (task: Task) => void;
   isDragging?: boolean;
 }
 
-export function TaskCard({ task, onEdit, onDelete, isDragging }: TaskCardProps) {
+export function TaskCard({ task, onEdit, onDelete, onViewDetail, isDragging }: TaskCardProps) {
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger if clicking on dropdown menu or buttons
+    if ((e.target as HTMLElement).closest('[role="menu"]') ||
+        (e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    onViewDetail?.(task);
+  };
 
   return (
     <div
-      className={`group bg-app-card border rounded px-2.5 py-2 cursor-grab active:cursor-grabbing transition-all hover:shadow-sm hover:border-gray-300 dark:hover:border-gray-700 ${
+      onClick={handleCardClick}
+      className={`group bg-app-card border rounded px-2.5 py-2 cursor-pointer transition-all hover:shadow-sm hover:border-gray-300 dark:hover:border-gray-700 ${
         isDragging ? "opacity-50 rotate-1 scale-105" : ""
       }`}
     >
@@ -93,13 +110,45 @@ export function TaskCard({ task, onEdit, onDelete, isDragging }: TaskCardProps) 
           )}
         </div>
 
-        {/* Assignee - Smaller Avatar */}
-        {task.assignee && (
-          <Avatar className="h-5 w-5">
-            <AvatarFallback className="text-[10px] bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-              {task.assignee.initials}
-            </AvatarFallback>
-          </Avatar>
+        {/* Assignees - Smaller Avatars */}
+        {task.assignees && task.assignees.length > 0 && (
+          <TooltipProvider>
+            <div className="flex items-center -space-x-2">
+              {task.assignees.slice(0, 3).map((assignee) => (
+                <Tooltip key={assignee.id}>
+                  <TooltipTrigger asChild>
+                    <Avatar className="h-5 w-5 border border-white shadow-sm">
+                      <AvatarImage src={assignee.image || ""} />
+                      <AvatarFallback className="text-[10px] bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                        {assignee.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">{assignee.name}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+              {task.assignees.length > 3 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="h-5 w-5 rounded-full bg-gray-200 border border-white shadow-sm flex items-center justify-center">
+                      <span className="text-[9px] font-bold text-gray-600">
+                        +{task.assignees.length - 3}
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="space-y-1">
+                      {task.assignees.slice(3).map((assignee) => (
+                        <p key={assignee.id} className="text-xs">{assignee.name}</p>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          </TooltipProvider>
         )}
       </div>
     </div>

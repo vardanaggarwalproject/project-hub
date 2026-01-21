@@ -23,6 +23,7 @@ import { SortableTask } from "./SortableTask";
 import { AddColumnButton } from "./AddColumnButton";
 import { AddTaskModal } from "./AddTaskModal";
 import { EditColumnModal } from "./EditColumnModal";
+import { TaskDetailModal } from "./TaskDetailModal";
 import { Column as ColumnType, Task } from "./dummy-data";
 
 interface BoardProps {
@@ -33,9 +34,11 @@ interface BoardProps {
 export function Board({ columns, onColumnsChange }: BoardProps) {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isEditColumnModalOpen, setIsEditColumnModalOpen] = useState(false);
+  const [isTaskDetailModalOpen, setIsTaskDetailModalOpen] = useState(false);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingColumn, setEditingColumn] = useState<ColumnType | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const prevColumnCountRef = useRef(columns.length);
@@ -178,6 +181,19 @@ export function Board({ columns, onColumnsChange }: BoardProps) {
     );
   };
 
+  // View task detail
+  const handleViewTaskDetail = (task: Task) => {
+    // Find which column contains this task
+    const column = columns.find((col) =>
+      col.tasks.some((t) => t.id === task.id),
+    );
+    if (column) {
+      setSelectedColumnId(column.id);
+      setSelectedTask(task);
+      setIsTaskDetailModalOpen(true);
+    }
+  };
+
   // Drag handlers
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -314,6 +330,7 @@ export function Board({ columns, onColumnsChange }: BoardProps) {
                   onEditColumn={handleEditColumn}
                   onEditTask={handleEditTask}
                   onDeleteTask={handleDeleteTask}
+                  onViewDetailTask={handleViewTaskDetail}
                 >
                   {column.tasks.length === 0 ? (
                     <div className="text-center py-8 text-gray-400 text-xs">
@@ -327,6 +344,7 @@ export function Board({ columns, onColumnsChange }: BoardProps) {
                           task={task}
                           onEdit={handleEditTask}
                           onDelete={handleDeleteTask}
+                          onViewDetail={handleViewTaskDetail}
                         />
                       ))}
                     </div>
@@ -374,6 +392,20 @@ export function Board({ columns, onColumnsChange }: BoardProps) {
         }}
         onSubmit={handleUpdateColumn}
         column={editingColumn}
+      />
+
+      {/* Task Detail Modal */}
+      <TaskDetailModal
+        isOpen={isTaskDetailModalOpen}
+        onClose={() => {
+          setIsTaskDetailModalOpen(false);
+          setSelectedTask(null);
+          setSelectedColumnId(null);
+        }}
+        task={selectedTask}
+        columnId={selectedColumnId || undefined}
+        onEdit={handleEditTask}
+        onDelete={handleDeleteTask}
       />
     </div>
   );
