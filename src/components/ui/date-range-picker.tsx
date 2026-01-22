@@ -44,6 +44,10 @@ interface DateRangePickerProps {
    * Number of months to display (default: 2)
    */
   numberOfMonths?: number;
+  /**
+   * Whether to disable future dates (default: true)
+   */
+  disableFuture?: boolean;
 }
 
 export function DateRangePicker({
@@ -54,6 +58,7 @@ export function DateRangePicker({
   fromDate,
   toDate,
   numberOfMonths = 1,
+  disableFuture = true,
 }: DateRangePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [tempRange, setTempRange] = React.useState<DateRange | undefined>(value);
@@ -226,8 +231,34 @@ export function DateRangePicker({
                   onSelect={setTempRange}
                   numberOfMonths={mounted && window.innerWidth > 768 ? 2 : 1}
                   fromDate={fromDate}
-                  toDate={toDate || new Date()}
-                  disabled={(date) => date > new Date()}
+                  toDate={toDate}
+                  disabled={(date) => {
+                    // Normalize dates to start of day for comparison
+                    const dateAtMidnight = new Date(date.setHours(0, 0, 0, 0));
+
+                    // Disable dates before fromDate if specified
+                    if (fromDate) {
+                      const fromDateAtMidnight = new Date(fromDate.getTime());
+                      fromDateAtMidnight.setHours(0, 0, 0, 0);
+                      if (dateAtMidnight < fromDateAtMidnight) return true;
+                    }
+
+                    // Disable dates after toDate if specified
+                    if (toDate) {
+                      const toDateAtMidnight = new Date(toDate.getTime());
+                      toDateAtMidnight.setHours(0, 0, 0, 0);
+                      if (dateAtMidnight > toDateAtMidnight) return true;
+                    }
+
+                    // Disable future dates if disableFuture is true
+                    if (disableFuture) {
+                      const todayAtMidnight = new Date();
+                      todayAtMidnight.setHours(0, 0, 0, 0);
+                      if (dateAtMidnight > todayAtMidnight) return true;
+                    }
+
+                    return false;
+                  }}
                   className="rounded-md border-none p-0 scale-[0.9] sm:scale-100 origin-top"
                 />
               </div>

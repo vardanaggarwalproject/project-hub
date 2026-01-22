@@ -39,6 +39,7 @@ export async function GET(req: Request) {
         const search = searchParams.get("search");
         const fromDate = searchParams.get("fromDate");
         const toDate = searchParams.get("toDate");
+        const getAllProjects = searchParams.get("getAllProjects") === "true";
 
         const offset = (page - 1) * limit;
 
@@ -59,7 +60,8 @@ export async function GET(req: Request) {
         }
 
         // If not admin and we have a user ID, only show assigned projects
-        if (userRole !== "admin" && currentUserId) {
+        // UNLESS getAllProjects flag is set (e.g., for task assignment)
+        if (userRole !== "admin" && currentUserId && !getAllProjects) {
             // Subquery to find project IDs assigned to this user
             const userProjectIds = db.select({ projectId: userProjectAssignments.projectId })
                 .from(userProjectAssignments)

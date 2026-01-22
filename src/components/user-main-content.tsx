@@ -12,7 +12,12 @@ export function UserMainContent({ children }: UserMainContentProps) {
   const isChatRoute = pathname === "/user/chat";
 
   return (
-    <div className={cn("flex-1 overflow-auto min-h-0", isChatRoute ? "p-0 overflow-hidden" : "p-8")}>
+    <div
+      className={cn(
+        "flex-1 overflow-auto min-h-0",
+        isChatRoute ? "p-0 overflow-hidden" : "p-5",
+      )}
+    >
       {children}
     </div>
   );
