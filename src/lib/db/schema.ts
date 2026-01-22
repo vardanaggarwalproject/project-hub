@@ -8,6 +8,7 @@ import {
   foreignKey,
   index,
   jsonb,
+  integer,
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role_enum", [
@@ -141,6 +142,36 @@ export const projects = pgTable(
   ]
 );
 
+export const taskColumns = pgTable(
+  "task_columns",
+  {
+    id: text("id").primaryKey().notNull(),
+    title: text("title").notNull(),
+    color: text("color").default("#6B7280"),
+    position: integer("position").notNull(),
+    projectId: text("project_id"),
+    userId: text("user_id"),
+    isDefault: boolean("is_default").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.projectId],
+      foreignColumns: [projects.id],
+      name: "task_columns_project_id_projects_id_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [user.id],
+      name: "task_columns_user_id_user_id_fk",
+    }).onDelete("cascade"),
+    index("task_columns_project_id_idx").on(table.projectId),
+    index("task_columns_user_id_idx").on(table.userId),
+    index("task_columns_position_idx").on(table.position),
+  ]
+);
+
 export const userProjectAssignments = pgTable(
   "user_project_assignments",
   {
@@ -183,6 +214,10 @@ export const tasks = pgTable(
     estimatedTime: text("estimated_time"),
     completedTime: text("completed_time"),
     projectId: text("project_id").notNull(),
+    priority: text("priority").default("medium"),
+    columnId: text("column_id"),
+    position: integer("position").default(0),
+    type: text("type"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -192,6 +227,16 @@ export const tasks = pgTable(
       foreignColumns: [projects.id],
       name: "tasks_project_id_projects_id_fk",
     }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.columnId],
+      foreignColumns: [taskColumns.id],
+      name: "tasks_column_id_task_columns_id_fk",
+    }).onDelete("set null"),
+    index("tasks_column_id_idx").on(table.columnId),
+    index("tasks_position_idx").on(table.position),
+    index("tasks_priority_idx").on(table.priority),
+    index("tasks_type_idx").on(table.type),
+    index("tasks_status_idx").on(table.status),
   ]
 );
 
@@ -418,5 +463,31 @@ export const messages = pgTable(
       foreignColumns: [user.id],
       name: "messages_sender_id_user_id_fk",
     }),
+  ]
+);
+
+export const taskComments = pgTable(
+  "task_comments",
+  {
+    id: text("id").primaryKey().notNull(),
+    taskId: text("task_id").notNull(),
+    userId: text("user_id").notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.taskId],
+      foreignColumns: [tasks.id],
+      name: "task_comments_task_id_tasks_id_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [user.id],
+      name: "task_comments_user_id_user_id_fk",
+    }),
+    index("task_comments_task_id_idx").on(table.taskId),
+    index("task_comments_created_at_idx").on(table.createdAt),
   ]
 );
