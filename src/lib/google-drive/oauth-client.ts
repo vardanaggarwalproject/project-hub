@@ -199,8 +199,26 @@ export class OAuthDriveService {
         fields: 'id, name, mimeType, webViewLink, webContentLink, size',
       });
 
+      const fileId = response.data.id!;
+
+      // Make file accessible to anyone with the link
+      console.log(`🔓 Making file publicly accessible: ${fileId}`);
+      try {
+        await this.drive.permissions.create({
+          fileId: fileId,
+          requestBody: {
+            role: 'reader',
+            type: 'anyone',
+          },
+        });
+        console.log(`✅ File is now accessible to anyone with the link`);
+      } catch (permError) {
+        console.error('⚠️  Failed to set file permissions:', permError);
+        // Continue even if permission setting fails - file still uploaded
+      }
+
       return {
-        id: response.data.id!,
+        id: fileId,
         name: response.data.name!,
         mimeType: response.data.mimeType!,
         webViewLink: response.data.webViewLink!,
