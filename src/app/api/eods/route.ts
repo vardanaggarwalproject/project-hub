@@ -16,6 +16,7 @@ export async function GET(req: Request) {
         const projectId = searchParams.get("projectId");
         const userId = searchParams.get("userId");
         const search = searchParams.get("search");
+        const summary = searchParams.get("summary") === "true";
         const page = parseInt(searchParams.get("page") || "1");
         const limit = parseInt(searchParams.get("limit") || "10");
         const offset = (page - 1) * limit;
@@ -35,17 +36,17 @@ export async function GET(req: Request) {
             const start = new Date(fromDate);
             const end = new Date(toDate);
             if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-                conditions.push(dateRangeComparisonClause(eodReports.createdAt, start, end));
+                conditions.push(dateRangeComparisonClause(eodReports.reportDate, start, end));
             }
         } else if (dateParam) {
             const filterDate = new Date(dateParam);
             if (!isNaN(filterDate.getTime())) {
-                conditions.push(dateComparisonClause(eodReports.createdAt, filterDate));
+                conditions.push(dateComparisonClause(eodReports.reportDate, filterDate));
             }
         } else if (fromDate) {
             const start = new Date(fromDate);
             if (!isNaN(start.getTime())) {
-                conditions.push(dateComparisonClause(eodReports.createdAt, start));
+                conditions.push(dateComparisonClause(eodReports.reportDate, start));
             }
         }
 
@@ -57,36 +58,51 @@ export async function GET(req: Request) {
             whereClause = and(...conditions);
         }
 
-        const reports = await db.select({
-            id: eodReports.id,
+        // Use grouping to ensure strict uniqueness
+        const querySelection: any = {
+            id: sql<string>`MAX(${eodReports.id})`,
             projectId: eodReports.projectId,
             userId: eodReports.userId,
-            clientUpdate: eodReports.clientUpdate,
-            actualUpdate: eodReports.actualUpdate,
+            clientUpdate: sql<string>`MAX(${eodReports.clientUpdate})`,
+            actualUpdate: sql<string>`MAX(${eodReports.actualUpdate})`,
             reportDate: eodReports.reportDate,
-            createdAt: eodReports.createdAt,
-            projectName: projects.name,
+            createdAt: sql<Date>`MAX(${eodReports.createdAt})`,
+            projectName: sql<string>`MAX(${projects.name})`,
+            isMemoRequired: sql<boolean>`BOOL_OR(${projects.isMemoRequired})`,
             user: {
-                id: user.id,
-                name: user.name,
-                image: user.image,
-                role: user.role
+                id: eodReports.userId,
+                name: sql<string>`MAX(${user.name})`,
+                image: sql<string>`MAX(${user.image})`,
+                role: sql<string>`MAX(${user.role})`
             }
-        })
-            .from(eodReports)
+        };
+
+        const query = db.select(querySelection).from(eodReports)
             .leftJoin(user, eq(eodReports.userId, user.id))
             .leftJoin(projects, eq(eodReports.projectId, projects.id))
             .where(whereClause)
+            .groupBy(
+                eodReports.userId,
+                eodReports.projectId,
+                eodReports.reportDate
+            );
+
+        const reports = await query
             .limit(limit)
             .offset(offset)
-            .orderBy(desc(eodReports.createdAt));
+            .orderBy(desc(sql`MAX(${eodReports.createdAt})`));
 
-        const totalResult = await db.select({ count: sql<number>`count(*)` })
-            .from(eodReports)
-            .leftJoin(user, eq(eodReports.userId, user.id))
-            .leftJoin(projects, eq(eodReports.projectId, projects.id))
-            .where(whereClause);
+        let totalQuery = db.select({
+            count: sql<number>`count(DISTINCT CONCAT(${eodReports.userId}, ${eodReports.projectId}, ${eodReports.reportDate}))`
+        }).from(eodReports);
 
+        // If we have filters that require joining other tables (like search by user name)
+        if (search) {
+            totalQuery = totalQuery.leftJoin(user, eq(eodReports.userId, user.id)) as any;
+            totalQuery = totalQuery.leftJoin(projects, eq(eodReports.projectId, projects.id)) as any;
+        }
+
+        const totalResult = await totalQuery.where(whereClause);
         const total = Number(totalResult[0]?.count || 0);
 
         return NextResponse.json({
@@ -132,7 +148,17 @@ export async function POST(req: Request) {
             ));
 
         if (existing.length > 0) {
-            return NextResponse.json({ error: "EOD already exists for this date" }, { status: 409 });
+            const updatedReport = await db.update(eodReports)
+                .set({
+                    clientUpdate,
+                    actualUpdate,
+                    createdAt: new Date() // Treat update as a new submission date? Or keep original?
+                    // The user says "they are also correctly update with that" referring to dates.
+                    // So updating createdAt (submitted date) seems correct.
+                })
+                .where(eq(eodReports.id, existing[0].id))
+                .returning();
+            return NextResponse.json(updatedReport[0], { status: 200 });
         }
 
         const newReport = await db.insert(eodReports).values({

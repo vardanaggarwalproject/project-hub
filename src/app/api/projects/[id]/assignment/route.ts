@@ -29,6 +29,7 @@ export async function GET(
             .select({
                 assignedAt: userProjectAssignments.assignedAt,
                 isActive: userProjectAssignments.isActive,
+                lastActivatedAt: userProjectAssignments.lastActivatedAt,
             })
             .from(userProjectAssignments)
             .where(

@@ -1,6 +1,5 @@
-
 import { db } from "@/lib/db";
-import { assets, user } from "@/lib/db/schema";
+import { assets, user, projects } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -12,6 +11,7 @@ const assetSchema = z.object({
     size: z.number().optional(),
     projectId: z.string().min(1, "Project ID required"),
     uploadedBy: z.string().min(1, "User ID required"),
+    allowedRoles: z.array(z.string()).optional().default(["admin", "developer", "tester", "designer"]),
 });
 
 export async function GET(req: Request) {
@@ -27,20 +27,24 @@ export async function GET(req: Request) {
         const assetList = await db.select({
             id: assets.id,
             name: assets.name,
-            url: assets.fileUrl,
+            fileUrl: assets.fileUrl,
             fileType: assets.fileType,
-            size: assets.fileSize,
+            fileSize: assets.fileSize,
+            createdAt: assets.createdAt,
             updatedAt: assets.updatedAt,
+            projectId: assets.projectId,
+            projectName: projects.name,
             uploader: {
                 id: user.id,
                 name: user.name,
                 image: user.image
             }
         })
-        .from(assets)
-        .leftJoin(user, eq(assets.uploadedBy, user.id))
-        .where(whereClause)
-        .orderBy(desc(assets.updatedAt));
+            .from(assets)
+            .leftJoin(user, eq(assets.uploadedBy, user.id))
+            .leftJoin(projects, eq(assets.projectId, projects.id))
+            .where(whereClause)
+            .orderBy(desc(assets.updatedAt));
 
         return NextResponse.json(assetList);
     } catch (error) {

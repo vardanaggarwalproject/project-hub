@@ -5,6 +5,7 @@
 export interface Memo {
   id: string;
   memoContent: string;
+  memoType: string;
   reportDate: Date;
   projectId: string;
   userId: string;
@@ -32,16 +33,20 @@ export interface EOD {
 }
 
 export interface MissingUpdate {
-  id: string;
+  id: string; // project-date
   date: Date;
   projectId: string;
   projectName: string;
-  type: "memo" | "eod";
+  isUniversalMissing: boolean;
+  isShortMissing: boolean;
+  isEodMissing: boolean;
 }
 
 export interface DayStatus {
   date: Date;
   hasMemo: boolean;
+  hasUniversal?: boolean;
+  hasShort?: boolean;
   hasEOD: boolean;
   isToday: boolean;
   isOtherMonth: boolean;

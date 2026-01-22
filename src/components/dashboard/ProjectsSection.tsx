@@ -10,8 +10,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, History, ExternalLink, ArrowRight, Star } from "lucide-react";
+import { Plus, History, Eye, ExternalLink, ArrowRight, Star, AlertCircle } from "lucide-react";
 import type { Project, ProjectStatus } from "@/types/project";
+import { cn } from "@/lib/utils";
 
 interface ProjectsSectionProps {
   projects: Project[];
@@ -19,6 +20,7 @@ interface ProjectsSectionProps {
   onOpenModal: (type: "memo" | "eod", projectId: string, date?: string) => void;
   onToggleActive: (projectId: string, currentStatus: boolean) => void;
   onHistoryClick: (projectId: string) => void;
+  onViewProject?: (projectId: string) => void;
 }
 
 /**
@@ -30,6 +32,7 @@ export const ProjectsSection = React.memo(function ProjectsSection({
   onOpenModal,
   onToggleActive,
   onHistoryClick,
+  onViewProject,
 }: ProjectsSectionProps) {
   return (
     <div>
@@ -64,7 +67,7 @@ export const ProjectsSection = React.memo(function ProjectsSection({
               return (
                 <div
                   key={project.id}
-                  className="p-4 hover:bg-slate-50 transition-colors duration-150"
+                  className="px-4 py-3 hover:bg-slate-50 transition-colors duration-150"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
@@ -76,32 +79,44 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         <Badge
-                          className={`text-xs cursor-pointer transition-colors ${
-                            status?.hasTodayMemo
-                              ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
-                              : "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
+                          className={`text-[10px] sm:text-xs cursor-pointer transition-colors px-2 py-0.5 ${
+                            status?.hasUniversalToday
+                              ? "bg-green-50 text-green-600 border-green-100 hover:bg-green-100"
+                              : "bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100"
                           }`}
                           onClick={() => onOpenModal("memo", project.id)}
                         >
-                          {status?.hasTodayMemo ? "✓ Memo" : "⏳ Memo Pending"}
+                          {status?.hasUniversalToday ? "✓ Universal" : "⏳ Universal Memo"}
                         </Badge>
 
+                        {project.isMemoRequired && (
+                          <Badge
+                            className={`text-[10px] sm:text-xs cursor-pointer transition-colors px-2 py-0.5 ${
+                              status?.hasShortToday
+                                ? "bg-green-50 text-green-600 border-green-100 hover:bg-green-100"
+                                : "bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100"
+                            }`}
+                            onClick={() => onOpenModal("memo", project.id)}
+                          >
+                            {status?.hasShortToday ? "✓ 140chars" : "⏳ 140chars Memo"}
+                          </Badge>
+                        )}
+
                         <Badge
-                          className={`text-xs cursor-pointer transition-colors ${
-                            status?.hasTodayEod
-                              ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
-                              : "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
+                          className={`text-[10px] sm:text-xs cursor-pointer transition-colors px-2 py-0.5 ${
+                            status?.hasEodToday
+                              ? "bg-green-50 text-green-600 border-green-100 hover:bg-green-100"
+                              : "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
                           }`}
                           onClick={() => onOpenModal("eod", project.id)}
                         >
-                          {status?.hasTodayEod ? "✓ EOD" : "⏳ EOD Pending"}
+                          {status?.hasEodToday ? "✓ EOD" : "⏳ EOD Pending"}
                         </Badge>
-
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                        {!(status?.hasTodayMemo && status?.hasTodayEod) && (
+                        {!(status?.hasUniversalToday && status?.hasEodToday && (!project.isMemoRequired || status?.hasShortToday)) && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -109,7 +124,11 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  onClick={() => onOpenModal("memo", project.id)}
+                                  onClick={() => {
+                                     // Default to memo if any memo part is missing
+                                     const needsMemo = !status?.hasUniversalToday || (project.isMemoRequired && !status?.hasShortToday);
+                                     onOpenModal(needsMemo ? "memo" : "eod", project.id);
+                                  }}
                                 >
                                   <Plus className="h-4 w-4" />
                                 </Button>
@@ -140,15 +159,26 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Link href={`/user/projects/${project.id}`}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </Button>
-                            </Link>
+                              {onViewProject ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
+                                  onClick={() => onViewProject(project.id)}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <Link href={`/user/projects/${project.id}`}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                              )}
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>View Project</p>
@@ -156,14 +186,29 @@ export const ProjectsSection = React.memo(function ProjectsSection({
                         </Tooltip>
                       </TooltipProvider>
                       <div className="w-px h-6 bg-slate-200 mx-1" />
-                      <Switch
-                        checked={true}
-                        onCheckedChange={() =>
-                          onToggleActive(project.id, true)
-                        }
-                        className="scale-90 cursor-pointer"
-                        title="Toggle Active Status"
-                      />
+                      {project.status !== 'active' ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="cursor-not-allowed opacity-50">
+                               <Switch
+                                checked={false}
+                                disabled={true}
+                                className="scale-90"
+                              />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Cannot activate: Project is marked as {project.status} by Admin</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Switch
+                          checked={project.isActive}
+                          onCheckedChange={() => onToggleActive(project.id, project.isActive || false)}
+                          className="scale-90 cursor-pointer"
+                          title="Toggle Active Status"
+                        />
+                      )}
                     </div>
                   </div>
                 </div>

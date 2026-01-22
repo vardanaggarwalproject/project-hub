@@ -20,23 +20,28 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import type { Session } from "@/types";
 
 interface Asset {
     id: string;
     name: string;
     fileUrl: string;
-    fileType: string;
-    fileSize: string;
+    fileType?: string | null;
+    fileSize?: string | null;
     projectId: string;
     projectName?: string;
+    allowedRoles?: string[];
     createdAt: Date;
 }
 
 export default function UserAssetsPage() {
-    const { data: session } = authClient.useSession();
+    const { data: sessionData } = authClient.useSession();
+    const session = sessionData as Session | null;
     const [assets, setAssets] = useState<Asset[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+
+    const userRole = session?.user?.role || "user";
 
     useEffect(() => {
         const fetchAssets = async () => {
@@ -47,7 +52,6 @@ export default function UserAssetsPage() {
                 setAssets(data.map((a: any) => ({ 
                     ...a, 
                     createdAt: new Date(a.createdAt),
-                    projectName: "Core Assets" 
                 })));
             } catch (error) {
                 console.error("Failed to fetch assets", error);
@@ -59,12 +63,22 @@ export default function UserAssetsPage() {
         if (session) fetchAssets();
     }, [session]);
 
-    const filteredAssets = assets.filter(asset => 
-        asset.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        asset.fileType.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredAssets = assets.filter(asset => {
+        // First filter by search
+        const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                             (asset.fileType?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+        
+        if (!matchesSearch) return false;
 
-    const formatSize = (bytes: string) => {
+        // Then filter by role
+        if (userRole.toLowerCase() === "admin") return true;
+        if (!asset.allowedRoles || asset.allowedRoles.length === 0) return true;
+        
+        return asset.allowedRoles.some(role => role.toLowerCase() === userRole.toLowerCase());
+    });
+
+    const formatSize = (bytes?: string | null) => {
+        if (!bytes) return "0 B";
         const b = parseInt(bytes);
         if (isNaN(b)) return "0 B";
         const units = ["B", "KB", "MB", "GB"];
@@ -156,7 +170,7 @@ export default function UserAssetsPage() {
                                             </td>
                                             <td className="px-8 py-6">
                                                 <Badge className="bg-slate-100 text-slate-600 border-none rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-widest">
-                                                    {asset.fileType.toUpperCase() || "FILE"}
+                                                    {asset.fileType?.toUpperCase() || "FILE"}
                                                 </Badge>
                                             </td>
                                             <td className="px-8 py-6">

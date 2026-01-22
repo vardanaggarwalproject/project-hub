@@ -94,27 +94,28 @@ export default function UserProjectDetailPage() {
         const fetchProjectData = async () => {
             setIsLoading(true);
             try {
-                // Fetch project details
+                // Fetch project details and links in one call
                 const projectRes = await fetch(`/api/projects/${projectId}`);
                 if (projectRes.ok) {
                     const projectData = await projectRes.json();
+                    
                     setProject({
                         ...projectData,
                         updatedAt: new Date(projectData.updatedAt),
                         progress: projectData.progress || 0
                     });
+
+                    // Set links from the project response if available
+                    if (projectData.links && Array.isArray(projectData.links)) {
+                        setLinks(projectData.links.map((l: any) => ({
+                            ...l,
+                            createdAt: new Date(l.createdAt || new Date())
+                        })));
+                    } else {
+                        setLinks([]);
+                    }
                 } else if (projectRes.status === 404) {
                    setProject(null);
-                }
-
-                // Fetch project links
-                const linksRes = await fetch(`/api/links?projectId=${projectId}`);
-                if (linksRes.ok) {
-                    const linksData = await linksRes.json();
-                    setLinks(linksData.map((l: any) => ({
-                        ...l,
-                        createdAt: new Date(l.createdAt)
-                    })));
                 }
             } catch (error) {
                 console.error("Failed to fetch project data", error);
@@ -131,10 +132,11 @@ export default function UserProjectDetailPage() {
         }
     }, [session, projectId, isPending]);
 
-    const filteredLinks = links.filter(link =>
-        link.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (link.description?.toLowerCase() || "").includes(searchQuery.toLowerCase())
-    );
+    const filteredLinks = links.filter(link => {
+        const nameMatch = (link?.name || "").toLowerCase().includes(searchQuery.toLowerCase());
+        const descMatch = (link?.description || "").toLowerCase().includes(searchQuery.toLowerCase());
+        return nameMatch || descMatch;
+    });
 
     if (isPending || isLoading) {
         return (
@@ -149,11 +151,9 @@ export default function UserProjectDetailPage() {
         return (
             <div className="space-y-6">
                 <div className="flex items-center gap-4">
-                    <Button asChild variant="outline" size="sm">
-                        <Link href="/user/projects">
-                            <ArrowLeft className="h-4 w-4 mr-2" />
-                            Back to Projects
-                        </Link>
+                    <Button onClick={() => router.back()} variant="outline" size="sm">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back to Projects
                     </Button>
                 </div>
                 <Card className="p-20">
@@ -171,11 +171,9 @@ export default function UserProjectDetailPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <Button asChild variant="outline" size="sm" className="h-9">
-                        <Link href="/user/projects">
-                            <ArrowLeft className="h-4 w-4 mr-2" />
-                            Back
-                        </Link>
+                    <Button onClick={() => router.back()} variant="outline" size="sm" className="h-9">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back
                     </Button>
                     <div>
                         <h2 className="text-3xl font-bold tracking-tight text-[#0f172a] uppercase">{project.name}</h2>
@@ -347,7 +345,15 @@ export default function UserProjectDetailPage() {
                                                 </div>
                                                 <div>
                                                     <h4 className="text-sm font-black text-[#0f172a] uppercase tracking-tight line-clamp-1">{link.name}</h4>
-                                                    <p className="text-[10px] text-muted-foreground font-medium mt-1 uppercase tracking-widest line-clamp-1">{new URL(link.url).hostname}</p>
+                                                    <p className="text-[10px] text-muted-foreground font-medium mt-1 uppercase tracking-widest line-clamp-1">
+                                                        {(() => {
+                                                            try {
+                                                                return new URL(link.url).hostname;
+                                                            } catch {
+                                                                return link.url;
+                                                            }
+                                                        })()}
+                                                    </p>
                                                 </div>
                                                 <div className="min-h-[32px]">
                                                     <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">

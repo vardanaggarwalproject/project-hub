@@ -279,7 +279,7 @@ export default function EditProjectPage() {
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-10">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-4">
                     <Button asChild variant="outline" size="sm" className="h-9 w-9 p-0 rounded-full">
                         <Link href="/admin/projects">
@@ -292,7 +292,7 @@ export default function EditProjectPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" asChild>
+                    <Button variant="outline" asChild className="font-bold">
                         <Link href="/admin/projects">Cancel</Link>
                     </Button>
                     <AlertDialog>
@@ -326,13 +326,13 @@ export default function EditProjectPage() {
                     </AlertDialog>
                     <Button
                         onClick={handleSave}
-                        disabled={isSaving}
-                        className="bg-blue-600 hover:bg-blue-700 min-w-[100px]"
+                        disabled={isSaving || isLoading}
+                        className="bg-blue-600 hover:bg-blue-700 min-w-[120px] font-bold shadow-md"
                     >
                         {isSaving ? "Saving..." : (
                             <>
                                 <Save className="h-4 w-4 mr-2" />
-                                Save Changes
+                                {isLoading ? "Loading..." : "Save Changes"}
                             </>
                         )}
                     </Button>
@@ -342,8 +342,8 @@ export default function EditProjectPage() {
             <div className="grid lg:grid-cols-3 gap-6">
                 {/* Left Column: Project Details */}
                 <div className="lg:col-span-2 space-y-6">
-                    <Card className="border-none shadow-md bg-white">
-                        <CardHeader className="border-b bg-slate-50/50 pb-4">
+                    <Card className="border-none shadow-md bg-app-card">
+                        <CardHeader className="border-b bg-app-subtle pb-4">
                             <h3 className="font-bold text-[#0f172a] flex items-center gap-2">
                                 <Building2 className="h-4 w-4 text-blue-500" />
                                 General Information
@@ -355,7 +355,7 @@ export default function EditProjectPage() {
                                 <Input
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="font-semibold"
+                                    className="font-semibold h-11"
                                     placeholder="Enter project name"
                                 />
                             </div>
@@ -365,7 +365,7 @@ export default function EditProjectPage() {
                                     <label className="text-xs font-bold uppercase text-slate-500">Status</label>
                                     <Select value={status} onValueChange={setStatus}>
                                         <SelectTrigger className={cn(
-                                            "font-medium",
+                                            "h-11 font-medium",
                                             status === "active" ? "text-emerald-600 bg-emerald-50 border-emerald-200" :
                                                 status === "completed" ? "text-blue-600 bg-blue-50 border-blue-200" :
                                                     "text-slate-600 bg-slate-50"
@@ -382,7 +382,7 @@ export default function EditProjectPage() {
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold uppercase text-slate-500">Client</label>
                                     <Select value={clientId} onValueChange={setClientId}>
-                                        <SelectTrigger>
+                                        <SelectTrigger className="h-11 font-medium">
                                             <SelectValue placeholder="Select Client" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -399,6 +399,8 @@ export default function EditProjectPage() {
                                 <label className="text-xs font-bold uppercase text-slate-500">Description</label>
                                 <Textarea
                                     value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    className="min-h-[120px] font-medium"
                                     placeholder="Project description and goals..."
                                 />
                             </div>
@@ -429,8 +431,8 @@ export default function EditProjectPage() {
 
                 {/* Right Column: Team Management */}
                 <div className="space-y-6">
-                    <Card className="border-none shadow-md bg-white h-full flex flex-col">
-                        <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row items-center justify-between">
+                    <Card className="border-none shadow-md bg-app-card h-full flex flex-col">
+                        <CardHeader className="border-b bg-app-subtle pb-4 flex flex-row items-center justify-between">
                             <h3 className="font-bold text-[#0f172a] flex items-center gap-2">
                                 <Users className="h-4 w-4 text-blue-500" />
                                 Team Members

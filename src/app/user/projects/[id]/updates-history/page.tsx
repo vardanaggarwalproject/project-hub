@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Card } from "@/components/ui/card";
@@ -155,7 +155,8 @@ export default function UpdatesHistoryPage() {
       dateTime.setHours(0, 0, 0, 0);
 
       // Always show dates from validStartDate to today (inclusive)
-      const isValidDate = dateTime >= validStartDate && dateTime <= today;
+      const isWeekend = dateTime.getDay() === 0 || dateTime.getDay() === 6;
+      const isValidDate = (dateTime >= validStartDate && dateTime <= today && !isWeekend) || !!memo || !!eod;
 
       days.push({
         date,
@@ -209,16 +210,22 @@ export default function UpdatesHistoryPage() {
     const monthEnd = endOfMonth(currentMonth);
     const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-    const validDays = monthDays.filter((date) => {
+    const validDaysList = monthDays.filter((date) => {
       const dateTime = new Date(date);
       dateTime.setHours(0, 0, 0, 0);
 
-      // Count only days within valid range
-      return dateTime >= validStartDate && dateTime <= today;
-    }).length;
+      // Count only weekdays within valid range
+      const isWeekend = dateTime.getDay() === 0 || dateTime.getDay() === 6;
+      return dateTime >= validStartDate && dateTime <= today && !isWeekend;
+    });
+    const validDays = validDaysList.length;
 
-    const completionRate =
-      validDays > 0 ? Math.round((eodsThisMonth / validDays) * 100) : 0;
+    // Calculate completion rates separately for Memos and EODs
+    const memoRate = validDays > 0 ? (memosThisMonth / validDays) : 0;
+    const eodRate = validDays > 0 ? (eodsThisMonth / validDays) : 0;
+    
+    // Final completion rate is the average of Memo and EOD completion
+    const completionRate = Math.min(100, Math.round(((memoRate + eodRate) / 2) * 100));
 
     return { memosThisMonth, eodsThisMonth, completionRate };
   }, [memos, eods, currentMonth, validStartDate]);
@@ -254,7 +261,7 @@ export default function UpdatesHistoryPage() {
   /**
    * Fetch reference data for modal (memo or EOD for selected date)
    */
-  const referenceDataFetcher = async (
+  const referenceDataFetcher = useCallback(async (
     type: "memo" | "eod",
     projectId: string,
     date: string
@@ -303,7 +310,7 @@ export default function UpdatesHistoryPage() {
       handleApiError(error, "Fetch reference data");
       return null;
     }
-  };
+  }, [session?.user?.id]);
 
   /**
    * Handle memo/EOD submission from modal

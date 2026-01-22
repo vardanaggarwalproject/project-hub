@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +60,7 @@ export function ProjectHistoryDialog({
   );
   const [initialDate, setInitialDate] = useState<Date | null>(null);
   const [initialMemoContent, setInitialMemoContent] = useState("");
+  const [initialShortMemoContent, setInitialShortMemoContent] = useState("");
   const [initialClientUpdate, setInitialClientUpdate] = useState("");
   const [initialInternalUpdate, setInitialInternalUpdate] = useState("");
   const [selectedMemo, setSelectedMemo] = useState<Memo | null>(null);
@@ -73,8 +74,8 @@ export function ProjectHistoryDialog({
       const [projectData, assignmentData, memosData, eodsData] = await Promise.all([
         projectsApi.getById(projectId),
         projectsApi.getAssignment(projectId, userId).catch(() => null),
-        memosApi.getByFilters(userId, projectId, 1000),
-        eodsApi.getByFilters(userId, projectId, 1000),
+        memosApi.getByFilters(userId, projectId, 1000, false),
+        eodsApi.getByFilters(userId, projectId, 1000, false),
       ]);
 
       setProject(projectData);
@@ -99,13 +100,15 @@ export function ProjectHistoryDialog({
   }, [isOpen, userId, projectId]);
 
   const validStartDate = useMemo(() => {
-    // Standardize: Earlier of assignment and project creation
-    // This ensure we catch all days the user might be responsible for
     const assignedDate = userAssignment?.assignedAt ? new Date(userAssignment.assignedAt) : null;
+    const lastActivatedDate = userAssignment?.lastActivatedAt ? new Date(userAssignment.lastActivatedAt) : null;
     const projectCreatedDate = project?.createdAt ? new Date(project.createdAt) : null;
 
+    // Use lastActivatedDate if available, otherwise fallback to assignedDate or creationDate
     let validStart: Date;
-    if (assignedDate && projectCreatedDate) {
+    if (lastActivatedDate) {
+      validStart = lastActivatedDate;
+    } else if (assignedDate && projectCreatedDate) {
       validStart = assignedDate < projectCreatedDate ? assignedDate : projectCreatedDate;
     } else {
       validStart = assignedDate || projectCreatedDate || new Date();
@@ -132,26 +135,38 @@ export function ProjectHistoryDialog({
 
     monthDays.forEach((date) => {
       const dateStr = format(date, "yyyy-MM-dd");
-      const memo = memos.find((m) => getLocalDateString(m.reportDate) === dateStr);
+      const dayMemos = memos.filter((m) => getLocalDateString(m.reportDate) === dateStr);
       const eod = eods.find((e) => getLocalDateString(e.reportDate) === dateStr);
+
+      const hasUniversal = dayMemos.some(m => m.memoType === 'universal') || 
+                         (!project?.isMemoRequired && dayMemos.some(m => m.memoType === 'short'));
+      const hasShort = dayMemos.some(m => m.memoType === 'short');
+      
+      const hasMemo = hasUniversal && (!project?.isMemoRequired || hasShort);
 
       const dateTime = new Date(date);
       dateTime.setHours(0, 0, 0, 0);
-      // Valid date for "Missing/Pending" indicators ONLY if project is active
-      const isValidDate = dateTime >= validStartDate &&
-        dateTime <= today &&
-        (userAssignment ? userAssignment.isActive : true);
+      
+      // A date is "valid for updates" only if it's after activation and before today
+      // AND it's a weekday (Mon-Fri) OR there is existing data (to allow viewing history)
+      // OR it's today (to always show pending badges for today)
+      const hasAnyData = dayMemos.length > 0 || !!eod;
+      const isWeekend = dateTime.getDay() === 0 || dateTime.getDay() === 6;
+      const isToday = isSameDay(date, new Date());
+      const isValidDate = hasAnyData || (dateTime >= validStartDate && dateTime <= today && (!isWeekend || isToday));
 
       days.push({
         date,
-        hasMemo: !!memo,
+        hasMemo,
+        hasUniversal,
+        hasShort,
         hasEOD: !!eod,
         isToday: isSameDay(date, new Date()),
         isOtherMonth: false,
-        memo,
+        memo: dayMemos[0],
         eod,
         isValidDate,
-      } as DayStatus & { isValidDate: boolean });
+      } as any);
     });
 
     const lastDay = monthDays[monthDays.length - 1].getDay();
@@ -162,24 +177,24 @@ export function ProjectHistoryDialog({
     }
 
     return days;
-  }, [currentMonth, memos, eods, validStartDate]);
+  }, [currentMonth, memos, eods, validStartDate, project]);
 
   const stats = useMemo(() => {
-    // Current month/year for filtering
     const targetMonthStr = format(currentMonth, "yyyy-MM");
-
-    // Today's date string for range capping
     const todayStr = getLocalDateString(new Date());
     const validStartStr = getLocalDateString(validStartDate);
 
-    // Use Sets to count unique days with updates (ignoring legacy duplicates)
-    const uniqueMemoDays = new Set<string>();
+    // Map<dateStr, {hasUniversal, hasShort}>
+    const memoStatusMap = new Map<string, {uni: boolean, short: boolean}>();
     const uniqueEodDays = new Set<string>();
 
     memos.forEach(m => {
       const dateStr = getLocalDateString(m.reportDate);
       if (dateStr.startsWith(targetMonthStr) && dateStr <= todayStr) {
-        uniqueMemoDays.add(dateStr);
+        if (!memoStatusMap.has(dateStr)) memoStatusMap.set(dateStr, {uni: false, short: false});
+        const status = memoStatusMap.get(dateStr)!;
+        if (m.memoType === 'universal') status.uni = true;
+        if (m.memoType === 'short') status.short = true;
       }
     });
 
@@ -190,38 +205,36 @@ export function ProjectHistoryDialog({
       }
     });
 
-    const memosThisMonth = uniqueMemoDays.size;
+    // Count a day as "having memo" if all required types exist
+    let memosThisMonth = 0;
+    memoStatusMap.forEach((status, dateStr) => {
+        const hasUniversal = status.uni || (!project?.isMemoRequired && status.short);
+        const hasShort = status.short;
+        if (hasUniversal && (!project?.isMemoRequired || hasShort)) {
+            memosThisMonth++;
+        }
+    });
+
     const eodsThisMonth = uniqueEodDays.size;
 
-    // Count theoretical working days in this month within assignment period
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
 
+    // Filter valid days (since start, until today) and EXCLUDE weekends
     const validDaysList = eachDayOfInterval({ start: monthStart, end: monthEnd }).filter((date) => {
       const dateStr = getLocalDateString(date);
-      return dateStr >= validStartStr && dateStr <= todayStr;
+      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+      return dateStr >= validStartStr && dateStr <= todayStr && !isWeekend;
     });
     const validDaysCount = validDaysList.length;
 
-    // Completion rate refinement:
-    // If project isMemoRequired: day is complete if BOTH uniqueMemoDays and uniqueEodDays have it.
-    // If not isMemoRequired: day is complete if uniqueEodDays has it.
-    let completedDaysCount = 0;
-    validDaysList.forEach(day => {
-      const dateStr = getLocalDateString(day);
-      const hasMemo = uniqueMemoDays.has(dateStr);
-      const hasEod = uniqueEodDays.has(dateStr);
-
-      if (project?.isMemoRequired) {
-        if (hasMemo && hasEod) completedDaysCount++;
-      } else {
-        if (hasEod) completedDaysCount++;
-      }
-    });
-
-    const completionRate = validDaysCount > 0
-      ? Math.min(100, Math.round((completedDaysCount / validDaysCount) * 100))
-      : 0;
+    // Calculate completion rates separately for Memos and EODs
+    const memoRate = validDaysCount > 0 ? (memosThisMonth / validDaysCount) : 0;
+    const eodRate = validDaysCount > 0 ? (eodsThisMonth / validDaysCount) : 0;
+    
+    // Final completion rate is the average of Memo and EOD completion
+    // This gives partial credit if only one is done
+    const completionRate = Math.min(100, Math.round(((memoRate + eodRate) / 2) * 100));
 
     return {
       memosThisMonth,
@@ -238,19 +251,18 @@ export function ProjectHistoryDialog({
 
     const hasExistingUpdate = (type === "memo" && day.hasMemo) || (type === "eod" && day.hasEOD);
 
-    // If it's a future date, block everything
     if (day.date > today) {
       toast.error("Cannot add or view updates for future dates");
       return;
     }
 
-    // AUTH CHECK: If no existing update AND date is before assignment, block addition
-    if (!hasExistingUpdate && day.date < validStartDate) {
+    const hasAnyUpdate = day.hasMemo || day.hasEOD;
+
+    if (!hasAnyUpdate && day.date < validStartDate) {
       toast.error(`Access Denied: You were assigned to this project on ${format(validStartDate, "MMM d, yyyy")}. You cannot add backdated updates.`);
       return;
     }
 
-    // PROJECT ACTIVITY CHECK: If project is inactive, block adding new updates
     if (!hasExistingUpdate && userAssignment && !userAssignment.isActive) {
       toast.error("Access Denied: This project is currently inactive for you. You cannot add new updates.");
       return;
@@ -259,9 +271,17 @@ export function ProjectHistoryDialog({
     setInitialDate(day.date);
     setInitialModalTab(type);
 
-    if (type === "memo" && day.hasMemo && day.memo) {
-      setSelectedMemo(day.memo);
-      setInitialMemoContent(day.memo.memoContent || "");
+    if (type === "memo" && day.hasMemo) {
+      const dateStr = format(day.date, "yyyy-MM-dd");
+      const dayMemos = memos.filter(m => getLocalDateString(m.reportDate) === dateStr);
+      
+      const universal = dayMemos.find(m => m.memoType === 'universal') || 
+                      (!project?.isMemoRequired ? dayMemos.find(m => m.memoType === 'short') : undefined);
+      const short = dayMemos.find(m => m.memoType === 'short' && project?.isMemoRequired);
+      
+      setInitialMemoContent(universal?.memoContent || "");
+      setInitialShortMemoContent(short?.memoContent || "");
+      setSelectedMemo(universal || dayMemos[0] || null);
       setModalMode("view");
     } else if (type === "eod" && day.hasEOD && day.eod) {
       setSelectedEOD(day.eod);
@@ -272,6 +292,7 @@ export function ProjectHistoryDialog({
       setSelectedMemo(null);
       setSelectedEOD(null);
       setInitialMemoContent("");
+      setInitialShortMemoContent("");
       setInitialClientUpdate("");
       setInitialInternalUpdate("");
       setModalMode("edit");
@@ -295,84 +316,104 @@ export function ProjectHistoryDialog({
     setModalMode("edit");
   };
 
-  const referenceDataFetcher = async (type: "memo" | "eod", pid: string, date: string) => {
-    if (!userId) return null;
-    try {
-      if (type === "memo") {
-        const memosData = await memosApi.getByFilters(userId, pid) as Memo[];
-        const memo = Array.isArray(memosData) ? memosData.find((m) => getLocalDateString(m.reportDate) === date) : null;
-        return {
-          type: `Memo for ${format(new Date(date), "MMMM d, yyyy")}`,
-          content: memo?.memoContent || "No memo submitted for this date",
-        };
-      } else {
-        const eodsData = await eodsApi.getByFilters(userId, pid) as EOD[];
-        const eod = Array.isArray(eodsData) ? eodsData.find((e) => getLocalDateString(e.reportDate) === date) : null;
-        return {
-          type: `EOD for ${format(new Date(date), "MMMM d, yyyy")}`,
-          content: eod?.actualUpdate || "No EOD submitted for this date",
-        };
-      }
-    } catch (error) {
-      handleApiError(error, "Fetch reference data");
-      return null;
-    }
-  };
+  const referenceDataFetcher = useCallback(async (type: "memo" | "eod", pid: string, date: string) => {
+    return null; // Dashboard optimization: use local data or skip
+  }, []);
 
   const handleSubmit = async (data: {
     type: "memo" | "eod";
     projectId: string;
     date: string;
     memoContent?: string;
+    shortMemoContent?: string;
     clientUpdate?: string;
     internalUpdate?: string;
   }) => {
     try {
-      if (data.type === "memo") {
+      const savePromises = [];
+
+      // Check for Memo content
+      const hasMemoContent = data.memoContent?.trim() || (project?.isMemoRequired && data.shortMemoContent?.trim());
+      
+      if (hasMemoContent) {
         if (!data.memoContent?.trim()) {
-          toast.error("Please enter your memo");
+          toast.error("Universal memo is required");
           return;
         }
-        if (selectedMemo) {
-          await memosApi.update(selectedMemo.id, {
-            memoContent: data.memoContent,
-            projectId,
-            userId,
-            reportDate: data.date,
-          });
-        } else {
-          await memosApi.create({
-            memoContent: data.memoContent,
-            projectId,
+        
+        if (project?.isMemoRequired && !data.shortMemoContent?.trim()) {
+          toast.error("140chars memo is required for this project");
+          return;
+        }
+
+        const memoList = [];
+        memoList.push({
+          memoContent: data.memoContent,
+          memoType: "universal",
+          projectId: data.projectId,
+          userId,
+          reportDate: data.date,
+        });
+
+        if (project?.isMemoRequired && data.shortMemoContent) {
+          memoList.push({
+            memoContent: data.shortMemoContent,
+            memoType: "short",
+            projectId: data.projectId,
             userId,
             reportDate: data.date,
           });
         }
-        toast.success(`Memo ${selectedMemo ? "updated" : "saved"} successfully!`);
-      } else {
+
+        savePromises.push(
+          memosApi.create({
+            memos: memoList,
+            projectId: data.projectId,
+            userId,
+            reportDate: data.date,
+          })
+        );
+      }
+
+      // Check for EOD content
+      const hasEodContent = data.internalUpdate?.trim() || data.clientUpdate?.trim();
+      
+      if (hasEodContent) {
         if (!data.internalUpdate?.trim()) {
           toast.error("Please enter internal update");
           return;
         }
+
         if (selectedEOD) {
-          await eodsApi.update(selectedEOD.id, {
-            clientUpdate: data.clientUpdate || "",
-            actualUpdate: data.internalUpdate,
-            projectId,
-            userId,
-            reportDate: data.date,
-          });
+          savePromises.push(
+            eodsApi.update(selectedEOD.id, {
+              clientUpdate: data.clientUpdate || "",
+              actualUpdate: data.internalUpdate,
+              projectId,
+              userId,
+              reportDate: data.date,
+            })
+          );
         } else {
-          await eodsApi.create({
-            clientUpdate: data.clientUpdate || "",
-            actualUpdate: data.internalUpdate,
-            projectId,
-            userId,
-            reportDate: data.date,
-          });
+          savePromises.push(
+            eodsApi.create({
+              clientUpdate: data.clientUpdate || "",
+              actualUpdate: data.internalUpdate,
+              projectId,
+              userId,
+              reportDate: data.date,
+            })
+          );
         }
-        toast.success(`EOD ${selectedEOD ? "updated" : "saved"} successfully!`);
       }
+
+      if (savePromises.length === 0) {
+        toast.error("No content to save");
+        return;
+      }
+
+      await Promise.all(savePromises);
+      toast.success("Update(s) saved successfully!");
       await fetchData();
     } catch (error) {
       handleApiError(error, "Submit update");
@@ -380,11 +421,55 @@ export function ProjectHistoryDialog({
     }
   };
 
+  /**
+   * Handle memo/EOD deletion
+   */
+  const handleDelete = async (
+    type: "memo" | "eod",
+    projectId: string,
+    date: string
+  ) => {
+    try {
+      if (type === "memo") {
+        const memosToDelete = memos.filter(
+          (m) =>
+            m.projectId === projectId &&
+            getLocalDateString(new Date(m.reportDate)) === date
+        );
+
+        if (memosToDelete.length === 0) {
+          toast.error("No memo found to delete");
+          return;
+        }
+
+        await Promise.all(memosToDelete.map((m) => memosApi.delete(m.id)));
+      } else {
+        const eodToDelete = eods.find(
+          (e) =>
+            e.projectId === projectId &&
+            getLocalDateString(new Date(e.reportDate)) === date
+        );
+
+        if (!eodToDelete) {
+          toast.error("No EOD report found to delete");
+          return;
+        }
+
+        await eodsApi.delete(eodToDelete.id);
+      }
+
+      await fetchData();
+    } catch (error) {
+      handleApiError(error, "Delete update");
+      throw error;
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] md:max-w-5xl max-h-[90vh] flex flex-col gap-0 p-0 rounded-2xl overflow-hidden border-0 shadow-2xl">
-        <DialogHeader className="px-8 py-6 border-b border-slate-100 bg-white sticky top-0 z-10">
-          <DialogTitle className="text-2xl font-bold tracking-tight flex items-center gap-3 text-slate-900">
+        <DialogHeader className="px-6 py-3.5 border-b border-slate-100 bg-white sticky top-0 z-10">
+          <DialogTitle className="text-xl font-bold tracking-tight flex items-center gap-3 text-slate-900">
             Update History <span className="text-slate-300 font-light">|</span> <span className="text-blue-600 font-semibold">{project?.name}</span>
             {userAssignment && !userAssignment.isActive && (
               <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-slate-200 uppercase text-[10px] font-bold py-0.5 px-2">
@@ -394,7 +479,7 @@ export function ProjectHistoryDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8 bg-slate-50/30 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 bg-slate-50/30 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-24 w-full" />
@@ -402,7 +487,7 @@ export function ProjectHistoryDialog({
             </div>
           ) : (
             <ErrorBoundary>
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <StatsCards stats={stats} />
                 <div className="border rounded-xl bg-white overflow-hidden shadow-sm">
                   <CalendarHeader
@@ -414,6 +499,7 @@ export function ProjectHistoryDialog({
                   <CalendarGrid
                     calendarDays={calendarDays}
                     onDayClick={handleDayClick}
+                    isMemoRequired={project?.isMemoRequired}
                   />
                 </div>
               </div>
@@ -430,8 +516,9 @@ export function ProjectHistoryDialog({
           initialTab={initialModalTab}
           initialProjectId={projectId}
           initialDate={initialDate ? format(initialDate, "yyyy-MM-dd") : ""}
-          minDate={validStartDate ? format(validStartDate, "yyyy-MM-dd") : ""}
+          minDate={userAssignment?.assignedAt ? format(new Date(userAssignment.assignedAt), "yyyy-MM-dd") : ""}
           initialMemoContent={initialMemoContent}
+          initialShortMemoContent={initialShortMemoContent}
           initialClientUpdate={initialClientUpdate}
           initialInternalUpdate={initialInternalUpdate}
           onSubmit={handleSubmit}
@@ -441,6 +528,7 @@ export function ProjectHistoryDialog({
           referenceDataFetcher={referenceDataFetcher}
           existingMemos={memos}
           existingEods={eods}
+          onDelete={handleDelete}
         />
       </DialogContent>
     </Dialog>

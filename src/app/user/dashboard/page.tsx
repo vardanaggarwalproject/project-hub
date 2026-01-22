@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSocket } from "@/lib/socket";
@@ -11,6 +11,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { ProjectsSection } from "@/components/dashboard/ProjectsSection";
 import { ProjectHistoryDialog } from "@/components/project/ProjectHistoryDialog";
+import { ProjectDetailsModal } from "@/common/ProjectDetailsModal";
 import { MissingUpdatesSection } from "@/components/dashboard/MissingUpdatesSection";
 import type { Project, ProjectStatus, ProjectAssignment } from "@/types/project";
 import type { MissingUpdate, Memo, EOD } from "@/types/report";
@@ -41,11 +42,17 @@ export default function UserDashboardPage() {
   const [initialDate, setInitialDate] = useState<string>("");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  
+  // Details modal states
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [viewProjectId, setViewProjectId] = useState<string | null>(null);
+
   const [allMemos, setAllMemos] = useState<Memo[]>([]);
   const [allEods, setAllEods] = useState<EOD[]>([]);
 
   // Update Modal State
   const [initialMemoContent, setInitialMemoContent] = useState("");
+  const [initialShortMemoContent, setInitialShortMemoContent] = useState("");
   const [initialClientUpdate, setInitialClientUpdate] = useState("");
   const [initialInternalUpdate, setInitialInternalUpdate] = useState("");
 
@@ -80,12 +87,49 @@ export default function UserDashboardPage() {
       }
     };
 
+    const onProjectUpdated = (data: { projectId: string; project: Project }) => {
+      // Check if this project is assigned to the current user
+      setMyProjects((prev) => {
+        const index = prev.findIndex((p) => p.id === data.projectId);
+        if (index === -1) {
+          // If not in current active projects, it might have become active or been updated elsewhere
+          // For safety and correctness of stats/missing updates, just refetch
+          fetchDashboardData();
+          return prev;
+        }
+        
+        const newProjects = [...prev];
+        newProjects[index] = { ...newProjects[index], ...data.project };
+        
+        // If status changed to non-active, it should be removed from dashboard
+        if (data.project.status !== 'active') {
+          return newProjects.filter(p => p.id !== data.projectId);
+        }
+        
+        return newProjects;
+      });
+      
+      // Always refresh to ensure statuses and missing updates are correct
+      fetchDashboardData();
+    };
+
+    const onAssignmentUpdated = (data: { projectId: string; userId: string; isActive: boolean }) => {
+      if (data.userId === session?.user?.id) {
+        // If the toggle was for the current user, refresh everything
+        fetchDashboardData();
+      }
+    };
+
     if (socket) {
       socket.on("project-deleted", onProjectDeleted);
       socket.on("project-created", onProjectCreated);
+      socket.on("project-updated", onProjectUpdated);
+      socket.on("assignment-updated", onAssignmentUpdated);
       return () => {
         socket.off("project-deleted", onProjectDeleted);
         socket.off("project-created", onProjectCreated);
+        socket.off("project-updated", onProjectUpdated);
+        socket.off("assignment-updated", onAssignmentUpdated);
       };
     }
   }, [session]);
@@ -98,61 +142,41 @@ export default function UserDashboardPage() {
       const userId = session.user.id;
       const today = getTodayDate();
 
-      // Fetch user's projects, memos, and EODs
+      // Fetch user's projects, memos, and EODs - USE SUMMARY MODE for performance
       const [projectsData, memosData, eodsData] = await Promise.all([
         projectsApi.getAll(),
-        memosApi.getByFilters(userId, undefined, 1000),
-        eodsApi.getByFilters(userId, undefined, 1000),
+        memosApi.getByFilters(userId, undefined, 3000, true),
+        eodsApi.getByFilters(userId, undefined, 3000, false),
       ]);
 
       // Store raw data for duplicate checking
       setAllMemos(Array.isArray(memosData) ? memosData : []);
       setAllEods(Array.isArray(eodsData) ? eodsData : []);
 
-      // Get all user's projects
+      // Use already mapped project data
       const userProjects = projectsData.data || [];
 
-      // Fetch assignment dates for all projects and filter by is_active
-      const assignmentPromises = userProjects.map(async (project: Project) => {
-        try {
-          const assignmentData = await projectsApi.getAssignment(project.id, userId);
-          return {
-            projectId: project.id,
-            assignedAt: new Date(assignmentData.assignedAt),
-            createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
-            isActive: assignmentData.isActive,
-          };
-        } catch (error) {
-          console.error(
-            `Failed to fetch assignment for project ${project.id}`,
-            error
-          );
-          // Fallback: use project creation date if no assignment found
-          return {
-            projectId: project.id,
-            assignedAt: project.createdAt ? new Date(project.createdAt) : new Date(),
-            createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
-            isActive: false,
-          };
-        }
-      });
-
-      const assignments = await Promise.all(assignmentPromises);
+      const assignments = Array.isArray(projectsData.data)
+        ? projectsData.data
+            .filter((p: any) => p.assignedAt)
+            .map((p: any) => ({
+              projectId: p.id,
+              assignedAt: new Date(p.assignedAt),
+              lastActivatedAt: p.lastActivatedAt ? new Date(p.lastActivatedAt) : undefined,
+              createdAt: new Date(p.createdAt || new Date()),
+              isActive: p.isActive || false,
+            }))
+        : [];
       setProjectAssignments(assignments);
 
-      // Filter to show only active projects on dashboard
-      const activeProjects = userProjects.filter((project: Project) => {
-        const assignment = assignments.find(
-          (a) => a.projectId === project.id
-        );
-        return assignment?.isActive === true;
-      });
+      // Filter to show only "Actively Working" projects on dashboard that are also globally active
+      const activeProjects = userProjects.filter((p: Project) => p.isActive === true && p.status === 'active');
       setMyProjects(activeProjects);
 
       // Calculate project statuses (only for active projects)
       const statuses: ProjectStatus[] = activeProjects.map(
         (project: Project) => {
-          const todayMemos = Array.isArray(memosData)
+          const projectMemos = Array.isArray(memosData)
             ? memosData.filter((m: Memo) => {
               const memoDate = m.reportDate
                 ? getLocalDateString(m.reportDate)
@@ -160,6 +184,10 @@ export default function UserDashboardPage() {
               return m.projectId === project.id && memoDate === today;
             })
             : [];
+
+          const hasUniversalToday = projectMemos.some(m => m.memoType === 'universal') || 
+                            (!project.isMemoRequired && projectMemos.some(m => m.memoType === 'short'));
+          const hasShortToday = projectMemos.some(m => m.memoType === 'short');
 
           const todayEods = Array.isArray(eodsData)
             ? eodsData.filter((e: EOD) => {
@@ -174,8 +202,9 @@ export default function UserDashboardPage() {
           return {
             projectId: project.id,
             projectName: project.name,
-            hasTodayMemo: todayMemos.length > 0,
-            hasTodayEod: todayEods.length > 0,
+            hasUniversalToday,
+            hasShortToday,
+            hasEodToday: todayEods.length > 0,
           };
         }
       );
@@ -184,17 +213,23 @@ export default function UserDashboardPage() {
 
       // Find missing updates
       const missing: MissingUpdate[] = [];
-      const daysToCheck = MISSING_UPDATES_DAYS_TO_CHECK;
-      const memoLimitDays = 7;
+      const daysToCheck = 2;
+      const memoLimitDays = 2;
 
-      // Pre-process memos and eods into Sets for O(1) lookup
-      const memoMap = new Map<string, Set<string>>();
+      // Map<projectId, Map<dateStr, {hasUniversal, hasShort}>>
+      const memoStatusMap = new Map<string, Map<string, {uni: boolean, short: boolean}>>();
       const eodMap = new Map<string, Set<string>>();
 
       if (Array.isArray(memosData)) {
         memosData.forEach(m => {
-          if (!memoMap.has(m.projectId)) memoMap.set(m.projectId, new Set());
-          memoMap.get(m.projectId)?.add(getLocalDateString(m.reportDate));
+          if (!memoStatusMap.has(m.projectId)) memoStatusMap.set(m.projectId, new Map());
+          const dateStr = getLocalDateString(m.reportDate);
+          if (!memoStatusMap.get(m.projectId)!.has(dateStr)) {
+              memoStatusMap.get(m.projectId)!.set(dateStr, {uni: false, short: false});
+          }
+          const status = memoStatusMap.get(m.projectId)!.get(dateStr)!;
+          if (m.memoType === 'universal') status.uni = true;
+          if (m.memoType === 'short') status.short = true;
         });
       }
 
@@ -209,52 +244,64 @@ export default function UserDashboardPage() {
         const checkDate = new Date();
         checkDate.setDate(checkDate.getDate() - i);
         const dateStr = getLocalDateString(checkDate);
+        
+        // Skip weekends for missing updates
+        const isWeekend = checkDate.getDay() === 0 || checkDate.getDay() === 6;
+        if (isWeekend) continue;
 
         activeProjects.forEach((project: Project) => {
-          // Get the assignment info for this project (using local assignments variable)
           const assignment = assignments.find(
             (a) => a.projectId === project.id
           );
 
+          const mStatus = memoStatusMap.get(project.id)?.get(dateStr);
+          const hasUniversal = mStatus?.uni || (!project.isMemoRequired && mStatus?.short);
+          const hasShort = mStatus?.short || false;
+          const hasEod = eodMap.get(project.id)?.has(dateStr) || false;
+
+          // Determine if we should check this day for this project
+          let shouldCheck = false;
           if (assignment) {
-            // Strictly use the allocation date (assignedAt) for filtering
             const validStartStr = getLocalDateString(assignment.assignedAt);
-
-            // Only check for missing updates if the date is after or on assignment
-            if (dateStr < validStartStr) {
-              return; // Skip this date for this project
+            const activeFromStr = assignment.lastActivatedAt 
+              ? getLocalDateString(assignment.lastActivatedAt) 
+              : validStartStr;
+            
+            if (dateStr >= activeFromStr) {
+              shouldCheck = true;
             }
           }
 
-          // Check for missing memo - ONLY show for last 7 days AND if required
-          if (i <= memoLimitDays && project.isMemoRequired) {
-            const hasMemo = memoMap.get(project.id)?.has(dateStr);
-            if (!hasMemo) {
-              missing.push({
-                id: `${project.id}-${dateStr}-memo`,
-                date: new Date(dateStr + "T00:00:00"),
-                projectId: project.id,
-                projectName: project.name,
-                type: "memo",
-              });
-            }
+          // If they sent an EOD, they were definitely working, so we should expect a memo
+          if (hasEod) {
+            shouldCheck = true;
           }
 
-          // Check for missing EOD - Always show (within daysToCheck)
-          const hasEod = eodMap.get(project.id)?.has(dateStr);
-          if (!hasEod) {
+          if (!shouldCheck) return;
+
+          // Universal is required if we check back memoLimitDays
+          const universalMissing = i <= memoLimitDays && !hasUniversal;
+          // Short is required only for specific projects
+          const shortMissing = i <= memoLimitDays && project.isMemoRequired && !hasShort;
+          // EOD is missing if no EOD found
+          const eodMissing = !hasEod;
+
+          if (universalMissing || shortMissing || eodMissing) {
             missing.push({
-              id: `${project.id}-${dateStr}-eod`,
-              date: new Date(dateStr + "T00:00:00"),
+              id: `${project.id}-${dateStr}`,
+              date: new Date(dateStr + "T12:00:00"), // mid-day to avoid TZ shifts
               projectId: project.id,
               projectName: project.name,
-              type: "eod",
+              isUniversalMissing: universalMissing,
+              isShortMissing: shortMissing,
+              isEodMissing: eodMissing,
             });
           }
         });
       }
 
-      // Set all missing updates (will be scrollable in UI)
+      // Sort missing updates by date (newest first)
+      missing.sort((a, b) => b.date.getTime() - a.date.getTime());
       setMissingUpdates(missing);
     } catch (error) {
       handleApiError(error, "Dashboard data fetch");
@@ -277,10 +324,44 @@ export default function UserDashboardPage() {
     setInitialModalTab(type);
     setInitialProjectId(projectId);
     setInitialDate(targetDate);
+    
+    // Default values if no existing report (will be overwritten if exists)
     setInitialMemoContent("");
-    setInitialClientUpdate("");
+    setInitialShortMemoContent(""); 
+    setInitialClientUpdate(""); 
     setInitialInternalUpdate("");
+
+    // Find existing report if any
+    const dateStr = targetDate;
+    if (type === "memo") {
+        const existingMemo = allMemos.find(m => m.projectId === projectId && getLocalDateString(new Date(m.reportDate)) === dateStr);
+        if (existingMemo) {
+             setInitialMemoContent(existingMemo.memoContent || "");
+             // find short memo too
+             const shortMemo = allMemos.find(m => m.projectId === projectId && m.memoType === 'short' && getLocalDateString(new Date(m.reportDate)) === dateStr);
+             setInitialShortMemoContent(shortMemo?.memoContent || "");
+        }
+    } else {
+         const existingEod = allEods.find(e => e.projectId === projectId && getLocalDateString(new Date(e.reportDate)) === dateStr);
+         if (existingEod) {
+             setInitialClientUpdate(existingEod.clientUpdate || "");
+             setInitialInternalUpdate(existingEod.actualUpdate || "");
+         }
+    }
+    
     setIsModalOpen(true);
+  };
+
+  const handleViewProject = (projectId: string) => {
+    setViewProjectId(projectId);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleCloseDetailsModal = (open: boolean) => {
+    setIsDetailsModalOpen(open);
+    if (!open) {
+      setViewProjectId(null);
+    }
   };
 
   const closeModal = () => {
@@ -295,6 +376,45 @@ export default function UserDashboardPage() {
     currentStatus: boolean
   ) => {
     if (!session?.user?.id) return;
+
+    // Check project status first
+    // Note: myProjects in dashboard is ALREADY filtered to only isActive=true projects (lines 136-137)
+    // However, if we want to support toggling OFFLINE projects ON, we might need allProjects soon?
+    // Wait, line 136 says: setMyProjects(activeProjects); 
+    // This means the user CANNOT see inactive projects on the dashboard currently?
+    // Let's verify... ProjectsSection uses `myProjects` which is `activeProjects`.
+    // BUT the toggle allows turning them OFF. This logic is fine for turning off.
+    // What about turning ON? The dashboard seems to ONLY show active projects.
+    // IF the user uses "View All" (UserProjectsPage), they can see inactive ones.
+    // BUT wait, ProjectsSection HAS a switch. If I turn it OFF, it stays in the list until refresh?
+    // Or it might disappear. 
+    
+    // Regardless, I should add the safety check here just in case.
+    // But I might not have access to the full project object if it was filtered out?
+    // Actually, `myProjects` contains the state. 
+
+    // The logic requested is: "if the project is on hold ... restricted ... toggle"
+    // Since dashboard implementation is:
+    // const activeProjects = userProjects.filter((p: Project) => p.isActive === true);
+    // setMyProjects(activeProjects);
+    
+    // Effectively, the dashboard projects ARE active. 
+    // BUT, what if the project ITSELF (admin status) is 'On Hold', but assignment is 'Active'?
+    // That's the edge case. Admin sets it to 'On Hold', but user still has it 'Active'.
+    // User tries to toggle it off (or on if it was effectively confusing).
+    // Actually, if Admin sets to On Hold, user shouldn't be work on it.
+    // If user tries to toggle it, we should check status.
+    
+    // We need to find the project in `userProjects` (which we don't have in scope here, only `myProjects`).
+    // `myProjects` serves the UI.
+    // Let's rely on `myProjects` since it comes from API.
+    
+    const project = myProjects.find(p => p.id === projectId);
+    if (project && project.status !== 'active') { // Admin status check
+         const capitalizedStatus = project.status.charAt(0).toUpperCase() + project.status.slice(1);
+         toast.error(`Cannot activate project. Status is currently "${capitalizedStatus}".`);
+         return;
+    }
 
     try {
       await projectsApi.toggleActive(projectId, session.user.id, !currentStatus);
@@ -311,72 +431,18 @@ export default function UserDashboardPage() {
   };
 
   /**
-   * Fetch reference data for modal (yesterday's EOD or selected date's memo)
+   * Fetch reference data for modal (not used much anymore as we use local state)
    */
-  const referenceDataFetcher = async (
+  const referenceDataFetcher = useCallback(async (
     type: "memo" | "eod",
     projectId: string,
     date: string
   ) => {
-    if (!session?.user?.id) return null;
-
-    try {
-      if (type === "memo") {
-        // Find the most recent memo before this date
-        const memos = await memosApi.getByFilters(session.user.id, projectId) as Memo[];
-        const previousMemos = Array.isArray(memos)
-          ? memos.filter((m) => getLocalDateString(m.reportDate) <= date)
-          : [];
-
-        // Sort by date descending
-        previousMemos.sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
-
-        const latestMemo = previousMemos[0];
-
-        if (latestMemo) {
-          const memoDateStr = getLocalDateString(latestMemo.reportDate);
-          const isSameDay = memoDateStr === date;
-          return {
-            type: isSameDay ? `Current Memo (${formatDisplayDate(memoDateStr).split(',')[0]})` : `Latest Memo (${formatDisplayDate(memoDateStr).split(',')[0]})`,
-            content: latestMemo.memoContent || "No content",
-          };
-        } else {
-          return {
-            type: "First Memo",
-            content: "This is your first memo for this project. Welcome aboard!",
-          };
-        }
-      } else {
-        // Find the most recent EOD before this date
-        const eods = await eodsApi.getByFilters(session.user.id, projectId) as EOD[];
-        const previousEods = Array.isArray(eods)
-          ? eods.filter((e) => getLocalDateString(e.reportDate) <= date)
-          : [];
-
-        // Sort by date descending
-        previousEods.sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
-
-        const latestEod = previousEods[0];
-
-        if (latestEod) {
-          const eodDateStr = getLocalDateString(latestEod.reportDate);
-          const isSameDay = eodDateStr === date;
-          return {
-            type: isSameDay ? `Current EOD (${formatDisplayDate(eodDateStr).split(',')[0]})` : `Latest EOD (${formatDisplayDate(eodDateStr).split(',')[0]})`,
-            content: latestEod.actualUpdate || latestEod.clientUpdate || "No content",
-          };
-        } else {
-          return {
-            type: "First EOD Report",
-            content: "This is your first EOD report for this project. Great start!",
-          };
-        }
-      }
-    } catch (error) {
-      handleApiError(error, "Fetch reference data");
-      return null;
-    }
-  };
+    // We already have all data in allMemos and allEods, but this prop 
+    // is also used for the logic in UpdateModal to decide mode.
+    // Let's keep it simple and just return the latest from local state if needed.
+    return null; 
+  }, []);
 
   /**
    * Handle memo/EOD submission from modal
@@ -386,6 +452,7 @@ export default function UserDashboardPage() {
     projectId: string;
     date: string;
     memoContent?: string;
+    shortMemoContent?: string;
     clientUpdate?: string;
     internalUpdate?: string;
   }) => {
@@ -396,38 +463,80 @@ export default function UserDashboardPage() {
     }
 
     try {
-      if (data.type === "memo") {
+      const savePromises = [];
+      const project = myProjects.find((p) => p.id === data.projectId);
+
+      // Check for Memo content
+      const hasMemoContent = data.memoContent?.trim() || (project?.isMemoRequired && data.shortMemoContent?.trim());
+      
+      if (hasMemoContent) {
         if (!data.memoContent?.trim()) {
-          toast.error("Please enter your memo");
+          toast.error("Universal memo is required");
           return;
         }
 
-        await memosApi.create({
+        if (project?.isMemoRequired && !data.shortMemoContent?.trim()) {
+          toast.error("140chars memo is required for this project");
+          return;
+        }
+
+        const memoList = [];
+        memoList.push({
           memoContent: data.memoContent,
+          memoType: "universal",
           projectId: data.projectId,
           userId: session.user.id,
           reportDate: data.date,
         });
 
-        toast.success("Memo saved successfully!");
-        await fetchDashboardData();
-      } else {
+        if (project?.isMemoRequired && data.shortMemoContent) {
+          memoList.push({
+            memoContent: data.shortMemoContent,
+            memoType: "short",
+            projectId: data.projectId,
+            userId: session.user.id,
+            reportDate: data.date,
+          });
+        }
+
+        savePromises.push(
+          memosApi.create({
+            memos: memoList,
+            projectId: data.projectId,
+            userId: session.user.id,
+            reportDate: data.date,
+          })
+        );
+      }
+
+      // Check for EOD content
+      const hasEodContent = data.internalUpdate?.trim() || data.clientUpdate?.trim();
+      
+      if (hasEodContent) {
         if (!data.internalUpdate?.trim()) {
           toast.error("Please enter internal update");
           return;
         }
 
-        await eodsApi.create({
-          clientUpdate: data.clientUpdate || "",
-          actualUpdate: data.internalUpdate,
-          projectId: data.projectId,
-          userId: session.user.id,
-          reportDate: data.date,
-        });
-
-        toast.success("EOD report saved successfully!");
-        await fetchDashboardData();
+        savePromises.push(
+          eodsApi.create({
+            clientUpdate: data.clientUpdate || "",
+            actualUpdate: data.internalUpdate,
+            projectId: data.projectId,
+            userId: session.user.id,
+            reportDate: data.date,
+          })
+        );
       }
+
+      if (savePromises.length === 0) {
+        toast.error("No content to save");
+        return;
+      }
+
+      await Promise.all(savePromises);
+      toast.success("Update(s) saved successfully!");
+      await fetchDashboardData();
     } catch (error) {
       handleApiError(error, "Submit update");
       throw error; // Re-throw to keep modal open on error
@@ -439,44 +548,58 @@ export default function UserDashboardPage() {
     projectId: string;
     date: string;
     memoContent?: string;
+    shortMemoContent?: string;
     clientUpdate?: string;
     internalUpdate?: string;
   }) => {
-    // Check if entry exists to determine update vs create
-    let existingId: string | undefined;
-    if (data.type === "memo") {
-      const existing = allMemos.find(m => m.projectId === data.projectId && getLocalDateString(m.reportDate) === data.date);
-      existingId = existing?.id;
-    } else {
-      const existing = allEods.find(e => e.projectId === data.projectId && getLocalDateString(e.reportDate) === data.date);
-      existingId = existing?.id;
-    }
-
-    if (existingId) {
-      if (data.type === "memo") {
-        await memosApi.update(existingId, {
-          memoContent: data.memoContent || "",
-          projectId: data.projectId,
-          userId: session?.user?.id || "",
-          reportDate: data.date
-        });
-        toast.success("Memo updated successfully!");
-      } else {
-        await eodsApi.update(existingId, {
-          clientUpdate: data.clientUpdate || "",
-          actualUpdate: data.internalUpdate || "",
-          projectId: data.projectId,
-          userId: session?.user?.id || "",
-          reportDate: data.date
-        });
-        toast.success("EOD Report updated successfully!");
-      }
-      await fetchDashboardData();
-      return;
-    }
-
-    // Proceed to Create
+    // For simplicity, we use the optimized create API which handles updates on backend now
     await handleUpdateSubmit(data);
+  };
+
+  /**
+   * Handle memo/EOD deletion
+   */
+  const handleUpdateDelete = async (
+    type: "memo" | "eod",
+    projectId: string,
+    date: string
+  ) => {
+    if (!session?.user?.id) return;
+
+    try {
+      if (type === "memo") {
+        const memosToDelete = allMemos.filter(
+          (m) =>
+            m.projectId === projectId &&
+            getLocalDateString(new Date(m.reportDate)) === date
+        );
+
+        if (memosToDelete.length === 0) {
+          toast.error("No memo found to delete");
+          return;
+        }
+
+        await Promise.all(memosToDelete.map((m) => memosApi.delete(m.id)));
+      } else {
+        const eodToDelete = allEods.find(
+          (e) =>
+            e.projectId === projectId &&
+            getLocalDateString(new Date(e.reportDate)) === date
+        );
+
+        if (!eodToDelete) {
+          toast.error("No EOD report found to delete");
+          return;
+        }
+
+        await eodsApi.delete(eodToDelete.id);
+      }
+
+      await fetchDashboardData();
+    } catch (error) {
+      handleApiError(error, "Delete update");
+      throw error;
+    }
   };
 
   if (isSessionLoading || isLoading) {
@@ -493,8 +616,11 @@ export default function UserDashboardPage() {
     );
   }
 
-  const todayMemoCount = projectStatuses.filter((p) => p.hasTodayMemo).length;
-  const todayEodCount = projectStatuses.filter((p) => p.hasTodayEod).length;
+  const todayMemoCount = projectStatuses.filter((p) => {
+    const project = myProjects.find(mp => mp.id === p.projectId);
+    return p.hasUniversalToday && (!project?.isMemoRequired || p.hasShortToday);
+  }).length;
+  const todayEodCount = projectStatuses.filter((p) => p.hasEodToday).length;
   const totalProjects = myProjects.length;
 
   return (
@@ -526,6 +652,7 @@ export default function UserDashboardPage() {
             setSelectedProjectId(pid);
             setIsHistoryOpen(true);
           }}
+          onViewProject={handleViewProject}
         />
 
         {/* Missing Updates */}
@@ -562,8 +689,10 @@ export default function UserDashboardPage() {
           existingEods={allEods}
 
           initialMemoContent={initialMemoContent}
+          initialShortMemoContent={initialShortMemoContent}
           initialClientUpdate={initialClientUpdate}
           initialInternalUpdate={initialInternalUpdate}
+          onDelete={handleUpdateDelete}
         />
 
         <ProjectHistoryDialog
@@ -571,6 +700,13 @@ export default function UserDashboardPage() {
           onClose={() => setIsHistoryOpen(false)}
           projectId={selectedProjectId || ""}
           userId={session?.user?.id || ""}
+        />
+
+        <ProjectDetailsModal
+          open={isDetailsModalOpen}
+          onOpenChange={handleCloseDetailsModal}
+          projectId={viewProjectId}
+          userRole={session?.user?.role}
         />
       </div>
     </ErrorBoundary>

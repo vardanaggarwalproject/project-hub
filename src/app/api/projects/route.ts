@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { projects, clients, chatGroups, user, userProjectAssignments } from "@/lib/db/schema";
+import { projects, clients, chatGroups, user, userProjectAssignments, links } from "@/lib/db/schema";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -13,6 +13,11 @@ const projectSchema = z.object({
     totalTime: z.string().optional(),
     description: z.string().optional(),
     assignedUserIds: z.array(z.string()).optional(),
+    links: z.array(z.object({
+        label: z.string(),
+        value: z.string(),
+        allowedRoles: z.array(z.string()).optional().default(["admin", "developer", "tester", "designer"]),
+    })).optional(),
     isMemoRequired: z.boolean().optional(),
 });
 
@@ -32,6 +37,8 @@ export async function GET(req: Request) {
         const status = searchParams.get("status");
         const clientId = searchParams.get("clientId");
         const search = searchParams.get("search");
+        const fromDate = searchParams.get("fromDate");
+        const toDate = searchParams.get("toDate");
 
         const offset = (page - 1) * limit;
 
@@ -42,6 +49,14 @@ export async function GET(req: Request) {
         if (clientId) conditions.push(eq(projects.clientId, clientId));
         // Note: ILike is pg specific, using sql for generic search if needed or simple like
         if (search) conditions.push(sql`${projects.name} ILIKE ${`%${search}%`}`);
+
+        // Date range filtering
+        if (fromDate) {
+            conditions.push(sql`${projects.createdAt} >= ${new Date(fromDate)}`);
+        }
+        if (toDate) {
+            conditions.push(sql`${projects.createdAt} <= ${new Date(toDate)}`);
+        }
 
         // If not admin and we have a user ID, only show assigned projects
         if (userRole !== "admin" && currentUserId) {
@@ -57,7 +72,7 @@ export async function GET(req: Request) {
             whereClause = and(...conditions);
         }
 
-        const projectList = await db.select({
+        const rawProjectList = await db.select({
             id: projects.id,
             name: projects.name,
             status: projects.status,
@@ -65,25 +80,43 @@ export async function GET(req: Request) {
             totalTime: projects.totalTime,
             completedTime: projects.completedTime,
             description: projects.description,
-            isMemoRequired: projects.isMemoRequired,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
+            isActive: userProjectAssignments.isActive,
+            assignedAt: userProjectAssignments.assignedAt,
+            lastActivatedAt: userProjectAssignments.lastActivatedAt,
+            isMemoRequired: projects.isMemoRequired,
         })
             .from(projects)
             .leftJoin(clients, eq(projects.clientId, clients.id))
+            .leftJoin(userProjectAssignments, and(
+                eq(projects.id, userProjectAssignments.projectId),
+                currentUserId ? eq(userProjectAssignments.userId, currentUserId) : sql`false`
+            ))
             .where(whereClause)
-            .limit(limit)
-            .offset(offset)
             .orderBy(desc(projects.updatedAt));
+
+        // Deduplicate projectList by ID, prioritizing isActive: true
+        const dedupedMap = new Map();
+        for (const p of rawProjectList) {
+            if (!dedupedMap.has(p.id) || (!dedupedMap.get(p.id).isActive && p.isActive)) {
+                dedupedMap.set(p.id, p);
+            }
+        }
+
+        const allDedupedProjects = Array.from(dedupedMap.values());
+        const total = allDedupedProjects.length;
+        const projectList = allDedupedProjects.slice(offset, offset + limit);
 
         // Fetch assignments for these projects
         const projectIds = projectList.map(p => p.id);
-        const allAssignments = projectIds.length > 0
+        const rawAssignments = projectIds.length > 0
             ? await db.select({
                 projectId: userProjectAssignments.projectId,
                 user: {
                     id: user.id,
                     name: user.name,
+                    email: user.email,
                     image: user.image,
                     role: user.role
                 }
@@ -92,6 +125,16 @@ export async function GET(req: Request) {
                 .innerJoin(user, eq(userProjectAssignments.userId, user.id))
                 .where(inArray(userProjectAssignments.projectId, projectIds))
             : [];
+
+        // Deduplicate assignments per project
+        const assignmentMap = new Map();
+        for (const a of rawAssignments) {
+            const key = `${a.projectId}-${a.user.id}`;
+            if (!assignmentMap.has(key)) {
+                assignmentMap.set(key, a);
+            }
+        }
+        const allAssignments = Array.from(assignmentMap.values());
 
         const projectsWithTeam = projectList.map(project => {
             // Calculate progress based on completedTime and totalTime
@@ -112,12 +155,6 @@ export async function GET(req: Request) {
                     .map(a => a.user)
             };
         });
-
-        const totalResult = await db.select({ count: sql<number>`count(*)` })
-            .from(projects)
-            .where(whereClause);
-
-        const total = Number(totalResult[0]?.count || 0);
 
         return NextResponse.json({
             data: projectsWithTeam,
@@ -144,7 +181,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: validation.error.issues }, { status: 400 });
         }
 
-        const { name, clientId, status, totalTime, description, assignedUserIds } = validation.data;
+        const { name, clientId, status, totalTime, description, assignedUserIds, links: projectLinks, isMemoRequired } = validation.data;
 
         const [newProject] = await db.insert(projects).values({
             id: crypto.randomUUID(),
@@ -154,7 +191,7 @@ export async function POST(req: Request) {
             totalTime: totalTime || null,
             completedTime: null, // explicit null
             description: description || null, // explicit null
-            isMemoRequired: body.isMemoRequired ?? false,
+            isMemoRequired: isMemoRequired || false,
         }).returning();
 
         // Handle assignments
@@ -164,6 +201,22 @@ export async function POST(req: Request) {
                     id: crypto.randomUUID(),
                     userId,
                     projectId: newProject.id
+                }))
+            );
+        }
+
+        // Handle project links
+        if (projectLinks && projectLinks.length > 0) {
+            await db.insert(links).values(
+                projectLinks.map(link => ({
+                    id: crypto.randomUUID(),
+                    name: link.label,
+                    url: link.value,
+                    allowedRoles: link.allowedRoles || ["admin", "developer", "tester", "designer"],
+                    projectId: newProject.id,
+                    description: null,
+                    clientId: null,
+                    addedBy: null,
                 }))
             );
         }

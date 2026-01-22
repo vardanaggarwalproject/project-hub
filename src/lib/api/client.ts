@@ -68,6 +68,8 @@ function mapProject(project: any): Project {
     ...project,
     createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
     updatedAt: project.updatedAt ? new Date(project.updatedAt) : undefined,
+    assignedAt: project.assignedAt ? new Date(project.assignedAt) : undefined,
+    isActive: project.isActive ?? false,
     yesterdayEodDate: project.yesterdayEodDate ? new Date(project.yesterdayEodDate) : undefined,
   };
 }
@@ -161,10 +163,11 @@ export const memosApi = {
   /**
    * Get memos filtered by userId and/or projectId
    */
-  async getByFilters(userId?: string, projectId?: string, limit: number = 100): Promise<MemosResponse> {
+  async getByFilters(userId?: string, projectId?: string, limit: number = 100, summary: boolean = false): Promise<MemosResponse> {
     const params = new URLSearchParams();
     if (userId) params.append("userId", userId);
     if (projectId) params.append("projectId", projectId);
+    if (summary) params.append("summary", "true");
     params.append("limit", limit.toString());
 
     const response = await fetch(`/api/memos?${params.toString()}`, {
@@ -175,20 +178,29 @@ export const memosApi = {
   },
 
   /**
-   * Create a new memo
+   * Create a new memo (supports bulk/multiple types)
    */
   async create(data: {
-    memoContent: string;
+    memoContent?: string;
+    memoType?: string;
     projectId: string;
     userId: string;
     reportDate: string;
-  }): Promise<MemoResponse> {
+    memos?: Array<{
+      memoContent: string;
+      memoType: string;
+      projectId: string;
+      userId: string;
+      reportDate: string;
+    }>;
+  }): Promise<MemoResponse | MemoResponse[]> {
     const response = await fetch("/api/memos", {
       method: "POST",
       headers: API_CONFIG.headers,
       body: JSON.stringify(data),
     });
     const result = await handleResponse<any>(response);
+    if (Array.isArray(result)) return result.map(mapMemo);
     return mapMemo(result);
   },
 
@@ -197,6 +209,7 @@ export const memosApi = {
    */
   async update(id: string, data: {
     memoContent: string;
+    memoType?: string;
     projectId: string;
     userId: string;
     reportDate: string;
@@ -209,6 +222,17 @@ export const memosApi = {
     const result = await handleResponse<any>(response);
     return mapMemo(result);
   },
+
+  /**
+   * Delete a memo
+   */
+  async delete(id: string): Promise<{ success: boolean }> {
+    const response = await fetch(`/api/memos/${id}`, {
+      method: "DELETE",
+      headers: API_CONFIG.headers,
+    });
+    return handleResponse<{ success: boolean }>(response);
+  },
 };
 
 /**
@@ -218,10 +242,11 @@ export const eodsApi = {
   /**
    * Get EODs filtered by userId and/or projectId
    */
-  async getByFilters(userId?: string, projectId?: string, limit: number = 100): Promise<EODsResponse> {
+  async getByFilters(userId?: string, projectId?: string, limit: number = 100, summary: boolean = false): Promise<EODsResponse> {
     const params = new URLSearchParams();
     if (userId) params.append("userId", userId);
     if (projectId) params.append("projectId", projectId);
+    if (summary) params.append("summary", "true");
     params.append("limit", limit.toString());
 
     const response = await fetch(`/api/eods?${params.toString()}`, {
@@ -267,5 +292,16 @@ export const eodsApi = {
     });
     const result = await handleResponse<any>(response);
     return mapEOD(result);
+  },
+
+  /**
+   * Delete an EOD
+   */
+  async delete(id: string): Promise<{ success: boolean }> {
+    const response = await fetch(`/api/eods/${id}`, {
+      method: "DELETE",
+      headers: API_CONFIG.headers,
+    });
+    return handleResponse<{ success: boolean }>(response);
   },
 };

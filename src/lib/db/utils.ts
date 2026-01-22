@@ -29,6 +29,7 @@ export function dateComparisonClause(
 
 /**
  * Create SQL clause for date range comparison
+ * Modified to avoid DATE() casting for better index performance
  *
  * @param dateColumn - The database date column
  * @param from - Start date
@@ -40,8 +41,11 @@ export function dateRangeComparisonClause(
   from: Date,
   to: Date
 ): SQL {
-  const fromStr = from.toISOString().split('T')[0];
-  const toStr = to.toISOString().split('T')[0];
+  const start = new Date(from);
+  start.setHours(0, 0, 0, 0);
 
-  return sql`DATE(${dateColumn}) BETWEEN DATE(${fromStr}) AND DATE(${toStr})`;
+  const end = new Date(to);
+  end.setHours(23, 59, 59, 999);
+
+  return sql`${dateColumn} >= ${start} AND ${dateColumn} <= ${end}`;
 }

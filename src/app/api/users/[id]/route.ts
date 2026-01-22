@@ -2,7 +2,7 @@
 import { db } from "@/lib/db";
 import { user, roles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const ALLOWED_ROLES = ["admin", "developer", "tester", "designer"] as const;
@@ -10,9 +10,10 @@ const ALLOWED_ROLES = ["admin", "developer", "tester", "designer"] as const;
 const updateUserSchema = z.object({
     name: z.string().min(1).optional(),
     role: z.enum(ALLOWED_ROLES).optional(),
+    image: z.string().url().optional(),
 });
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
         const fetchedUser = await db.select().from(user).where(eq(user.id, id));
@@ -27,7 +28,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
 }
 
-export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
         const body = await req.json();
@@ -37,9 +38,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             return NextResponse.json({ error: validation.error.format() }, { status: 400 });
         }
 
-        const { name, role } = validation.data;
+        const { name, role, image } = validation.data;
         const updateData: any = { updatedAt: new Date().toISOString() };
         if (name) updateData.name = name;
+        if (image) updateData.image = image;
 
         if (role) {
             const roleExists = await db.select().from(roles).where(eq(roles.name, role));
@@ -64,7 +66,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 }
 
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
         const deleted = await db.delete(user).where(eq(user.id, id)).returning();

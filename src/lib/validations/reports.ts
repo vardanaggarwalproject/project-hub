@@ -25,7 +25,8 @@ export const eodSchema = baseReportSchema.extend({
  * Memo validation schema
  */
 export const memoSchema = baseReportSchema.extend({
-  memoContent: z.string().max(140, "Max 140 characters").min(1),
+  memoContent: z.string().min(1, "Memo content required"),
+  memoType: z.string().optional().default("short"),
 });
 
 export type EODInput = z.infer<typeof eodSchema>;
