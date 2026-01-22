@@ -26,14 +26,17 @@ export async function POST(req: NextRequest) {
     const currentUser = session.user;
 
     // 2. Get admin's Drive service (all users upload to admin's Drive)
+    console.log(`📤 [UPLOAD] User ${currentUser.email} (ID: ${currentUser.id}) attempting upload`);
     const driveService = await getAdminDriveService();
 
     if (!driveService) {
+      console.error('❌ [UPLOAD] Admin Drive service not available');
       return NextResponse.json(
         { error: 'Admin has not connected Google Drive yet. Please contact the administrator.' },
         { status: 403 }
       );
     }
+    console.log('✅ [UPLOAD] Admin Drive service obtained successfully');
 
     // 3. Parse form data
     const formData = await req.formData();
@@ -85,6 +88,7 @@ export async function POST(req: NextRequest) {
     }
 
     const userRole = userDetails.role;
+    console.log(`👤 [UPLOAD] User role: ${userRole}`);
 
     // 6. Check if user is assigned to this project
     const [assignment] = await db
@@ -129,17 +133,64 @@ export async function POST(req: NextRequest) {
     // 9. Ensure project folders exist
     let projectFolderIds;
 
+    console.log(`📁 [UPLOAD] Checking folders for project: ${project.name}`);
+    console.log(`📁 [UPLOAD] Existing folder IDs:`, {
+      driveFolderId: project.driveFolderId,
+      driveClientFolderId: project.driveClientFolderId,
+      driveInternalFolderId: project.driveInternalFolderId,
+    });
+
     if (project.driveFolderId && project.driveClientFolderId && project.driveInternalFolderId) {
-      // Use existing folder IDs
-      projectFolderIds = {
-        projectFolderId: project.driveFolderId,
-        clientFolderId: project.driveClientFolderId,
-        internalFolderId: project.driveInternalFolderId,
-      };
+      // Verify existing folders still exist in Drive
+      console.log('🔍 [UPLOAD] Verifying existing folders still exist in Drive...');
+
+      try {
+        // Check if the target folder (internal or client) still exists
+        const targetFolderIdToCheck = folderType === 'client'
+          ? project.driveClientFolderId
+          : project.driveInternalFolderId;
+
+        // @ts-ignore - Access drive instance to verify folder exists
+        await driveService.drive.files.get({
+          fileId: targetFolderIdToCheck,
+          fields: 'id, name, trashed',
+        });
+
+        console.log('✅ [UPLOAD] Existing folders verified, using them');
+        projectFolderIds = {
+          projectFolderId: project.driveFolderId,
+          clientFolderId: project.driveClientFolderId,
+          internalFolderId: project.driveInternalFolderId,
+        };
+      } catch (error: any) {
+        console.warn('⚠️  [UPLOAD] Existing folders not found or deleted from Drive!');
+        console.warn(`⚠️  [UPLOAD] Error: ${error.message}`);
+        console.log('🔨 [UPLOAD] Recreating folder structure...');
+
+        // Folders were deleted from Drive, recreate them
+        projectFolderIds = await driveService.ensureProjectFolders(project.name);
+        console.log('✅ [UPLOAD] Folders recreated:', projectFolderIds);
+
+        // Update database with new folder IDs
+        console.log('💾 [UPLOAD] Updating database with new folder IDs...');
+        await db
+          .update(projects)
+          .set({
+            driveFolderId: projectFolderIds.projectFolderId,
+            driveClientFolderId: projectFolderIds.clientFolderId,
+            driveInternalFolderId: projectFolderIds.internalFolderId,
+            driveFolderCreatedAt: new Date(),
+          })
+          .where(eq(projects.id, projectId));
+        console.log('✅ [UPLOAD] Database updated with new folder IDs');
+      }
     } else {
       // Create folders and update project
+      console.log('🔨 [UPLOAD] Creating new folder structure...');
       projectFolderIds = await driveService.ensureProjectFolders(project.name);
+      console.log('✅ [UPLOAD] Folders created:', projectFolderIds);
 
+      console.log('💾 [UPLOAD] Updating database with folder IDs...');
       await db
         .update(projects)
         .set({
@@ -149,6 +200,7 @@ export async function POST(req: NextRequest) {
           driveFolderCreatedAt: new Date(),
         })
         .where(eq(projects.id, projectId));
+      console.log('✅ [UPLOAD] Database updated with folder IDs');
     }
 
     // 10. Determine target folder
@@ -156,15 +208,24 @@ export async function POST(req: NextRequest) {
       ? projectFolderIds.clientFolderId
       : projectFolderIds.internalFolderId;
 
+    console.log(`📂 [UPLOAD] Target folder type: ${folderType}`);
+    console.log(`📂 [UPLOAD] Target folder ID: ${targetFolderId}`);
+
     // 11. Convert file to buffer
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    // 12. Upload to Google Drive (using user's account!)
+    // 12. Upload to Google Drive (using admin's account!)
+    console.log(`⬆️  [UPLOAD] Uploading file: ${file.name} (${file.size} bytes)`);
     const uploadedFile = await driveService.uploadFile({
       fileName: file.name,
       fileBuffer,
       mimeType: file.type,
       folderId: targetFolderId,
+    });
+    console.log(`✅ [UPLOAD] File uploaded successfully to Google Drive:`, {
+      id: uploadedFile.id,
+      name: uploadedFile.name,
+      webViewLink: uploadedFile.webViewLink,
     });
 
     // 13. Save to database
@@ -185,6 +246,9 @@ export async function POST(req: NextRequest) {
       .returning();
 
     // 14. Return success response
+    console.log(`✅ [UPLOAD] Complete! Asset saved to database with ID: ${newAsset.id}`);
+    console.log(`📁 [UPLOAD] File location: project-hub-projects-data/${project.name}/${folderType}/`);
+
     return NextResponse.json({
       success: true,
       asset: {

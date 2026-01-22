@@ -52,17 +52,26 @@ export class OAuthDriveService {
         query += ` and 'root' in parents`;
       }
 
+      console.log(`🔎 Searching for folder: "${folderName}"${parentFolderId ? ` inside parent: ${parentFolderId}` : ' in root'}`);
+
       const response = await this.drive.files.list({
         q: query,
-        fields: 'files(id, name)',
+        fields: 'files(id, name, parents)',
         spaces: 'drive',
       });
 
       const folders = response.data.files || [];
-      return folders.length > 0 ? folders[0].id || null : null;
+
+      if (folders.length > 0) {
+        console.log(`✅ Found folder "${folderName}": ${folders[0].id}`);
+        return folders[0].id || null;
+      } else {
+        console.log(`❌ Folder "${folderName}" not found${parentFolderId ? ` inside parent ${parentFolderId}` : ' in root'}`);
+        return null;
+      }
     } catch (error) {
-      console.error('Error finding folder:', error);
-      return null;
+      console.error(`❌ Error finding folder "${folderName}":`, error);
+      throw error; // Don't swallow errors - let caller handle them
     }
   }
 
