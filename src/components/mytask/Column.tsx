@@ -107,7 +107,7 @@ export function Column({
     <>
       <div
         ref={setNodeRef}
-        className={`flex flex-col min-w-[280px] max-w-[280px] h-[calc(100vh-200px)] bg-app-card rounded-lg border shadow-sm transition-colors ${
+        className={`flex flex-col min-w-[280px] overflow-hidden max-w-[280px] h-[calc(100vh-200px)] bg-app-card rounded-lg border shadow-sm transition-colors ${
           isOver ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20" : ""
         }`}
       >

@@ -3,6 +3,7 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { COLUMN_COLORS } from "./dummy-data";
+import { Plus } from "lucide-react";
 
 interface ColorPickerProps {
   selectedColor: string;
@@ -47,7 +48,7 @@ export function ColorPicker({
           className="h-8 w-8 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 flex items-center justify-center cursor-pointer transition-all hover:scale-110"
           title="Custom color"
         >
-          <span className="text-gray-400 text-sm font-bold">+</span>
+          <span className="text-gray-400 text-sm font-bold"><Plus/></span>
           <input
             id="color-picker"
             type="color"
@@ -56,6 +57,7 @@ export function ColorPicker({
             className="sr-only"
           />
         </label>
+        
       </div>
 
       {/* Large Color Preview with Gradient */}

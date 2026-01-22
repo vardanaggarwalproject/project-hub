@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Calendar, MoreVertical, Trash2, Edit, Circle } from "lucide-react";
 import { Task, getPriorityColor, formatDate } from "./dummy-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { getUserAvatarColor } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +19,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface TaskCardProps {
   task: Task;
@@ -26,6 +37,7 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onEdit, onDelete, onViewDetail, isDragging }: TaskCardProps) {
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
 
   const handleCardClick = (e: React.MouseEvent) => {
@@ -37,7 +49,27 @@ export function TaskCard({ task, onEdit, onDelete, onViewDetail, isDragging }: T
     onViewDetail?.(task);
   };
 
+  const handleDelete = () => {
+    onDelete?.(task.id);
+    setShowDeleteAlert(false);
+  };
+
+  // Get priority circle color
+  const getPriorityCircleColor = () => {
+    switch (task.priority) {
+      case "high":
+        return "fill-red-500 text-red-500";
+      case "medium":
+        return "fill-yellow-500 text-yellow-500";
+      case "low":
+        return "fill-green-500 text-green-500";
+      default:
+        return "fill-gray-400 text-gray-400";
+    }
+  };
+
   return (
+    <>
     <div
       onClick={handleCardClick}
       className={`group bg-app-card border rounded px-2.5 py-2 cursor-pointer transition-all hover:shadow-sm hover:border-gray-300 dark:hover:border-gray-700 ${
@@ -46,7 +78,7 @@ export function TaskCard({ task, onEdit, onDelete, onViewDetail, isDragging }: T
     >
       {/* Task Title with Status Icon */}
       <div className="flex items-start gap-2 mb-1.5">
-        <Circle className="h-3.5 w-3.5 mt-0.5 text-gray-400 flex-shrink-0" />
+        <Circle className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${getPriorityCircleColor()}`} />
         <div className="flex-1 min-w-0">
           <h4 className="text-sm leading-tight text-app-heading font-normal truncate">
             {task.title}
@@ -65,7 +97,10 @@ export function TaskCard({ task, onEdit, onDelete, onViewDetail, isDragging }: T
               Edit
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => onDelete?.(task.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteAlert(true);
+              }}
               className="cursor-pointer text-sm text-red-600"
             >
               <Trash2 className="h-3.5 w-3.5 mr-2" />
@@ -119,7 +154,7 @@ export function TaskCard({ task, onEdit, onDelete, onViewDetail, isDragging }: T
                   <TooltipTrigger asChild>
                     <Avatar className="h-5 w-5 border border-white shadow-sm">
                       <AvatarImage src={assignee.image || ""} />
-                      <AvatarFallback className="text-[10px] bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                      <AvatarFallback className={`text-[10px] text-white ${getUserAvatarColor(assignee.id)}`}>
                         {assignee.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -152,5 +187,29 @@ export function TaskCard({ task, onEdit, onDelete, onViewDetail, isDragging }: T
         )}
       </div>
     </div>
+
+    {/* Delete Confirmation Dialog */}
+    <Dialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Delete Task?</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete "<strong className="text-gray-900">{task.title}</strong>"? This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowDeleteAlert(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+          >
+            Delete Task
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
