@@ -35,7 +35,9 @@ import {
   Pencil,
   Trash2,
   Loader2,
-  Settings
+  Settings,
+  GripVertical,
+  Save
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -100,6 +102,15 @@ export function ProjectDetailsModal({
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
+  
+  // Drag and Drop State
+  const [orderedLinks, setOrderedLinks] = useState<any[]>([]);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [isOrderChanged, setIsOrderChanged] = useState(false);
+  
+  const [orderedAssets, setOrderedAssets] = useState<any[]>([]);
+  const [draggedAssetIndex, setDraggedAssetIndex] = useState<number | null>(null);
+  const [isAssetOrderChanged, setIsAssetOrderChanged] = useState(false);
 
   const { data: session } = authClient.useSession();
   const currentUserId = session?.user?.id;
@@ -131,18 +142,29 @@ export function ProjectDetailsModal({
   // Authorization check: Admin OR Project Member
   const canManageLinks = userRole?.toLowerCase() === "admin" || project?.team.some(m => m.id === currentUserId);
 
+  const formatError = (error: any): string => {
+    if (typeof error === 'string') return error;
+    if (Array.isArray(error)) {
+      return error.map(issue => issue.message || "Invalid input").join(', ');
+    }
+    if (error && typeof error === 'object') {
+      return error.message || "An error occurred";
+    }
+    return "An unknown error occurred";
+  };
+
   // Filter links based on user role
-  const filteredLinks = project?.links.filter(link => {
+  const filteredLinks = orderedLinks.filter(link => {
     if (userRole?.toLowerCase() === "admin") return true;
     if (!link.allowedRoles || link.allowedRoles.length === 0) return true;
-    return link.allowedRoles.some(role => role.toLowerCase() === userRole?.toLowerCase());
+    return link.allowedRoles.some((role: string) => role.toLowerCase() === userRole?.toLowerCase());
   }) || [];
 
   // Filter assets based on user role
-  const filteredAssets = project?.assets.filter(asset => {
+  const filteredAssets = orderedAssets.filter(asset => {
     if (userRole?.toLowerCase() === "admin") return true;
     if (!asset.allowedRoles || asset.allowedRoles.length === 0) return true;
-    return asset.allowedRoles.some(role => role.toLowerCase() === userRole?.toLowerCase());
+    return asset.allowedRoles.some((role: string) => role.toLowerCase() === userRole?.toLowerCase());
   }) || [];
 
   // Fetch project details when modal opens
@@ -175,9 +197,134 @@ export function ProjectDetailsModal({
       if (res.ok) {
         const data = await res.json();
         setProject(data);
+        setOrderedLinks(data.links || []);
+        setIsOrderChanged(false);
+        setOrderedAssets(data.assets || []);
+        setIsAssetOrderChanged(false);
       }
     } catch (error) {
       console.error("Failed to fetch project details:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // NATIVE DRAG AND DROP HANDLERS
+  const onDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    // For transparent drag image fix:
+    const target = e.currentTarget as HTMLElement;
+    target.style.opacity = "0.5";
+  };
+
+  const onDragEnd = (e: React.DragEvent) => {
+    setDraggedIndex(null);
+    const target = e.currentTarget as HTMLElement;
+    target.style.opacity = "1";
+  };
+
+  const onDragOver = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (draggedIndex === null) return;
+
+    const targetIndex = orderedLinks.findIndex(l => l.id === targetId);
+    if (draggedIndex === targetIndex) return;
+
+    const newLinks = [...orderedLinks];
+    const draggedItem = newLinks[draggedIndex];
+    newLinks.splice(draggedIndex, 1);
+    newLinks.splice(targetIndex, 0, draggedItem);
+    
+    setDraggedIndex(targetIndex);
+    setOrderedLinks(newLinks);
+    setIsOrderChanged(true);
+  };
+
+  const handleSaveOrder = async () => {
+    if (!projectId) return;
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          links: orderedLinks.map((link, idx) => ({
+            ...link,
+            position: idx
+          }))
+        }),
+      });
+
+      if (res.ok) {
+        toast.success("Order saved successfully");
+        setIsOrderChanged(false);
+        fetchProjectDetails();
+      } else {
+        toast.error("Failed to save order");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ASSETS DRAG AND DROP HANDLERS
+  const onAssetDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedAssetIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    const target = e.currentTarget as HTMLElement;
+    target.style.opacity = "0.5";
+  };
+
+  const onAssetDragEnd = (e: React.DragEvent) => {
+    setDraggedAssetIndex(null);
+    const target = e.currentTarget as HTMLElement;
+    target.style.opacity = "1";
+  };
+
+  const onAssetDragOver = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (draggedAssetIndex === null) return;
+
+    const targetIndex = orderedAssets.findIndex(a => a.id === targetId);
+    if (draggedAssetIndex === targetIndex) return;
+
+    const newAssets = [...orderedAssets];
+    const draggedItem = newAssets[draggedAssetIndex];
+    newAssets.splice(draggedAssetIndex, 1);
+    newAssets.splice(targetIndex, 0, draggedItem);
+    
+    setDraggedAssetIndex(targetIndex);
+    setOrderedAssets(newAssets);
+    setIsAssetOrderChanged(true);
+  };
+
+  const handleSaveAssetOrder = async () => {
+    if (!projectId) return;
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assets: orderedAssets.map((asset, idx) => ({
+            ...asset,
+            position: idx
+          }))
+        }),
+      });
+
+      if (res.ok) {
+        toast.success("Asset order saved successfully");
+        setIsAssetOrderChanged(false);
+        fetchProjectDetails();
+      } else {
+        toast.error("Failed to save asset order");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -187,7 +334,15 @@ export function ProjectDetailsModal({
     setEditingLink(null);
     setLinkTitle("");
     setLinkUrl("");
-    setSelectedRoles(["admin", "developer", "tester", "designer"]);
+    
+    // Set default roles based on current user role: Admin + Current User Role
+    const defaultRoles = ["admin"];
+    const normalizedRole = userRole?.toLowerCase();
+    if (normalizedRole && normalizedRole !== "admin") {
+      defaultRoles.push(normalizedRole);
+    }
+    
+    setSelectedRoles(defaultRoles);
     setIsFormOpen(true);
   };
 
@@ -226,7 +381,7 @@ export function ProjectDetailsModal({
         fetchProjectDetails();
       } else {
         const err = await res.json();
-        toast.error(err.error || "Failed to save link");
+        toast.error(formatError(err.error) || "Failed to save link");
       }
     } catch (error) {
       toast.error("An error occurred while saving the link");
@@ -250,7 +405,7 @@ export function ProjectDetailsModal({
         fetchProjectDetails();
       } else {
         const err = await res.json();
-        toast.error(err.error || "Failed to delete link");
+        toast.error(formatError(err.error) || "Failed to delete link");
       }
     } catch (error) {
       toast.error("An error occurred while deleting the link");
@@ -263,7 +418,15 @@ export function ProjectDetailsModal({
     setEditingAsset(null);
     setAssetTitle("");
     setAssetUrl("");
-    setAssetRoles(["admin", "developer", "tester", "designer"]);
+    
+    // Set default roles based on current user role: Admin + Current User Role
+    const defaultRoles = ["admin"];
+    const normalizedRole = userRole?.toLowerCase();
+    if (normalizedRole && normalizedRole !== "admin") {
+      defaultRoles.push(normalizedRole);
+    }
+    
+    setAssetRoles(defaultRoles);
     setIsAssetFormOpen(true);
   };
 
@@ -303,7 +466,7 @@ export function ProjectDetailsModal({
         fetchProjectDetails();
       } else {
         const err = await res.json();
-        toast.error(err.error || "Failed to save asset");
+        toast.error(formatError(err.error) || "Failed to save asset");
       }
     } catch (error) {
       toast.error("An error occurred while saving the asset");
@@ -327,7 +490,7 @@ export function ProjectDetailsModal({
         fetchProjectDetails();
       } else {
         const err = await res.json();
-        toast.error(err.error || "Failed to delete asset");
+        toast.error(formatError(err.error) || "Failed to delete asset");
       }
     } catch (error) {
       toast.error("An error occurred while deleting the asset");
@@ -364,7 +527,7 @@ export function ProjectDetailsModal({
         {isLoading || !project ? (
           <>
             <DialogTitle className="sr-only">Loading project details...</DialogTitle>
-            <div className="flex flex-col lg:flex-row h-[650px]">
+            <div className="flex flex-col lg:flex-row min-h-[500px] h-fit max-h-[calc(90vh-2rem)]">
               <div className="w-full lg:w-2/5 p-8 bg-slate-50 dark:bg-[#1e1e1e] border-r border-app space-y-6">
                  <Skeleton className="h-12 w-12 rounded-xl" />
                  <Skeleton className="h-8 w-3/4" />
@@ -378,7 +541,7 @@ export function ProjectDetailsModal({
         ) : (
           <>
             <DialogTitle className="sr-only">{project.name}</DialogTitle>
-            <div className="flex flex-col lg:flex-row h-[650px]">
+            <div className="flex flex-col lg:flex-row min-h-[500px] h-fit max-h-[calc(90vh-2rem)]">
               {/* LEFT PANEL */}
               <div className="w-full lg:w-2/5 p-8 bg-slate-50 dark:bg-[#1e1e1e] border-r border-app overflow-y-auto">
                 <div className="flex items-center gap-3 mb-6">
@@ -449,88 +612,116 @@ export function ProjectDetailsModal({
               </div>
 
               {/* RIGHT PANEL */}
-              <div className="flex-1 p-8 bg-white dark:bg-[#191919] flex flex-col h-full overflow-hidden">
-                <div className="flex-1 overflow-y-auto pr-2 space-y-8">
-                  {/* LINKS SECTION */}
-                  <section>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold text-app-heading flex items-center gap-2">
-                         <Link2 className="h-4 w-4 text-blue-600" /> Resources & Links
-                      </h3>
+              <div className="flex-1 pt-8 px-8 pb-4 bg-white dark:bg-[#191919] flex flex-col min-h-[500px] max-h-[calc(90vh-2rem)] overflow-hidden">
+                {/* LINKS SECTION */}
+                <section className="flex-1 flex flex-col min-h-0">
+                  <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                    <h3 className="text-lg font-bold text-app-heading flex items-center gap-2">
+                       <Link2 className="h-4 w-4 text-blue-600" /> Resources & Links
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      {isOrderChanged && (
+                        <Button onClick={handleSaveOrder} size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white gap-2 px-3">
+                          <Save className="h-3.5 w-3.5" /> Save Changes
+                        </Button>
+                      )}
                       {canManageLinks && !isFormOpen && (
                         <Button onClick={handleAddLink} size="sm" variant="ghost" className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2">
                           <Plus className="h-4 w-4 mr-1" /> Add Link
                         </Button>
                       )}
                     </div>
+                  </div>
 
+                  <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                     {isFormOpen ? (
                       <div className="bg-app-subtle p-5 rounded-xl border border-app mb-6">
                         <form onSubmit={handleSaveLink} className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label className="text-xs">Label</Label>
-                              <Input className="h-9 text-sm" placeholder="e.g. Design" value={linkTitle} onChange={(e) => setLinkTitle(e.target.value)} required />
+                              <Label className="text-xs font-semibold text-app-heading">Label</Label>
+                              <Input className="h-10 text-sm bg-white dark:bg-app-card border-app focus:ring-blue-500 rounded-lg" placeholder="e.g. Design" value={linkTitle} onChange={(e) => setLinkTitle(e.target.value)} required />
                             </div>
                             <div className="space-y-2">
-                              <Label className="text-xs">URL</Label>
-                              <Input className="h-9 text-sm" placeholder="https://..." type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} required />
+                              <Label className="text-xs font-semibold text-app-heading">URL</Label>
+                              <Input className="h-10 text-sm bg-white dark:bg-app-card border-app focus:ring-blue-500 rounded-lg" placeholder="https://..." type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} required />
                             </div>
                           </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs">Visibility</Label>
-                            <div className="flex flex-wrap gap-3 p-3 bg-white dark:bg-app-card rounded-lg border border-app">
+                          <div className="space-y-3">
+                            <Label className="text-xs font-semibold text-app-heading">Visibility</Label>
+                            <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-app-subtle rounded-xl border border-app shadow-sm">
                               {["admin", "developer", "tester", "designer"].map((role) => (
-                                <div key={role} className="flex items-center space-x-2">
+                                <div key={role} className="flex items-center space-x-2 bg-white dark:bg-app-card px-3 py-1.5 rounded-lg border border-app hover:border-blue-200 transition-colors">
                                   <Checkbox 
                                     id={`link-role-${role}`} 
                                     checked={selectedRoles.includes(role)}
                                     onCheckedChange={(checked) => checked ? setSelectedRoles([...selectedRoles, role]) : setSelectedRoles(selectedRoles.filter(r => r !== role))}
-                                    disabled={role === "admin"}
+                                    disabled={role === "admin" || role.toLowerCase() === userRole?.toLowerCase()}
+                                    className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                                   />
-                                  <Label htmlFor={`link-role-${role}`} className="text-[10px] capitalize cursor-pointer">{role}</Label>
+                                  <Label htmlFor={`link-role-${role}`} className="text-xs font-medium capitalize cursor-pointer">{role}</Label>
                                 </div>
                               ))}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 pt-2">
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setIsFormOpen(false)} className="flex-1 h-9">Cancel</Button>
-                            <Button type="submit" size="sm" className="flex-1 h-9 bg-blue-600 hover:bg-blue-700 text-white" disabled={isSavingLink}>
+                          <div className="flex items-center gap-3 pt-4">
+                            <Button type="button" variant="outline" size="sm" onClick={() => setIsFormOpen(false)} className="flex-1 h-10 border-app text-app-body hover:bg-app-hover">Cancel</Button>
+                            <Button type="submit" size="sm" className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 font-semibold" disabled={isSavingLink}>
                               {isSavingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Link"}
                             </Button>
                           </div>
                         </form>
                       </div>
                     ) : filteredLinks.length > 0 ? (
-                      <div className="space-y-2">
-                        {filteredLinks.map((link) => (
-                          <div key={link.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-[#252525] rounded-xl border border-app hover:border-blue-200 transition-all group">
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600 shrink-0"><Link2 className="h-4 w-4" /></div>
-                              <div className="min-w-0 pr-2">
-                                <p className="text-sm font-bold text-app-heading truncate flex items-center gap-2">
-                                  {link.label}
-                                  {link.allowedRoles && link.allowedRoles.length < 4 && <Settings className="h-3 w-3 text-slate-400" />}
-                                </p>
-                                <p className="text-[10px] text-app-muted truncate opacity-70">{link.value}</p>
+                      <div className="flex flex-col gap-4 pb-16">
+                        {filteredLinks.map((link) => {
+                          const originalIndex = orderedLinks.findIndex(l => l.id === link.id);
+                          return (
+                            <div 
+                              key={link.id} 
+                              draggable={canManageLinks}
+                              onDragStart={(e) => onDragStart(e, originalIndex)}
+                              onDragEnd={onDragEnd}
+                              onDragOver={(e) => onDragOver(e, link.id)}
+                              className={cn(
+                                "flex items-center justify-between px-6 py-5 bg-slate-50 dark:bg-[#252525] rounded-xl border border-app hover:border-blue-200 transition-all group",
+                                draggedIndex === originalIndex ? "border-blue-500 bg-blue-50/50" : "cursor-default"
+                              )}
+                            >
+                              <div className="flex items-center gap-4 flex-1 min-w-0">
+                                {canManageLinks && (
+                                  <div className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500">
+                                    <GripVertical className="h-5 w-5" />
+                                  </div>
+                                )}
+                                <div className="w-12 h-12 flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 shrink-0">
+                                  <Link2 className="h-6 w-6" />
+                                </div>
+                                <div className="min-w-0 pr-2">
+                                  <p className="text-sm font-bold text-app-heading truncate flex items-center gap-2">
+                                    {link.label}
+                                    {link.allowedRoles && link.allowedRoles.length < 4 && <Settings className="h-3 w-3 text-slate-400" />}
+                                  </p>
+                                  <p className="text-[10px] text-app-muted truncate opacity-70">{link.value}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canManageLinks && (
+                                  <>
+                                    <button onClick={() => handleEditLink(link)} className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-amber-600"><Pencil className="h-3.5 w-3.5" /></button>
+                                    <button onClick={() => setLinkToDelete(link)} className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
+                                  </>
+                                )}
+                                <button onClick={() => copyToClipboard(link.value, link.id)} className="p-1.5 hover:bg-white rounded-md">
+                                  {copiedLinkId === link.id ? <CheckCheck className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
+                                </button>
+                                <a href={link.value} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-blue-600">
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {canManageLinks && (
-                                <>
-                                  <button onClick={() => handleEditLink(link)} className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-amber-600"><Pencil className="h-3.5 w-3.5" /></button>
-                                  <button onClick={() => setLinkToDelete(link)} className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
-                                </>
-                              )}
-                              <button onClick={() => copyToClipboard(link.value, link.id)} className="p-1.5 hover:bg-white rounded-md">
-                                {copiedLinkId === link.id ? <CheckCheck className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
-                              </button>
-                              <a href={link.value} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-blue-600">
-                                <ExternalLink className="h-3.5 w-3.5" />
-                              </a>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="p-6 text-center bg-slate-50 dark:bg-app-card/50 rounded-xl border border-dashed border-app">
@@ -538,85 +729,117 @@ export function ProjectDetailsModal({
                         <p className="text-xs text-slate-500 italic">No links shared yet.</p>
                       </div>
                     )}
-                  </section>
+                  </div>
+                </section>
 
-                  {/* ASSETS SECTION */}
-                  <section>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold text-app-heading flex items-center gap-2">
-                         <FileText className="h-4 w-4 text-purple-600" /> Project Assets
-                      </h3>
+                <div className="h-px bg-app shrink-0 -mx-8 shadow-sm shadow-blue-500/5 opacity-50 my-6" />
+
+                {/* ASSETS SECTION */}
+                <section className="flex-1 flex flex-col min-h-0">
+                  <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                    <h3 className="text-lg font-bold text-app-heading flex items-center gap-2">
+                       <FileText className="h-4 w-4 text-purple-600" /> Project Assets
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      {isAssetOrderChanged && (
+                        <Button onClick={handleSaveAssetOrder} size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white gap-2 px-3">
+                          <Save className="h-3.5 w-3.5" /> Save Changes
+                        </Button>
+                      )}
                       {canManageLinks && !isAssetFormOpen && (
                         <Button onClick={handleAddAsset} size="sm" variant="ghost" className="h-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50 px-2">
                           <Plus className="h-4 w-4 mr-1" /> Add Asset
                         </Button>
                       )}
                     </div>
+                  </div>
 
+                  <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                     {isAssetFormOpen ? (
                       <div className="bg-app-subtle p-5 rounded-xl border border-app mb-6">
                         <form onSubmit={handleSaveAsset} className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label className="text-xs">Asset Name</Label>
-                              <Input className="h-9 text-sm" placeholder="e.g. Logo Set" value={assetTitle} onChange={(e) => setAssetTitle(e.target.value)} required />
+                              <Label className="text-xs font-semibold text-app-heading">Asset Name</Label>
+                              <Input className="h-10 text-sm bg-white dark:bg-app-card border-app focus:ring-purple-500 rounded-lg" placeholder="e.g. Logo Set" value={assetTitle} onChange={(e) => setAssetTitle(e.target.value)} required />
                             </div>
                             <div className="space-y-2">
-                              <Label className="text-xs">Resource Link</Label>
-                              <Input className="h-9 text-sm" placeholder="URL or file link" value={assetUrl} onChange={(e) => setAssetUrl(e.target.value)} required />
+                              <Label className="text-xs font-semibold text-app-heading">Resource Link</Label>
+                              <Input className="h-10 text-sm bg-white dark:bg-app-card border-app focus:ring-purple-500 rounded-lg" placeholder="URL or file link" value={assetUrl} onChange={(e) => setAssetUrl(e.target.value)} required />
                             </div>
                           </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs">Visibility</Label>
-                            <div className="flex flex-wrap gap-3 p-3 bg-white dark:bg-app-card rounded-lg border border-app">
+                          <div className="space-y-3">
+                            <Label className="text-xs font-semibold text-app-heading">Visibility</Label>
+                            <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-app-subtle rounded-xl border border-app shadow-sm">
                               {["admin", "developer", "tester", "designer"].map((role) => (
-                                <div key={role} className="flex items-center space-x-2">
+                                <div key={role} className="flex items-center space-x-2 bg-white dark:bg-app-card px-3 py-1.5 rounded-lg border border-app hover:border-purple-200 transition-colors">
                                   <Checkbox 
                                     id={`asset-role-${role}`} 
                                     checked={assetRoles.includes(role)}
                                     onCheckedChange={(checked) => checked ? setAssetRoles([...assetRoles, role]) : setAssetRoles(assetRoles.filter(r => r !== role))}
-                                    disabled={role === "admin"}
+                                    disabled={role === "admin" || role.toLowerCase() === userRole?.toLowerCase()}
+                                    className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
                                   />
-                                  <Label htmlFor={`asset-role-${role}`} className="text-[10px] capitalize cursor-pointer">{role}</Label>
+                                  <Label htmlFor={`asset-role-${role}`} className="text-xs font-medium capitalize cursor-pointer">{role}</Label>
                                 </div>
                               ))}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 pt-2">
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setIsAssetFormOpen(false)} className="flex-1 h-9">Cancel</Button>
-                            <Button type="submit" size="sm" className="flex-1 h-9 bg-purple-600 hover:bg-purple-700 text-white" disabled={isSavingAsset}>
+                          <div className="flex items-center gap-3 pt-4">
+                            <Button type="button" variant="outline" size="sm" onClick={() => setIsAssetFormOpen(false)} className="flex-1 h-10 border-app text-app-body hover:bg-app-hover">Cancel</Button>
+                            <Button type="submit" size="sm" className="flex-1 h-10 bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/20 font-semibold" disabled={isSavingAsset}>
                               {isSavingAsset ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Asset"}
                             </Button>
                           </div>
                         </form>
                       </div>
                     ) : filteredAssets.length > 0 ? (
-                      <div className="space-y-2">
-                        {filteredAssets.map((asset) => (
-                          <div key={asset.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-[#252525] rounded-xl border border-app hover:border-purple-200 transition-all group">
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600 shrink-0"><FileText className="h-4 w-4" /></div>
-                              <div className="min-w-0 pr-2">
-                                <p className="text-sm font-bold text-app-heading truncate flex items-center gap-2">
-                                  {asset.name}
-                                  {asset.allowedRoles && asset.allowedRoles.length < 4 && <Settings className="h-3 w-3 text-slate-400" />}
-                                </p>
-                                <p className="text-[10px] text-app-muted truncate opacity-70">{asset.url}</p>
+                      <div className="flex flex-col gap-4 pb-16">
+                        {filteredAssets.map((asset) => {
+                          const originalIndex = orderedAssets.findIndex(a => a.id === asset.id);
+                          return (
+                            <div 
+                              key={asset.id} 
+                              draggable={canManageLinks}
+                              onDragStart={(e) => onAssetDragStart(e, originalIndex)}
+                              onDragEnd={onAssetDragEnd}
+                              onDragOver={(e) => onAssetDragOver(e, asset.id)}
+                              className={cn(
+                                "flex items-center justify-between px-6 py-5 bg-slate-50 dark:bg-[#252525] rounded-xl border border-app hover:border-purple-200 transition-all group",
+                                draggedAssetIndex === originalIndex ? "border-purple-500 bg-purple-50/50" : "cursor-default"
+                              )}
+                            >
+                              <div className="flex items-center gap-4 flex-1 min-w-0">
+                                {canManageLinks && (
+                                  <div className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500">
+                                    <GripVertical className="h-5 w-5" />
+                                  </div>
+                                )}
+                                <div className="w-12 h-12 flex items-center justify-center bg-purple-100 dark:bg-purple-900/30 rounded-xl text-purple-600 shrink-0">
+                                  <FileText className="h-6 w-6" />
+                                </div>
+                                <div className="min-w-0 pr-2">
+                                  <p className="text-sm font-bold text-app-heading truncate flex items-center gap-2">
+                                    {asset.name}
+                                    {asset.allowedRoles && asset.allowedRoles.length < 4 && <Settings className="h-3 w-3 text-slate-400" />}
+                                  </p>
+                                  <p className="text-[10px] text-app-muted truncate opacity-70">{asset.url}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canManageLinks && (
+                                  <>
+                                    <button onClick={() => handleEditAsset(asset)} className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-amber-600"><Pencil className="h-3.5 w-3.5" /></button>
+                                    <button onClick={() => setAssetToDelete({ id: asset.id, label: asset.name })} className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
+                                  </>
+                                )}
+                                <a href={asset.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-purple-600">
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {canManageLinks && (
-                                <>
-                                  <button onClick={() => handleEditAsset(asset)} className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-amber-600"><Pencil className="h-3.5 w-3.5" /></button>
-                                  <button onClick={() => setAssetToDelete({ id: asset.id, label: asset.name })} className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
-                                </>
-                              )}
-                              <a href={asset.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-purple-600">
-                                <ExternalLink className="h-3.5 w-3.5" />
-                              </a>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="p-6 text-center bg-slate-50 dark:bg-app-card/50 rounded-xl border border-dashed border-app">
@@ -624,8 +847,8 @@ export function ProjectDetailsModal({
                         <p className="text-xs text-slate-500 italic">No assets shared yet.</p>
                       </div>
                     )}
-                  </section>
-                </div>
+                  </div>
+                </section>
               </div>
             </div>
           </>

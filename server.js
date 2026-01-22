@@ -1,6 +1,8 @@
-
 const { createServer } = require("http");
 const { parse } = require("url");
+// Load environment variables from .env and then .env.local (overriding)
+require('dotenv').config();
+require('dotenv').config({ path: '.env.local', override: true });
 const next = require("next");
 const { Server } = require("socket.io");
 

@@ -197,7 +197,13 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
 export const useUnreadCounts = () => {
     const context = useContext(UnreadCountContext);
     if (context === undefined) {
-        throw new Error("useUnreadCounts must be used within an UnreadCountProvider");
+        return {
+            unreadCounts: {},
+            totalUnread: 0,
+            refreshUnread: async () => {},
+            clearUnread: () => {},
+            setActiveProjectId: () => {}
+        };
     }
     return context;
 };

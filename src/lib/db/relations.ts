@@ -15,7 +15,9 @@ import {
     userTaskAssignments,
     links,
     roles,
-    eodFiles
+    eodFiles,
+    appNotifications,
+    notificationPreferences
 } from "./schema";
 
 export const accountRelations = relations(account, ({ one }) => ({
@@ -184,5 +186,19 @@ export const eodFilesRelations = relations(eodFiles, ({ one }) => ({
     eodReport: one(eodReports, {
         fields: [eodFiles.eodId],
         references: [eodReports.id],
+    }),
+}));
+
+export const appNotificationsRelations = relations(appNotifications, ({ one }) => ({
+    user: one(user, {
+        fields: [appNotifications.userId],
+        references: [user.id],
+    }),
+}));
+
+export const notificationPreferencesRelations = relations(notificationPreferences, ({ one }) => ({
+    user: one(user, {
+        fields: [notificationPreferences.userId],
+        references: [user.id],
     }),
 }));

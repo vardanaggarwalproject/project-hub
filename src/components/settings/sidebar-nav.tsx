@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -19,7 +17,7 @@ export function SidebarNav({ className, items, activeTab, onTabChange, ...props 
   return (
     <nav
       className={cn(
-        "flex space-x-2 lg:flex-col lg:space-x-0 lg:space-y-1 overflow-x-auto pb-2 lg:pb-0",
+        "flex space-x-2 lg:flex-col lg:space-x-0 lg:space-y-1.5 overflow-x-auto pb-2 lg:pb-0 -mx-2 px-2 lg:mx-0 lg:px-0",
         className
       )}
       {...props}
@@ -30,14 +28,14 @@ export function SidebarNav({ className, items, activeTab, onTabChange, ...props 
           onClick={() => onTabChange(item.href)}
           className={cn(
             buttonVariants({ variant: "ghost" }),
+            "justify-start gap-3 w-full min-w-fit lg:min-w-full text-left px-4 py-2.5 rounded-lg transition-all duration-200",
             activeTab === item.href
-              ? "bg-muted hover:bg-muted font-medium"
-              : "hover:bg-muted/50 hover:underline hover:decoration-primary",
-            "justify-start w-full text-left px-3 py-2 rounded-md transition-all duration-200"
+              ? "bg-muted font-semibold shadow-sm"
+              : "hover:bg-muted/50 font-medium text-muted-foreground hover:text-foreground"
           )}
         >
-          <span className="mr-2">{item.icon}</span>
-          {item.title}
+          <span className="shrink-0">{item.icon}</span>
+          <span className="whitespace-nowrap">{item.title}</span>
         </button>
       ))}
     </nav>

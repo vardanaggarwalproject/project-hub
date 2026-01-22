@@ -228,10 +228,9 @@ export async function POST(req: Request) {
             projectId: newProject.id,
         });
 
-        // Emit socket event from server-side
         // Emit socket event from server-side using global io instance
         try {
-            const io = (global as any).io;
+            const io = (global as { io?: { emit: (event: string, data: unknown) => void } }).io;
             if (io) {
                 console.log("✅ API Route found global.io. Emitting project-created...");
                 io.emit("project-created", {
@@ -260,6 +259,19 @@ export async function POST(req: Request) {
             }
         } catch (socketError) {
             console.error("Failed to emit socket event:", socketError);
+        }
+
+        // Send push notifications to assigned users
+        if (assignedUserIds && assignedUserIds.length > 0) {
+            try {
+                const { notificationService } = await import('@/lib/notifications');
+                await notificationService.notifyProjectAssigned({
+                    projectName: name,
+                    assignedUserIds,
+                });
+            } catch (notifyError) {
+                console.error('[Project API] Notification error:', notifyError);
+            }
         }
 
         return NextResponse.json(newProject, { status: 201 });

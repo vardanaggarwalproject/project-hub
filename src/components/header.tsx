@@ -12,6 +12,9 @@ import {
 } from "@/components/ui/hover-card";
 
 import { useUnreadCounts } from "@/components/chat/unread-count-provider";
+import { NotificationPrompt } from "@/components/notifications/notification-prompt";
+import { NotificationTray } from "@/components/notifications/notification-tray";
+
 
 interface HeaderProps {
     userName: string;
@@ -38,16 +41,15 @@ export function Header({ userName, userRole, searchPlaceholder = "Search..." }: 
             </div>
 
             <div className="flex items-center gap-4">
-                <div className="relative">
-                    <Button variant="ghost" size="icon" className="text-app-body hover:text-blue-600 hover-app-text hover:bg-blue-50 hover-app-bg">
-                        <Bell className="h-5 w-5" />
-                    </Button>
-                    {totalUnread > 0 && (
-                        <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-white dark:ring-app-card animate-in zoom-in">
-                            {totalUnread > 99 ? "99+" : totalUnread}
-                        </span>
-                    )}
-                </div>
+                <NotificationTray>
+                    <div className="relative">
+                        <Button variant="ghost" size="icon" className="text-app-body hover:text-blue-600 hover-app-text hover:bg-blue-50 hover-app-bg">
+                            <Bell className="h-5 w-5" />
+                        </Button>
+                    </div>
+                </NotificationTray>
+                <NotificationPrompt />
+
                 <div className="flex items-center gap-3 pl-4 border-l border-app">
                     <div className="text-right hidden sm:block">
                         <p className="text-sm font-bold text-app-heading leading-none">{userName}</p>

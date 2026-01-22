@@ -1,0 +1,286 @@
+
+import nodemailer from 'nodemailer';
+import webPush from 'web-push';
+import { db } from '@/lib/db';
+import { user, appNotifications, notificationPreferences, pushSubscriptions } from '@/lib/db/schema';
+import { eq, inArray } from 'drizzle-orm';
+import { getNotificationTemplate } from './templates';
+
+/**
+ * Unified Notification System
+ * Consolidates Email, Slack, Push, and Socket notifications.
+ */
+
+export interface NotificationTarget {
+    userId: string;
+    userName?: string;
+    email?: string;
+    role?: string;
+    preferences?: {
+        email: boolean;
+        slack: boolean;
+        push: boolean;
+        eodNotifications: boolean;
+        memoNotifications: boolean;
+        projectNotifications: boolean;
+    };
+}
+
+export type NotificationType =
+    | 'eod_submitted'
+    | 'memo_submitted'
+    | 'project_assigned'
+    | 'project_created'
+    | 'test_notification';
+
+export interface NotificationPayload {
+    type: NotificationType;
+    title: string;
+    body: string;
+    url?: string;
+    data?: Record<string, any>;
+}
+
+class NotificationService {
+    private transporter: nodemailer.Transporter | null = null;
+
+    constructor() {
+        if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+            webPush.setVapidDetails(
+                process.env.VAPID_SUBJECT || 'mailto:admin@example.com',
+                process.env.VAPID_PUBLIC_KEY,
+                process.env.VAPID_PRIVATE_KEY
+            );
+        }
+    }
+
+    private getTransporter() {
+        if (this.transporter) return this.transporter;
+
+        const smtpUser = process.env.SMTP_USER;
+        const smtpPass = process.env.SMTP_PASS;
+
+        if (!smtpUser || !smtpPass) {
+            console.warn('[NotificationService] SMTP credentials missing in environment');
+            return null;
+        }
+
+        const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+        const port = parseInt(process.env.SMTP_PORT || '587');
+        const secure = process.env.SMTP_SECURE === 'true';
+
+        console.log(`[NotificationService] Initializing transporter for ${smtpUser} via ${host}:${port}`);
+
+        this.transporter = nodemailer.createTransport({
+            host,
+            port,
+            secure,
+            auth: {
+                user: smtpUser,
+                pass: smtpPass,
+            },
+        });
+
+        return this.transporter;
+    }
+
+    async notify(targets: NotificationTarget[], payload: NotificationPayload) {
+        console.log(`[NotificationService] Dispatching "${payload.type}" to ${targets.length} targets`);
+        if (targets.length === 0) return;
+
+        const { html, slackBlocks } = getNotificationTemplate(payload.type, {
+            ...payload.data,
+            title: payload.title,
+            body: payload.body
+        });
+
+        // 1. Save to DB
+        try {
+            await db.insert(appNotifications).values(targets.map(t => ({
+                id: crypto.randomUUID(),
+                userId: t.userId,
+                type: payload.type,
+                title: payload.title,
+                body: payload.body,
+                url: payload.url,
+                data: payload.data,
+            })));
+        } catch (e) {
+            console.error('[NotificationService] DB Save Error:', e);
+        }
+
+        // 2. Process Channels
+        await Promise.allSettled([
+            this.sendEmail(targets, payload.type, payload.title, payload.body, html),
+            this.sendSlack(targets, payload.type, slackBlocks),
+            this.sendPush(targets, payload.type, payload),
+            this.sendSocket(targets, payload)
+        ]);
+    }
+
+    private async sendEmail(targets: NotificationTarget[], type: NotificationType, title: string, body: string, html: string) {
+        const transporter = this.getTransporter();
+        if (!transporter) {
+            console.error('[NotificationService] Failed to send email: Transporter not initializable');
+            return;
+        }
+
+        // Fetch explicit recipients from DB
+        let recipients: string[] = [];
+        try {
+            const { notificationRecipients } = await import('@/lib/db/schema');
+            const data = await db.select().from(notificationRecipients);
+
+            recipients = data
+                .filter(r => {
+                    if (type === 'eod_submitted' && !r.eodEnabled) return false;
+                    if (type === 'memo_submitted' && !r.memoEnabled) return false;
+                    if (type === 'project_created' && !r.projectEnabled) return false;
+                    return true;
+                })
+                .map(r => r.email);
+        } catch (e) {
+            console.error('[NotificationService] Error fetching recipients from DB:', e);
+        }
+
+        if (recipients.length === 0) {
+            console.log('[NotificationService] No email recipients found in DB for type:', type);
+            return;
+        }
+
+        const fromEmail = process.env.SMTP_USER;
+
+        try {
+            console.log(`[NotificationService] Attempting to send email to: ${recipients.join(', ')}`);
+
+            // Use 'to' for the primary recipient and 'cc/bcc' for others if needed, 
+            // or just put all in 'to' for simplicity in this case.
+            await transporter.sendMail({
+                from: `"Project Hub" <${fromEmail}>`,
+                to: recipients.join(', '),
+                subject: title,
+                text: body,
+                html
+            });
+            console.log(`[NotificationService] Email sent successfully to ${recipients.length} recipients`);
+        } catch (e: any) {
+            console.error('[NotificationService] Detailed Email Error:', {
+                message: e.message,
+                code: e.code,
+                command: e.command,
+                response: e.response,
+                user: fromEmail
+            });
+        }
+    }
+
+    private async sendSlack(targets: NotificationTarget[], type: NotificationType, blocks: any[]) {
+        const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+        if (!webhookUrl) return;
+
+        const hasEligibleTargets = targets.some(t => {
+            if (t.preferences?.slack === false) return false;
+            if (type === 'eod_submitted' && t.preferences?.eodNotifications === false) return false;
+            if (type === 'memo_submitted' && t.preferences?.memoNotifications === false) return false;
+            if (type === 'project_created' && t.preferences?.projectNotifications === false) return false;
+            return true;
+        });
+
+        if (!hasEligibleTargets) return;
+
+        try {
+            await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ blocks })
+            });
+        } catch (e) {
+            console.error('[NotificationService] Slack Error:', e);
+        }
+    }
+
+    private async sendPush(targets: NotificationTarget[], type: NotificationType, payload: NotificationPayload) {
+        if (!process.env.VAPID_PUBLIC_KEY) return;
+        const userIds = targets.filter(t => {
+            if (t.preferences?.push === false) return false;
+            if (type === 'eod_submitted' && t.preferences?.eodNotifications === false) return false;
+            if (type === 'memo_submitted' && t.preferences?.memoNotifications === false) return false;
+            if (type === 'project_created' && t.preferences?.projectNotifications === false) return false;
+            return true;
+        }).map(t => t.userId);
+        if (userIds.length === 0) return;
+
+        const subs = await db.select().from(pushSubscriptions).where(inArray(pushSubscriptions.userId, userIds));
+
+        await Promise.allSettled(subs.map(async sub => {
+            try {
+                await webPush.sendNotification({
+                    endpoint: sub.endpoint,
+                    keys: { p256dh: sub.p256dh, auth: sub.auth }
+                }, JSON.stringify(payload));
+            } catch (e: any) {
+                if (e.statusCode === 410) {
+                    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
+                }
+            }
+        }));
+    }
+
+    private async sendSocket(targets: NotificationTarget[], payload: NotificationPayload) {
+        const io = (global as any).io;
+        if (!io) return;
+        targets.forEach(t => {
+            io.to(`user:${t.userId}`).emit('notification', { ...payload, receivedAt: new Date().toISOString() });
+        });
+    }
+
+    // Helper methods
+    async getAdminTargets(): Promise<NotificationTarget[]> {
+        const admins = await db.select({
+            userId: user.id,
+            userName: user.name,
+            email: user.email,
+            role: user.role,
+            prefs: notificationPreferences,
+        }).from(user).leftJoin(notificationPreferences, eq(user.id, notificationPreferences.userId)).where(eq(user.role, 'admin'));
+
+        return admins.map(a => ({
+            userId: a.userId,
+            userName: a.userName,
+            email: a.email,
+            role: a.role ?? undefined,
+            preferences: {
+                email: a.prefs?.emailEnabled ?? true,
+                slack: a.prefs?.slackEnabled ?? true,
+                push: a.prefs?.pushEnabled ?? true,
+                eodNotifications: a.prefs?.eodNotifications ?? true,
+                memoNotifications: a.prefs?.memoNotifications ?? true,
+                projectNotifications: a.prefs?.projectNotifications ?? true,
+            }
+        }));
+    }
+
+    async notifyEodSubmitted(data: { userName: string, projectName: string, userId: string, content: string }) {
+        const targets = await this.getAdminTargets();
+        await this.notify(targets, {
+            type: 'eod_submitted',
+            title: '📋 EOD Report Submitted',
+            body: `${data.userName} submitted EOD for **${data.projectName}**`,
+            url: '/admin/eods',
+            data
+        });
+    }
+
+    async notifyMemoSubmitted(data: { userName: string, projectName: string, userId: string, memoType: string, content: string }) {
+        const targets = await this.getAdminTargets();
+        await this.notify(targets, {
+            type: 'memo_submitted',
+            title: '📝 Memo Submitted',
+            body: `${data.userName} submitted memo for **${data.projectName}**`,
+            url: '/admin/memos',
+            data
+        });
+    }
+}
+
+export const notificationService = new NotificationService();

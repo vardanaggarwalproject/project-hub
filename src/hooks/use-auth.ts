@@ -1,11 +1,13 @@
 
 import { authClient } from "@/lib/auth-client";
+import { SessionUser } from "@/types";
 
 export function useAuth() {
     const { data: session, isPending, error } = authClient.useSession();
-    
+
     // User role is now a simple string "role" in the user object
-    const user = session?.user as any; 
+    const userBuffer = session?.user as any;
+    const user = userBuffer as SessionUser | undefined;
     const userRole: string | null = user?.role || null;
 
     const hasRole = (role: string) => userRole === role;

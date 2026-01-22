@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
+import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function AppearanceSettings() {
@@ -18,91 +20,134 @@ export function AppearanceSettings() {
     return (
         <div className="space-y-6">
             <div>
-                <h3 className="text-lg font-medium">Appearance</h3>
+                <h3 className="text-lg font-semibold mb-1">Appearance</h3>
                 <p className="text-sm text-muted-foreground">
-                    Customize the look and feel of the application. Automatically switch between day and night themes.
+                    Customize the interface style of the application
                 </p>
             </div>
-            <Separator />
-            <div className="grid grid-cols-3 gap-8 max-w-2xl">
-                 <div className="space-y-2">
-                     <div 
-                         className={cn(
-                             "items-center rounded-md border-2 p-1 hover:border-primary cursor-pointer transition-all",
-                             theme === "light" ? "border-primary shadow-sm" : "border-muted bg-popover"
-                         )}
-                         onClick={() => setTheme("light")}
-                     >
-                        <div className="space-y-2 rounded-sm bg-[#ecedef] p-2">
-                            <div className="space-y-2 rounded-md bg-white p-2 shadow-sm">
-                            <div className="h-2 w-[80px] rounded-lg bg-[#ecedef]" />
-                            <div className="h-2 w-[100px] rounded-lg bg-[#ecedef]" />
-                            </div>
-                            <div className="flex items-center space-x-2 rounded-md bg-white p-2 shadow-sm">
-                            <div className="h-4 w-4 rounded-full bg-[#ecedef]" />
-                            <div className="h-2 w-[100px] rounded-lg bg-[#ecedef]" />
-                            </div>
-                            <div className="flex items-center space-x-2 rounded-md bg-white p-2 shadow-sm">
-                            <div className="h-4 w-4 rounded-full bg-[#ecedef]" />
-                            <div className="h-2 w-[100px] rounded-lg bg-[#ecedef]" />
-                            </div>
-                        </div>
-                     </div>
-                     <span className="block w-full p-2 text-center font-normal text-sm">Light</span>
-                 </div>
 
-                 <div className="space-y-2">
-                     <div 
-                        className={cn(
-                             "items-center rounded-md border-2 p-1 hover:border-primary cursor-pointer transition-all bg-slate-950",
-                             theme === "dark" ? "border-primary shadow-sm" : "border-muted"
-                         )}
-                         onClick={() => setTheme("dark")}
-                     >
-                        <div className="space-y-2 rounded-sm bg-slate-950 p-2">
-                            <div className="space-y-2 rounded-md bg-slate-800 p-2 shadow-sm">
-                            <div className="h-2 w-[80px] rounded-lg bg-slate-400" />
-                            <div className="h-2 w-[100px] rounded-lg bg-slate-400" />
-                            </div>
-                            <div className="flex items-center space-x-2 rounded-md bg-slate-800 p-2 shadow-sm">
-                            <div className="h-4 w-4 rounded-full bg-slate-400" />
-                            <div className="h-2 w-[100px] rounded-lg bg-slate-400" />
-                            </div>
-                            <div className="flex items-center space-x-2 rounded-md bg-slate-800 p-2 shadow-sm">
-                            <div className="h-4 w-4 rounded-full bg-slate-400" />
-                            <div className="h-2 w-[100px] rounded-lg bg-slate-400" />
-                            </div>
+            <Card>
+                <div className="p-6 space-y-6">
+                    <div className="space-y-4">
+                        <div className="flex flex-col gap-1">
+                            <h4 className="text-sm font-medium">Theme Mode</h4>
+                            <p className="text-xs text-muted-foreground">
+                                Select your preferred color mode for the dashboard
+                            </p>
                         </div>
-                     </div>
-                     <span className="block w-full p-2 text-center font-normal text-sm">Dark</span>
-                 </div>
 
-                 <div className="space-y-2">
-                     <div 
-                         className={cn(
-                             "items-center rounded-md border-2 p-1 hover:border-primary cursor-pointer transition-all bg-slate-950",
-                             theme === "system" ? "border-primary shadow-sm" : "border-muted"
-                         )}
-                         onClick={() => setTheme("system")}
-                     >
-                        <div className="space-y-2 rounded-sm bg-slate-950 p-2">
-                            <div className="space-y-2 rounded-md bg-slate-800 p-2 shadow-sm">
-                            <div className="h-2 w-[80px] rounded-lg bg-slate-400" />
-                            <div className="h-2 w-[100px] rounded-lg bg-slate-400" />
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl">
+                            {/* Light Theme */}
+                            <div className="space-y-3">
+                                <button 
+                                    onClick={() => setTheme("light")}
+                                    className={cn(
+                                        "group relative w-full aspect-[4/3] rounded-xl border-2 p-3 transition-all duration-200 overflow-hidden",
+                                        theme === "light" 
+                                            ? "border-primary ring-2 ring-primary/20 shadow-sm" 
+                                            : "border-muted bg-muted/20 hover:border-muted-foreground/30"
+                                    )}
+                                >
+                                    <div className="h-full w-full rounded-lg bg-white p-3 space-y-3 shadow-inner">
+                                        <div className="space-y-2">
+                                            <div className="h-2 w-3/4 rounded-full bg-slate-100" />
+                                            <div className="h-2 w-full rounded-full bg-slate-100" />
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-4 w-4 rounded-full bg-slate-100" />
+                                            <div className="h-2 flex-1 rounded-full bg-slate-100" />
+                                        </div>
+                                    </div>
+                                    {theme === "light" && (
+                                        <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
+                                            <Check className="h-3 w-3" />
+                                        </div>
+                                    )}
+                                </button>
+                                <div className="flex items-center justify-center gap-2">
+                                    <Sun className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-sm font-medium">Light</span>
+                                </div>
                             </div>
-                            <div className="flex items-center space-x-2 rounded-md bg-slate-800 p-2 shadow-sm">
-                            <div className="h-4 w-4 rounded-full bg-slate-400" />
-                            <div className="h-2 w-[100px] rounded-lg bg-slate-400" />
+
+                            {/* Dark Theme */}
+                            <div className="space-y-3">
+                                <button 
+                                    onClick={() => setTheme("dark")}
+                                    className={cn(
+                                        "group relative w-full aspect-[4/3] rounded-xl border-2 p-3 transition-all duration-200 overflow-hidden",
+                                        theme === "dark" 
+                                            ? "border-primary ring-2 ring-primary/20 shadow-sm" 
+                                            : "border-muted bg-slate-900 hover:border-muted-foreground/30"
+                                    )}
+                                >
+                                    <div className="h-full w-full rounded-lg bg-slate-950 p-3 space-y-3 shadow-inner border border-slate-800">
+                                        <div className="space-y-2">
+                                            <div className="h-2 w-3/4 rounded-full bg-slate-800" />
+                                            <div className="h-2 w-full rounded-full bg-slate-800" />
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-4 w-4 rounded-full bg-slate-800" />
+                                            <div className="h-2 flex-1 rounded-full bg-slate-800" />
+                                        </div>
+                                    </div>
+                                    {theme === "dark" && (
+                                        <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
+                                            <Check className="h-3 w-3" />
+                                        </div>
+                                    )}
+                                </button>
+                                <div className="flex items-center justify-center gap-2">
+                                    <Moon className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-sm font-medium">Dark</span>
+                                </div>
                             </div>
-                            <div className="flex items-center space-x-2 rounded-md bg-slate-800 p-2 shadow-sm">
-                            <div className="h-4 w-4 rounded-full bg-slate-400" />
-                            <div className="h-2 w-[100px] rounded-lg bg-slate-400" />
+
+                            {/* System Theme */}
+                            <div className="space-y-3">
+                                <button 
+                                    onClick={() => setTheme("system")}
+                                    className={cn(
+                                        "group relative w-full aspect-[4/3] rounded-xl border-2 p-1 transition-all duration-200 overflow-hidden",
+                                        theme === "system" 
+                                            ? "border-primary ring-2 ring-primary/20 shadow-sm" 
+                                            : "border-muted bg-muted-foreground/10 hover:border-muted-foreground/30"
+                                    )}
+                                >
+                                    <div className="flex h-full w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800">
+                                        <div className="flex-1 bg-white p-2 space-y-2">
+                                            <div className="h-1.5 w-3/4 rounded-full bg-slate-100" />
+                                            <div className="h-1.5 w-full rounded-full bg-slate-100" />
+                                        </div>
+                                        <div className="flex-1 bg-slate-950 p-2 space-y-2 border-l border-slate-200 dark:border-slate-800">
+                                            <div className="h-1.5 w-3/4 rounded-full bg-slate-800" />
+                                            <div className="h-1.5 w-full rounded-full bg-slate-800" />
+                                        </div>
+                                    </div>
+                                    {theme === "system" && (
+                                        <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
+                                            <Check className="h-3 w-3" />
+                                        </div>
+                                    )}
+                                </button>
+                                <div className="flex items-center justify-center gap-2">
+                                    <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-sm font-medium">System</span>
+                                </div>
                             </div>
                         </div>
-                     </div>
-                     <span className="block w-full p-2 text-center font-normal text-sm">System</span>
-                 </div>
-            </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="pt-2">
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                            Appearance settings are saved locally to your browser and will persist across sessions. 
+                            System theme will automatically match your operating system settings.
+                        </p>
+                    </div>
+                </div>
+            </Card>
         </div>
     );
 }

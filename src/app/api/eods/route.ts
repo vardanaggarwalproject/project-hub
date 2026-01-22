@@ -147,32 +147,59 @@ export async function POST(req: Request) {
                 dateComparisonClause(eodReports.reportDate, dateObj)
             ));
 
+        let result;
+        let isNew = false;
+
         if (existing.length > 0) {
             const updatedReport = await db.update(eodReports)
                 .set({
                     clientUpdate,
                     actualUpdate,
-                    createdAt: new Date() // Treat update as a new submission date? Or keep original?
-                    // The user says "they are also correctly update with that" referring to dates.
-                    // So updating createdAt (submitted date) seems correct.
+                    createdAt: new Date()
                 })
                 .where(eq(eodReports.id, existing[0].id))
                 .returning();
-            return NextResponse.json(updatedReport[0], { status: 200 });
+            result = updatedReport[0];
+        } else {
+            const newReport = await db.insert(eodReports).values({
+                id: crypto.randomUUID(),
+                projectId,
+                reportDate: dateObj,
+                clientUpdate,
+                actualUpdate,
+                userId
+            }).returning();
+            result = newReport[0];
+            isNew = true;
         }
 
-        const newReport = await db.insert(eodReports).values({
-            id: crypto.randomUUID(),
-            projectId,
-            reportDate: dateObj,
-            clientUpdate,
-            actualUpdate,
-            userId
-        }).returning();
+        // Send notification to admins (only for new EODs, not updates)
+        if (isNew) {
+            try {
+                // Dynamic import to avoid circular dependencies
+                const { notificationService } = await import('@/lib/notifications');
 
-        return NextResponse.json(newReport[0], { status: 201 });
+                // Fetch user and project names for notification
+                const [userData] = await db.select({ name: user.name }).from(user).where(eq(user.id, userId));
+                const [projectData] = await db.select({ name: projects.name }).from(projects).where(eq(projects.id, projectId));
+
+                await notificationService.notifyEodSubmitted({
+                    userName: userData?.name || 'User',
+                    projectName: projectData?.name || 'Project',
+                    userId,
+                    content: actualUpdate || 'No content provided',
+                    clientContent: clientUpdate || undefined,
+                });
+            } catch (notifyError) {
+                // Don't fail the request if notification fails
+                console.error('[EOD API] Notification error:', notifyError);
+            }
+        }
+
+        return NextResponse.json(result, { status: isNew ? 201 : 200 });
     } catch (error) {
         console.error(error);
         return NextResponse.json({ error: "Failed to create EOD" }, { status: 500 });
     }
 }
+

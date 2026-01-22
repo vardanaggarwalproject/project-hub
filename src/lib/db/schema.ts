@@ -8,6 +8,7 @@ import {
   foreignKey,
   index,
   jsonb,
+  integer,
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role_enum", [
@@ -322,6 +323,7 @@ export const links = pgTable(
     clientId: text("client_id"),
     addedBy: text("added_by"),
     allowedRoles: jsonb("allowed_roles").$type<string[]>(),
+    position: integer("position").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -356,6 +358,7 @@ export const assets = pgTable(
     clientId: text("client_id"),
     uploadedBy: text("uploaded_by").notNull(),
     allowedRoles: jsonb("allowed_roles").$type<string[]>(),
+    position: integer("position").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -418,5 +421,93 @@ export const messages = pgTable(
       foreignColumns: [user.id],
       name: "messages_sender_id_user_id_fk",
     }),
+  ]
+);
+
+// Push notification subscriptions (one per device/browser)
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: text("id").primaryKey().notNull(),
+    userId: text("user_id").notNull(),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [user.id],
+      name: "push_subscriptions_user_id_user_id_fk",
+    }).onDelete("cascade"),
+    unique("push_subscriptions_endpoint_unique").on(table.endpoint),
+  ]
+);
+
+// User notification preferences
+export const notificationPreferences = pgTable(
+  "notification_preferences",
+  {
+    id: text("id").primaryKey().notNull(),
+    userId: text("user_id").notNull(),
+    pushEnabled: boolean("push_enabled").default(true).notNull(),
+    emailEnabled: boolean("email_enabled").default(true).notNull(),
+    slackEnabled: boolean("slack_enabled").default(true).notNull(),
+    eodNotifications: boolean("eod_notifications").default(true).notNull(),
+    memoNotifications: boolean("memo_notifications").default(true).notNull(),
+    projectNotifications: boolean("project_notifications").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [user.id],
+      name: "notification_preferences_user_id_user_id_fk",
+    }).onDelete("cascade"),
+    unique("notification_preferences_user_id_unique").on(table.userId),
+  ]
+);
+
+// Explicit recipients for email notifications (Admins or external)
+export const notificationRecipients = pgTable(
+  "notification_recipients",
+  {
+    id: text("id").primaryKey().notNull(),
+    email: text("email").notNull(),
+    label: text("label"), // e.g. "Admin: John", "External: Client"
+    eodEnabled: boolean("eod_enabled").default(true).notNull(),
+    memoEnabled: boolean("memo_enabled").default(true).notNull(),
+    projectEnabled: boolean("project_enabled").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("notification_recipients_email_unique").on(table.email),
+  ]
+);
+
+// Persistent storage for in-app notifications
+export const appNotifications = pgTable(
+  "app_notifications",
+  {
+    id: text("id").primaryKey().notNull(),
+    userId: text("user_id").notNull(),
+    type: text("type").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    url: text("url"),
+    isRead: boolean("is_read").default(false).notNull(),
+    data: jsonb("data"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [user.id],
+      name: "app_notifications_user_id_user_id_fk",
+    }).onDelete("cascade"),
+    index("app_notifications_user_id_idx").on(table.userId),
+    index("app_notifications_created_at_idx").on(table.createdAt),
   ]
 );
