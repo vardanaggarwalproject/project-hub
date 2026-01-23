@@ -715,52 +715,6 @@ export function UpdateModal({
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Client Update */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="client" className="text-sm font-semibold text-slate-700 ml-1">
-                        Client Update
-                        </Label>
-                        {!isViewMode && (
-                            <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setClientUpdate(internalUpdate)}
-                            className="h-7 px-2.5 text-[10px] font-semibold text-purple-600 border-purple-100 bg-purple-50/50 hover:bg-purple-100 hover:border-purple-200 hover:text-purple-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
-                            >
-                            <Copy className="h-3 w-3" />
-                            Same as Internal Update
-                            </Button>
-                        )}
-                    </div>
-                    {previousUpdate && !isViewMode && (
-                      <div className="mb-3 px-4 py-3 bg-purple-50/40 border border-purple-100/40 rounded-xl relative group transition-all hover:bg-purple-50/60 shadow-sm/50">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-1.5">
-                                <Clock className="h-3 w-3 text-purple-400" />
-                                <span className="text-[10px] font-bold text-purple-600 uppercase tracking-wider">
-                                    Previous Client Update
-                                </span>
-                            </div>
-                            <span className="text-[9px] font-semibold text-slate-400 bg-white/80 px-2 py-0.5 rounded-full border border-slate-100 shadow-sm">
-                                {previousUpdate.date}
-                            </span>
-                        </div>
-                        <div className="text-xs text-slate-600 line-clamp-4 leading-relaxed font-normal italic pl-1 border-l-2 border-purple-100/50 ml-0.5">
-                            "{previousUpdate.client || "No content recorded"}"
-                        </div>
-                      </div>
-                    )}
-                    <Textarea
-                      id="client"
-                      value={clientUpdate}
-                      onChange={(e) => setClientUpdate(e.target.value)}
-                      placeholder="Summary suitable for client review..."
-                      className="min-h-[120px] rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all p-4 leading-relaxed"
-                      readOnly={isViewMode}
-                    />
-                  </div>
-
                   {/* Internal Update */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -802,6 +756,52 @@ export function UpdateModal({
                       value={internalUpdate}
                       onChange={(e) => setInternalUpdate(e.target.value)}
                       placeholder="Detailed technical update for the team..."
+                      className="min-h-[120px] rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all p-4 leading-relaxed"
+                      readOnly={isViewMode}
+                    />
+                  </div>
+
+                  {/* Client Update */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="client" className="text-sm font-semibold text-slate-700 ml-1">
+                        Client Update
+                        </Label>
+                        {!isViewMode && (
+                            <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setClientUpdate(internalUpdate)}
+                            className="h-7 px-2.5 text-[10px] font-semibold text-purple-600 border-purple-100 bg-purple-50/50 hover:bg-purple-100 hover:border-purple-200 hover:text-purple-700 transition-all rounded-md flex items-center gap-1.5 shadow-sm"
+                            >
+                            <Copy className="h-3 w-3" />
+                            Same as Internal Update
+                            </Button>
+                        )}
+                    </div>
+                    {previousUpdate && !isViewMode && (
+                      <div className="mb-3 px-4 py-3 bg-purple-50/40 border border-purple-100/40 rounded-xl relative group transition-all hover:bg-purple-50/60 shadow-sm/50">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                                <Clock className="h-3 w-3 text-purple-400" />
+                                <span className="text-[10px] font-bold text-purple-600 uppercase tracking-wider">
+                                    Previous Client Update
+                                </span>
+                            </div>
+                            <span className="text-[9px] font-semibold text-slate-400 bg-white/80 px-2 py-0.5 rounded-full border border-slate-100 shadow-sm">
+                                {previousUpdate.date}
+                            </span>
+                        </div>
+                        <div className="text-xs text-slate-600 line-clamp-4 leading-relaxed font-normal italic pl-1 border-l-2 border-purple-100/50 ml-0.5">
+                            "{previousUpdate.client || "No content recorded"}"
+                        </div>
+                      </div>
+                    )}
+                    <Textarea
+                      id="client"
+                      value={clientUpdate}
+                      onChange={(e) => setClientUpdate(e.target.value)}
+                      placeholder="Summary suitable for client review..."
                       className="min-h-[120px] rounded-lg border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all p-4 leading-relaxed"
                       readOnly={isViewMode}
                     />

@@ -1,7 +1,7 @@
 "use client";
 
-import UserSettingsPage from "../../user/settings/page";
+import { SettingsPageContent } from "@/components/settings/settings-page-content";
 
 export default function AdminSettingsPage() {
-    return <UserSettingsPage />;
+    return <SettingsPageContent />;
 }

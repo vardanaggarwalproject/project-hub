@@ -49,7 +49,6 @@ export function UserChatView({ initialGroupId, initialProjectId }: UserChatViewP
             const chatsRes = await fetch("/api/chat-groups").then(r => r.json());
             if (Array.isArray(chatsRes)) setChats(chatsRes);
         } catch (err) {
-            console.error("Fetch chats failed:", err);
         } finally {
             setIsLoading(false);
         }
@@ -85,7 +84,6 @@ export function UserChatView({ initialGroupId, initialProjectId }: UserChatViewP
     }, [isLoading, selectedProjectId, clearUnread, setActiveProjectId]);
 
     const onProjectDeleted = useCallback((data: { projectId: string }) => {
-         console.log("🗑️ Chat View: Project deleted:", data.projectId);
          
          // Remove from list
          setChats(prev => prev.filter(c => c.projectId !== data.projectId));
@@ -109,7 +107,6 @@ export function UserChatView({ initialGroupId, initialProjectId }: UserChatViewP
 
         const onProjectCreated = (data: { projectId: string; assignedUserIds: string[] }) => {
             if (data.assignedUserIds && session?.user?.id && data.assignedUserIds.includes(session.user.id)) {
-                 console.log("🆕 Chat View: New project created and assigned:", data.projectId);
                  fetchData();
                  toast.success("New project chat available!");
             }
@@ -133,11 +130,9 @@ export function UserChatView({ initialGroupId, initialProjectId }: UserChatViewP
         const socket = getSocket();
         if (!socket || !selectedProjectId) return;
 
-        console.log(`🔌 Joining active chat room: group:${selectedProjectId}`);
         socket.emit("join-group", selectedProjectId);
 
         return () => {
-            console.log(`🔌 Leaving chat room: group:${selectedProjectId}`);
             socket.emit("leave-group", selectedProjectId);
         };
     }, [selectedProjectId]);

@@ -187,7 +187,7 @@ export async function POST(req: Request) {
     }
 }
 
-async function saveMemo(data: any) {
+async function saveMemo(data: { memoContent?: string; projectId: string; userId: string; reportDate: string; memoType?: string }) {
     const validation = memoSchema.safeParse(data);
     if (!validation.success) {
         return { error: validation.error.issues, status: 400 };
@@ -206,8 +206,7 @@ async function saveMemo(data: any) {
         ));
 
     if (existing.length > 0) {
-        // Update instead of error? The user wants optimization. 
-        // If it exists, let's update it.
+        // Update existing memo
         const updated = await db.update(memos)
             .set({
                 memoContent,
@@ -227,5 +226,26 @@ async function saveMemo(data: any) {
         userId
     }).returning();
 
+    // Send notification to admins for new memos
+    try {
+        const { notificationService } = await import('@/lib/notifications');
+
+        // Fetch user and project names for notification
+        const [userData] = await db.select({ name: user.name }).from(user).where(eq(user.id, userId));
+        const [projectData] = await db.select({ name: projects.name }).from(projects).where(eq(projects.id, projectId));
+
+        await notificationService.notifyMemoSubmitted({
+            userName: userData?.name || 'User',
+            projectName: projectData?.name || 'Project',
+            userId,
+            memoType,
+            content: memoContent || 'No content provided',
+        });
+    } catch (notifyError) {
+        // Don't fail the request if notification fails
+        console.error('[Memo API] Notification error:', notifyError);
+    }
+
     return newMemo[0];
 }
+

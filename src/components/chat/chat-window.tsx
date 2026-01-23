@@ -65,7 +65,6 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
     
     // Only mark as read if the document is visible to prevent clearing from background tabs
     if (typeof document !== "undefined" && document.visibilityState !== "visible") {
-        console.log("👀 Skipping mark-as-read: Tab is not visible");
         return;
     }
 
@@ -75,7 +74,6 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
         getSocket()?.emit("mark-read", { projectId, userId: session.user.id });
       }
     } catch (err) {
-      console.error("Failed to mark messages as read:", err);
     }
   }, [projectId, session?.user?.id]);
 
@@ -100,7 +98,6 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
                 }
             }
         } catch (err) {
-            console.error(`❌ Network error fetching messages:`, err);
         } finally {
             if (isMounted) setIsLoading(false);
         }
@@ -112,20 +109,15 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
   // Socket connection
   // Move onMessage logic outside the useEffect to memoize it properly
   const onMessage = useCallback((data: any) => {
-    console.log(`📨 [ChatWindow] Received message event:`, data);
-    console.log(`📨 [ChatWindow] Current projectId: ${projectId}, Message projectId: ${data.projectId}`);
     
     if (data.projectId !== projectId) {
-      console.log(`⏭️ [ChatWindow] Ignoring message for different project`);
       return;
     }
     
     if (processedIds.current.has(data.id)) {
-      console.log(`⏭️ [ChatWindow] Message already processed: ${data.id}`);
       return;
     }
     
-    console.log(`✅ [ChatWindow] Processing new message: ${data.id}`);
     processedIds.current.add(data.id);
 
     setMessages(prev => {
@@ -134,19 +126,16 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
                 m.id.startsWith("temp-") && m.content === data.content
             );
             if (tempIndex !== -1) {
-                console.log(`🔄 [ChatWindow] Replacing temp message with real one`);
                 const nextMsgs = [...prev];
                 nextMsgs[tempIndex] = { ...data, senderName: session?.user.name || "Me" };
                 return nextMsgs;
             }
         }
-        console.log(`➕ [ChatWindow] Adding new message to list`);
         return [...prev, { ...data, senderName: data.senderName || "User" }];
     });
     
     // Only mark as read if it's from someone else
     if (data.senderId !== session?.user.id) {
-        console.log(`👁️ [ChatWindow] Marking as read (from other user)`);
         handleMarkRead();
     }
   }, [projectId, session?.user?.id, session?.user?.name, handleMarkRead]);
@@ -165,13 +154,11 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
         }
     };
 
-    console.log(`🔌 ChatWindow: Joining group:${projectId}`);
     socket.emit("join-group", projectId);
     socket.on("message", onMessage);
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
-        console.log(`🔌 ChatWindow: Leaving group:${projectId}`);
         socket.emit("leave-group", projectId);
         socket.off("message", onMessage);
         document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -229,7 +216,6 @@ export function ChatWindow({ groupId, groupName, projectId }: ChatWindowProps) {
       // Emission is now handled server-side
 
     } catch (error) {
-      console.error("Failed to send message", error);
       setMessages(prev => prev.filter(m => m.id !== tempId));
       setNewMessage(content); 
     }

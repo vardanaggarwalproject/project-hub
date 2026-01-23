@@ -11,6 +11,7 @@ const updateUserSchema = z.object({
     name: z.string().min(1).optional(),
     role: z.enum(ALLOWED_ROLES).optional(),
     image: z.string().url().optional(),
+    email: z.string().email().optional(),
 });
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -38,10 +39,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             return NextResponse.json({ error: validation.error.format() }, { status: 400 });
         }
 
-        const { name, role, image } = validation.data;
-        const updateData: any = { updatedAt: new Date().toISOString() };
+        const { name, role, image, email } = validation.data;
+        const updateData: any = { updatedAt: new Date() };
         if (name) updateData.name = name;
         if (image) updateData.image = image;
+        if (email) updateData.email = email;
 
         if (role) {
             const roleExists = await db.select().from(roles).where(eq(roles.name, role));

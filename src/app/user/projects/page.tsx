@@ -118,7 +118,6 @@ export default function UserProjectsPage() {
         const socket = getSocket();
 
         const onProjectDeleted = (data: { projectId: string }) => {
-            console.log("🗑️ Project deleted event received for:", data.projectId);
             setProjects(prev => prev.filter(p => p.id !== data.projectId));
 
             if (session?.user?.role !== "admin") {
@@ -139,7 +138,6 @@ export default function UserProjectsPage() {
         };
 
         const onProjectUpdated = (data: { projectId: string; project: Project }) => {
-            console.log("🔄 Project updated event received for:", data.projectId);
             setProjects(prev => prev.map(p => 
                 p.id === data.projectId ? { ...p, ...data.project } : p
             ));
@@ -147,7 +145,6 @@ export default function UserProjectsPage() {
 
         const onAssignmentUpdated = (data: { projectId: string; userId: string; isActive: boolean }) => {
             if (data.userId === session?.user?.id) {
-                console.log("⚡ Assignment updated event received for:", data.projectId);
                 setProjects(prev => prev.map(p => 
                     p.id === data.projectId ? { ...p, isActive: data.isActive } : p
                 ));
