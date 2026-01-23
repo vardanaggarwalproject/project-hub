@@ -23,5 +23,6 @@ export function useAuth() {
         hasRole,
         hasAnyRole,
         hasAllRoles
+        
     };
 }
