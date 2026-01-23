@@ -54,6 +54,8 @@ export async function GET(req: Request) {
             conditions.push(sql`${user.name} ILIKE ${`%${search}%`}`);
         }
 
+        conditions.push(sql`${user.role} != 'admin'`);
+
         if (conditions.length > 0) {
             whereClause = and(...conditions);
         }
@@ -96,11 +98,9 @@ export async function GET(req: Request) {
             count: sql<number>`count(DISTINCT CONCAT(${eodReports.userId}, ${eodReports.projectId}, ${eodReports.reportDate}))`
         }).from(eodReports);
 
-        // If we have filters that require joining other tables (like search by user name)
-        if (search) {
-            totalQuery = totalQuery.leftJoin(user, eq(eodReports.userId, user.id)) as any;
-            totalQuery = totalQuery.leftJoin(projects, eq(eodReports.projectId, projects.id)) as any;
-        }
+        // Join user and projects always to support filters (search, role, etc)
+        totalQuery = totalQuery.leftJoin(user, eq(eodReports.userId, user.id)) as any;
+        totalQuery = totalQuery.leftJoin(projects, eq(eodReports.projectId, projects.id)) as any;
 
         const totalResult = await totalQuery.where(whereClause);
         const total = Number(totalResult[0]?.count || 0);

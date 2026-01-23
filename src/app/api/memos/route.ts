@@ -62,6 +62,8 @@ export async function GET(req: Request) {
             conditions.push(eq(projects.isMemoRequired, isMemoRequiredParam === "true"));
         }
 
+        conditions.push(sql`${user.role} != 'admin'`);
+
         if (conditions.length > 0) {
             whereClause = and(...conditions);
         }
@@ -131,10 +133,9 @@ export async function GET(req: Request) {
             count: sql<number>`count(DISTINCT CONCAT(${memos.userId}, ${memos.projectId}, ${memos.reportDate}))`
         }).from(memos);
 
-        if (isMemoRequiredParam !== null || search) {
-            totalQuery = totalQuery.leftJoin(user, eq(memos.userId, user.id)) as any;
-            totalQuery = totalQuery.leftJoin(projects, eq(memos.projectId, projects.id)) as any;
-        }
+        // Join user and projects always to support filters (search, role, etc)
+        totalQuery = totalQuery.leftJoin(user, eq(memos.userId, user.id)) as any;
+        totalQuery = totalQuery.leftJoin(projects, eq(memos.projectId, projects.id)) as any;
 
         const totalResult = await totalQuery.where(whereClause);
         const total = Number(totalResult[0]?.count || 0);
