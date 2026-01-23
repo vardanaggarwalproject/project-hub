@@ -6,4 +6,5 @@
  */
 
 export { notificationService } from './notification-service';
+export type { EodNotificationData } from './notification-service';
 export type { NotificationType, NotificationPayload, NotificationTarget, NotificationChannel } from './types';

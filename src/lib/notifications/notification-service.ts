@@ -40,6 +40,14 @@ export interface NotificationPayload {
     data?: Record<string, any>;
 }
 
+export interface EodNotificationData {
+    userName: string;
+    projectName: string;
+    userId: string;
+    content: string;
+    clientContent?: string;
+}
+
 class NotificationService {
     private transporter: nodemailer.Transporter | null = null;
 
@@ -253,7 +261,7 @@ class NotificationService {
         }));
     }
 
-    async notifyEodSubmitted(data: { userName: string, projectName: string, userId: string, content: string }) {
+    async notifyEodSubmitted(data: EodNotificationData) {
         const targets = await this.getAdminTargets();
         await this.notify(targets, {
             type: 'eod_submitted',

@@ -183,7 +183,7 @@ export async function POST(req: Request) {
                 const [userData] = await db.select({ name: user.name }).from(user).where(eq(user.id, userId));
                 const [projectData] = await db.select({ name: projects.name }).from(projects).where(eq(projects.id, projectId));
 
-                await notificationService.notifyEodSubmitted({
+                await (notificationService as any).notifyEodSubmitted({
                     userName: userData?.name || 'User',
                     projectName: projectData?.name || 'Project',
                     userId,
