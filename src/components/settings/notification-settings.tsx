@@ -51,7 +51,6 @@ export function NotificationSettings() {
     const [isAddingRecipient, setIsAddingRecipient] = useState(false);
     const [isLoadingPrefs, setIsLoadingPrefs] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [isTesting, setIsTesting] = useState(false);
 
     useEffect(() => {
         if (!userId) return;
@@ -216,26 +215,6 @@ export function NotificationSettings() {
         }
     };
 
-    const sendTestNotification = async () => {
-        setIsTesting(true);
-        try {
-            const response = await fetch("/api/notifications/test", {
-                method: "POST",
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || "Failed to send test notification");
-            }
-
-            toast.success("Test notification sent!");
-        } catch (error) {
-            console.error("Test notification error:", error);
-            toast.error(error instanceof Error ? error.message : "Failed to send test notification");
-        } finally {
-            setIsTesting(false);
-        }
-    };
 
     if (!isSupported) {
         return (
@@ -454,39 +433,6 @@ export function NotificationSettings() {
                         </>
                     )}
 
-                    {/* Test Notification Button */}
-                    {isSubscribed && (
-                        <>
-                            <Separator className="bg-border/50" />
-                            <div className="flex items-center justify-between gap-6">
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium mb-1.5">Test Notifications</p>
-                                    <p className="text-sm text-muted-foreground leading-relaxed">
-                                        Send a test notification to verify your settings
-                                    </p>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={sendTestNotification}
-                                    disabled={isTesting}
-                                    className="shrink-0"
-                                >
-                                    {isTesting ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            Sending...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Send className="h-4 w-4 mr-2" />
-                                            Send Test
-                                        </>
-                                    )}
-                                </Button>
-                            </div>
-                        </>
-                    )}
                 </div>
             </Card>
         </div>

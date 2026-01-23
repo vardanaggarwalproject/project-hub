@@ -24,7 +24,6 @@ export const pushChannel: NotificationChannel = {
 
     async send(targets: NotificationTarget[], payload: NotificationPayload): Promise<void> {
         if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
-            console.warn('[Push] VAPID keys not configured, skipping push notifications');
             return;
         }
 
@@ -33,7 +32,6 @@ export const pushChannel: NotificationChannel = {
             .filter(t => t.preferences?.push !== false)
             .map(t => t.userId);
         if (userIds.length === 0) {
-            console.log('[Push] No targets provided, skipping');
             return;
         }
 
@@ -44,7 +42,6 @@ export const pushChannel: NotificationChannel = {
             .where(inArray(pushSubscriptions.userId, userIds));
 
         if (subscriptions.length === 0) {
-            console.log('[Push] No subscriptions found for targets');
             return;
         }
 
@@ -65,7 +62,6 @@ export const pushChannel: NotificationChannel = {
                 } catch (error: unknown) {
                     // Handle expired subscriptions (HTTP 410 Gone)
                     if (error && typeof error === 'object' && 'statusCode' in error && error.statusCode === 410) {
-                        console.log(`[Push] Subscription expired, removing: ${sub.id}`);
                         await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
                     }
                     throw error;
@@ -74,6 +70,5 @@ export const pushChannel: NotificationChannel = {
         );
 
         const successful = results.filter((r) => r.status === 'fulfilled').length;
-        console.log(`[Push] Sent to ${successful}/${subscriptions.length} devices`);
     },
 };

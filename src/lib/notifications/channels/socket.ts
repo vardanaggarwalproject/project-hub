@@ -16,7 +16,6 @@ export const socketChannel: NotificationChannel = {
         const io = (global as { io?: { to: (room: string) => { emit: (event: string, data: unknown) => void } } }).io;
 
         if (!io) {
-            console.warn('[Socket] No global.io found, skipping real-time notifications');
             return;
         }
 
@@ -29,6 +28,5 @@ export const socketChannel: NotificationChannel = {
             });
         }
 
-        console.log(`[Socket] Sent to ${targets.length} user rooms`);
     },
 };

@@ -49,7 +49,6 @@ export async function POST(req: Request) {
                 })
                 .where(eq(pushSubscriptions.endpoint, subscription.endpoint));
 
-            console.log(`[Push API] Updated subscription for user ${userId}`);
         } else {
             // Create new subscription
             await db.insert(pushSubscriptions).values({
@@ -60,12 +59,10 @@ export async function POST(req: Request) {
                 auth: subscription.keys.auth,
             });
 
-            console.log(`[Push API] Created subscription for user ${userId}`);
         }
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('[Push API] Subscription error:', error);
         return NextResponse.json(
             { error: 'Failed to subscribe' },
             { status: 500 }
@@ -92,11 +89,9 @@ export async function DELETE(req: Request) {
             .delete(pushSubscriptions)
             .where(eq(pushSubscriptions.endpoint, endpoint));
 
-        console.log(`[Push API] Deleted subscription: ${endpoint.substring(0, 50)}...`);
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('[Push API] Unsubscribe error:', error);
         return NextResponse.json(
             { error: 'Failed to unsubscribe' },
             { status: 500 }

@@ -78,7 +78,6 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions): U
                 const subscription = await registration.pushManager.getSubscription();
                 setIsSubscribed(!!subscription);
             } catch (error) {
-                console.error('Error checking subscription:', error);
             } finally {
                 setIsLoading(false);
             }
@@ -90,70 +89,62 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions): U
     // Subscribe
     const subscribe = useCallback(async (): Promise<boolean> => {
         if (!isSupported) {
-            console.error('[Push] Notifications not supported');
             return false;
         }
 
         setIsLoading(true);
 
         try {
-            console.log('[Push] Starting subscription process...');
 
             // 1. Check Permissions
             let currentPermission = Notification.permission;
-            console.log('[Push] Initial permission state:', currentPermission);
 
             if (currentPermission !== 'granted') {
-                console.log('[Push] Requesting permission...');
                 currentPermission = await Notification.requestPermission();
-                console.log('[Push] Permission request result:', currentPermission);
                 setPermission(currentPermission);
             }
 
             if (currentPermission !== 'granted') {
-                console.error('[Push] Permission denied by user');
                 return false;
             }
 
             // 2. VAPID Key Check
             const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
             if (!vapidPublicKey) {
-                console.error('[Push] VAPID public key missing');
                 return false;
             }
-            console.log('[Push] VAPID key found, length:', vapidPublicKey.length);
 
             // 3. Service Worker Registration
-            console.log('[Push] Registering service worker...');
             // We register, but we use 'ready' to get the active registration for subscription
             // Unregister existing to ensure fresh start
-            const initialRegistration = await navigator.serviceWorker.getRegistration();
-            if (initialRegistration) {
-                console.log('[Push] Unregistering existing service worker...');
-                await initialRegistration.unregister();
+            try {
+                const initialRegistration = await navigator.serviceWorker.getRegistration();
+                if (initialRegistration) {
+                    await initialRegistration.unregister();
+                }
+            } catch (err) {
             }
 
             await navigator.serviceWorker.register('/sw.js');
-            console.log('[Push] Service worker registered, waiting for ready...');
 
             const registration = await navigator.serviceWorker.ready;
-            console.log('[Push] Service worker ready', registration.scope);
 
-            const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+            if (!registration.pushManager) {
+                return false;
+            }
+
+            const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey!);
 
             // 4. Subscribe with Push Manager
-            console.log('[Push] Subscribing with PushManager...');
 
             // Check for existing subscription
             const existingSubscription = await registration.pushManager.getSubscription();
             if (existingSubscription) {
-                console.log('[Push] Found existing subscription', existingSubscription);
                 // If we already have one, maybe we should just return true? 
                 // Or unsubscribe if it's broken? 
                 // For now, let's just log it. If it fails to sync, we might need to resubscribe.
                 // But usually we want to ensure we have a fresh one if the user explicitly clicked "Enable".
                 // Let's try to unsubscribe to be safe if we are "enabling" from scratch.
-                console.log('[Push] Unsubscribing existing to ensure fresh start...');
                 await existingSubscription.unsubscribe();
             }
 
@@ -161,10 +152,8 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions): U
                 userVisibleOnly: true,
                 applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
             });
-            console.log('[Push] PushManager subscription successful:', subscription.endpoint);
 
             // 5. Send to Server
-            console.log('[Push] Sending subscription to server...');
             const response = await fetch('/api/notifications/subscribe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -179,18 +168,9 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions): U
                 throw new Error(`Server sync failed: ${response.status} ${errorText}`);
             }
 
-            console.log('[Push] Server sync successful');
             setIsSubscribed(true);
             return true;
         } catch (error) {
-            console.error('[Push] Subscription failed:', error);
-            if (error instanceof Error) {
-                console.error('[Push] Error details:', {
-                    name: error.name,
-                    message: error.message,
-                    stack: error.stack
-                });
-            }
             // Re-throw or handle based on needs, but here returning false letting UI handle generic failure
             // We could improve UI feedback based on specific error types here if we wanted to return a code
             return false;
@@ -222,7 +202,6 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions): U
             setIsSubscribed(false);
             return true;
         } catch (error) {
-            console.error('Unsubscribe failed:', error);
             return false;
         } finally {
             setIsLoading(false);

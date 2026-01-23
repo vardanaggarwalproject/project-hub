@@ -50,7 +50,6 @@ export function AdminChatView({ initialGroupId }: AdminChatViewProps) {
             const chatsRes = await fetch("/api/chat-groups").then(r => r.json());
             if (Array.isArray(chatsRes)) setChats(chatsRes);
         } catch (err) {
-            console.error("Fetch chats failed:", err);
         } finally {
             setIsLoading(false);
         }
@@ -96,11 +95,9 @@ export function AdminChatView({ initialGroupId }: AdminChatViewProps) {
         const chat = chats.find(c => c.id === selectedGroupId);
         if (!chat) return;
 
-        console.log(`🔌 Joining active chat room: group:${chat.projectId}`);
         socket.emit("join-group", chat.projectId);
 
         return () => {
-            console.log(`🔌 Leaving chat room: group:${chat.projectId}`);
             socket.emit("leave-group", chat.projectId);
         };
     }, [selectedGroupId, chats]);

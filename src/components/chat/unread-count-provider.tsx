@@ -37,7 +37,6 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
             if (res.ok) {
                 const data = await res.json();
                 if (data && typeof data === "object" && !Array.isArray(data)) {
-                    console.log(`🔄 [UnreadCount] API returned counts:`, data);
                     
                     // CRITICAL FIX: Merge with existing counts
                     // API only returns projects user is assigned to
@@ -54,13 +53,11 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
                             merged[projectId] = Math.max(apiCount, currentCount);
                         });
                         
-                        console.log(`🔄 [UnreadCount] Merged counts:`, merged);
                         return merged;
                     });
                 }
             }
         } catch (err) {
-            console.error("Failed to refresh unread counts:", err);
         }
     }, [session?.user]);
 
@@ -87,8 +84,6 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
         if (!socket || !session?.user) return;
 
         const onMessage = (data: any) => {
-            console.log(`📨 [UnreadCount] Received message event:`, data);
-            console.log(`📨 [UnreadCount] Active project: ${activeProjectIdRef.current}, Message project: ${data.projectId}`);
             
             // Only increment if we are NOT currently looking at this project
             // and it's not our own message
@@ -96,20 +91,16 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
                 data.senderId !== session.user.id && 
                 data.projectId !== activeProjectIdRef.current) {
                 
-                console.log(`📈 [UnreadCount] Incrementing unread for background project: ${data.projectId}`);
                 setUnreadCounts(prev => ({
                     ...prev,
                     [data.projectId]: (prev[data.projectId] || 0) + 1
                 }));
             } else {
-                console.log(`⏭️ [UnreadCount] Skipping increment - active project or own message`);
             }
         };
 
         const onRead = (data: any) => {
-            console.log(`👁️ [UnreadCount] Received read event:`, data);
             if (data.userId === session.user.id && data.projectId) {
-                console.log(`🔄 [UnreadCount] Clearing unread for: ${data.projectId}`);
                 setUnreadCounts(prev => ({
                     ...prev,
                     [data.projectId]: 0
@@ -118,17 +109,13 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
         };
 
         const onAssigned = (data: any) => {
-            console.log(`👤 [UnreadCount] Received assignment event:`, data);
             if (data.userId === session.user.id) {
-                console.log(`🔄 [UnreadCount] Refreshing unread counts due to assignment`);
                 refreshUnread();
             }
         };
 
         const onRemoved = (data: any) => {
-            console.log(`👤 [UnreadCount] Received removal event:`, data);
             if (data.userId === session.user.id) {
-                console.log(`🔄 [UnreadCount] Refreshing unread counts due to removal`);
                 refreshUnread();
             }
         };
@@ -139,7 +126,6 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
         socket.on("user-removed-from-project", onRemoved);
 
         // Register user for private notifications
-        console.log(`👤 [UnreadCount] Registering user: ${session.user.id}`);
         socket.emit("register-user", session.user.id);
 
         return () => {
@@ -156,14 +142,12 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
         if (!socket || !session?.user) return;
 
         const onConnect = () => {
-            console.log(`🔌 [UnreadCount] Socket connected, registering user and refreshing counts`);
             socket.emit("register-user", session.user.id);
             // CRITICAL: Refresh on connect to catch any offline messages
             refreshUnread();
         };
 
         const onReconnect = () => {
-            console.log(`🔌 [UnreadCount] Socket reconnected, refreshing counts`);
             // User was offline, now back online - refresh to get missed messages
             refreshUnread();
         };

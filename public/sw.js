@@ -1,5 +1,6 @@
 /**
  * Service Worker for Push Notifications
+ * Version: 2026-01-23.01
  * 
  * This file handles push events from the browser's push service.
  * It runs in the background, even when the app is closed.
@@ -21,13 +22,24 @@ self.addEventListener('activate', (event) => {
 
 // Handle incoming push messages
 self.addEventListener('push', function(event) {
-  // Parse the push data (sent from our server via web-push)
-  const data = event.data ? event.data.json() : {};
+  
+  if (!event.data) {
+    return;
+  }
+
+  let data = {};
+  try {
+    data = event.data.json();
+  } catch (e) {
+    // Try as text as fallback
+    const text = event.data.text();
+    data = { title: 'Notification', body: text };
+  }
   
   // Notification display options
   const options = {
     body: data.body || 'You have a new notification',
-    icon: '/icon-192.png',    // App icon (create this in public folder)
+    icon: '/icon-192.png',    // App icon
     badge: '/badge-72.png',   // Small monochrome icon for Android
     vibrate: [100, 50, 100],  // Vibration pattern
     tag: data.type || 'default', // Group similar notifications
@@ -39,10 +51,18 @@ self.addEventListener('push', function(event) {
     },
     // Action buttons (optional)
     actions: [
-      { action: 'open', title: 'View', icon: '/icon-open.png' },
-      { action: 'dismiss', title: 'Dismiss', icon: '/icon-close.png' }
+      { action: 'open', title: 'View' },
+      { action: 'dismiss', title: 'Dismiss' }
     ]
   };
+
+  // Check if icons are likely broken (based on what we saw in logs)
+  // If the browser thinks they are broken, it might block the notification.
+  // We'll keep them but use a more standard path or let it fail gracefully.
+  // Chrome/Edge usually show a generic icon if the specified one fails, 
+  // UNLESS the entire registration is considered broken.
+
+  
   
   // Show the notification
   event.waitUntil(
@@ -84,7 +104,6 @@ self.addEventListener('notificationclick', function(event) {
 
 // Handle push subscription change (when browser refreshes subscription)
 self.addEventListener('pushsubscriptionchange', function(event) {
-  console.log('[SW] Push subscription changed');
   // The subscription has changed, need to re-subscribe
   // This is handled by the client-side code
 });

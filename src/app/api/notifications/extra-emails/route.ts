@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { extraNotificationEmails } from "@/lib/db/schema";
+import { notificationRecipients } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -19,10 +19,9 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const emails = await db.select().from(extraNotificationEmails);
+        const emails = await db.select().from(notificationRecipients);
         return NextResponse.json(emails);
     } catch (error) {
-        console.error("Error fetching extra emails:", error);
         return NextResponse.json({
             error: "Failed to fetch extra emails",
             details: error instanceof Error ? error.message : String(error)
@@ -51,19 +50,18 @@ export async function POST(req: Request) {
         }
 
         // Check if already exists
-        const existing = await db.select().from(extraNotificationEmails).where(eq(extraNotificationEmails.email, email.toLowerCase()));
+        const existing = await db.select().from(notificationRecipients).where(eq(notificationRecipients.email, email.toLowerCase()));
         if (existing.length > 0) {
             return NextResponse.json({ error: "Email already exists in the list" }, { status: 400 });
         }
 
-        const newEmail = await db.insert(extraNotificationEmails).values({
+        const newEmail = await db.insert(notificationRecipients).values({
             id: crypto.randomUUID(),
             email: email.toLowerCase(),
         }).returning();
 
         return NextResponse.json(newEmail[0]);
     } catch (error) {
-        console.error("Error adding extra email:", error);
         return NextResponse.json({
             error: "Failed to add extra email",
             details: error instanceof Error ? error.message : String(error)
@@ -92,11 +90,10 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: "Missing email ID" }, { status: 400 });
         }
 
-        await db.delete(extraNotificationEmails).where(eq(extraNotificationEmails.id, id));
+        await db.delete(notificationRecipients).where(eq(notificationRecipients.id, id));
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error("Error deleting extra email:", error);
         return NextResponse.json({
             error: "Failed to delete extra email",
             details: error instanceof Error ? error.message : String(error)

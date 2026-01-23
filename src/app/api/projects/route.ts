@@ -232,15 +232,12 @@ export async function POST(req: Request) {
         try {
             const io = (global as { io?: { emit: (event: string, data: unknown) => void } }).io;
             if (io) {
-                console.log("✅ API Route found global.io. Emitting project-created...");
                 io.emit("project-created", {
                     projectId: newProject.id,
                     project: newProject,
                     assignedUserIds: assignedUserIds || []
                 });
-                console.log("📤 Emitted project-created for project:", newProject.id);
             } else {
-                console.warn("⚠️ global.io not found. Falling back to loopback connection...");
                 // Fallback to loopback if global.io is missing (shouldn't happen with custom server)
                 const { io: clientIo } = await import("socket.io-client");
                 const socket = clientIo(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000", {
@@ -265,27 +262,25 @@ export async function POST(req: Request) {
         if (assignedUserIds && assignedUserIds.length > 0) {
             try {
                 const { notificationService } = await import('@/lib/notifications');
-                await notificationService.notifyProjectAssigned({
-                    projectName: name,
-                    assignedUserIds,
-                });
+                // Use Promise.all to send notifications in parallel
+                await Promise.all(assignedUserIds.map(userId =>
+                    notificationService.notifyProjectAssigned({
+                        projectName: name,
+                        userId: userId,
+                        projectId: newProject.id,
+                        userName: "Team Member" // We don't have the specific names here easily without extra query
+                    }).catch(() => { }) // Ignore individual notification failures
+                ));
             } catch (notifyError) {
-                console.error('[Project API] Notification error:', notifyError);
             }
         }
 
         return NextResponse.json(newProject, { status: 201 });
 
     } catch (error: any) {
-        console.error("Project creation error:", error);
         return NextResponse.json({
             error: "Failed to create project",
-            message: error.message,
-            code: error.code,
-            detail: error.detail,
-            hint: error.hint,
-            constraint: error.constraint,
-            stack: error.stack
+            message: error.message
         }, { status: 500 });
     }
 }

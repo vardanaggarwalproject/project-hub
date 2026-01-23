@@ -54,7 +54,6 @@ class NotificationService {
         const smtpPass = process.env.SMTP_PASS;
 
         if (!smtpUser || !smtpPass) {
-            console.warn('[NotificationService] SMTP credentials missing in environment');
             return null;
         }
 
@@ -62,7 +61,6 @@ class NotificationService {
         const port = parseInt(process.env.SMTP_PORT || '587');
         const secure = process.env.SMTP_SECURE === 'true';
 
-        console.log(`[NotificationService] Initializing transporter for ${smtpUser} via ${host}:${port}`);
 
         this.transporter = nodemailer.createTransport({
             host,
@@ -78,7 +76,6 @@ class NotificationService {
     }
 
     async notify(targets: NotificationTarget[], payload: NotificationPayload) {
-        console.log(`[NotificationService] Dispatching "${payload.type}" to ${targets.length} targets`);
         if (targets.length === 0) return;
 
         const { html, slackBlocks } = getNotificationTemplate(payload.type, {
@@ -99,7 +96,6 @@ class NotificationService {
                 data: payload.data,
             })));
         } catch (e) {
-            console.error('[NotificationService] DB Save Error:', e);
         }
 
         // 2. Process Channels
@@ -114,7 +110,6 @@ class NotificationService {
     private async sendEmail(targets: NotificationTarget[], type: NotificationType, title: string, body: string, html: string) {
         const transporter = this.getTransporter();
         if (!transporter) {
-            console.error('[NotificationService] Failed to send email: Transporter not initializable');
             return;
         }
 
@@ -133,18 +128,15 @@ class NotificationService {
                 })
                 .map(r => r.email);
         } catch (e) {
-            console.error('[NotificationService] Error fetching recipients from DB:', e);
         }
 
         if (recipients.length === 0) {
-            console.log('[NotificationService] No email recipients found in DB for type:', type);
             return;
         }
 
         const fromEmail = process.env.SMTP_USER;
 
         try {
-            console.log(`[NotificationService] Attempting to send email to: ${recipients.join(', ')}`);
 
             // Use 'to' for the primary recipient and 'cc/bcc' for others if needed, 
             // or just put all in 'to' for simplicity in this case.
@@ -155,15 +147,7 @@ class NotificationService {
                 text: body,
                 html
             });
-            console.log(`[NotificationService] Email sent successfully to ${recipients.length} recipients`);
         } catch (e: any) {
-            console.error('[NotificationService] Detailed Email Error:', {
-                message: e.message,
-                code: e.code,
-                command: e.command,
-                response: e.response,
-                user: fromEmail
-            });
         }
     }
 
@@ -188,12 +172,14 @@ class NotificationService {
                 body: JSON.stringify({ blocks })
             });
         } catch (e) {
-            console.error('[NotificationService] Slack Error:', e);
         }
     }
 
     private async sendPush(targets: NotificationTarget[], type: NotificationType, payload: NotificationPayload) {
-        if (!process.env.VAPID_PUBLIC_KEY) return;
+        if (!process.env.VAPID_PUBLIC_KEY) {
+            return;
+        }
+
         const userIds = targets.filter(t => {
             if (t.preferences?.push === false) return false;
             if (type === 'eod_submitted' && t.preferences?.eodNotifications === false) return false;
@@ -201,6 +187,7 @@ class NotificationService {
             if (type === 'project_created' && t.preferences?.projectNotifications === false) return false;
             return true;
         }).map(t => t.userId);
+
         if (userIds.length === 0) return;
 
         // Dynamically import web-push only when needed (server-side only)
@@ -209,22 +196,23 @@ class NotificationService {
         // Configure VAPID details
         if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
             webPush.setVapidDetails(
-                process.env.VAPID_SUBJECT || 'mailto:admin@example.com',
+                process.env.VAPID_SUBJECT || 'mailto:vardan.netweb@gmail.com',
                 process.env.VAPID_PUBLIC_KEY,
                 process.env.VAPID_PRIVATE_KEY
             );
         }
 
         const subs = await db.select().from(pushSubscriptions).where(inArray(pushSubscriptions.userId, userIds));
+        if (subs.length === 0) return;
 
-        await Promise.allSettled(subs.map(async sub => {
+        await Promise.all(subs.map(async sub => {
             try {
                 await webPush.sendNotification({
                     endpoint: sub.endpoint,
                     keys: { p256dh: sub.p256dh, auth: sub.auth }
                 }, JSON.stringify(payload));
             } catch (e: any) {
-                if (e.statusCode === 410) {
+                if (e.statusCode === 410 || e.statusCode === 403) {
                     await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
                 }
             }
@@ -283,6 +271,45 @@ class NotificationService {
             title: '📝 Memo Submitted',
             body: `${data.userName} submitted memo for **${data.projectName}**`,
             url: '/admin/memos',
+            data
+        });
+    }
+
+    async notifyProjectAssigned(data: { userName: string, projectName: string, userId: string, projectId: string }) {
+        // Get the specific user target
+        const userTarget = await db.select({
+            userId: user.id,
+            userName: user.name,
+            email: user.email,
+            role: user.role,
+            prefs: notificationPreferences,
+        })
+            .from(user)
+            .leftJoin(notificationPreferences, eq(user.id, notificationPreferences.userId))
+            .where(eq(user.id, data.userId))
+            .limit(1);
+
+        if (userTarget.length === 0) return;
+
+        const target = userTarget[0];
+        await this.notify([{
+            userId: target.userId,
+            userName: target.userName,
+            email: target.email,
+            role: target.role ?? undefined,
+            preferences: {
+                email: target.prefs?.emailEnabled ?? true,
+                slack: target.prefs?.slackEnabled ?? true,
+                push: target.prefs?.pushEnabled ?? true,
+                eodNotifications: target.prefs?.eodNotifications ?? true,
+                memoNotifications: target.prefs?.memoNotifications ?? true,
+                projectNotifications: target.prefs?.projectNotifications ?? true,
+            }
+        }], {
+            type: 'project_assigned',
+            title: '🎯 New Project Assignment',
+            body: `You've been assigned to **${data.projectName}**`,
+            url: `/projects/${data.projectId}`,
             data
         });
     }

@@ -28,11 +28,7 @@ export const slackChannel: NotificationChannel = {
                 }),
             });
 
-            if (response.ok) {
-                console.log(`[Slack] Notification sent: ${payload.type}`);
-            }
         } catch (error) {
-            console.error('[Slack] Error sending notification:', error);
         }
     },
 };

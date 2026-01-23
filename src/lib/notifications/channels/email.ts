@@ -18,7 +18,6 @@ export const emailChannel: NotificationChannel = {
 
     async send(targets: NotificationTarget[], payload: NotificationPayload): Promise<void> {
         if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-            console.warn('[Email] SMTP credentials not configured, skipping');
             return;
         }
 
@@ -35,7 +34,6 @@ export const emailChannel: NotificationChannel = {
                 body: payload.body
             });
 
-            console.log(`[Email Channel] Attempting to send email to: ${recipients.join(', ')}`);
             await transporter.sendMail({
                 from: `"Project Hub" <${process.env.SMTP_USER}>`,
                 to: recipients.join(', '),
@@ -44,9 +42,7 @@ export const emailChannel: NotificationChannel = {
                 html: template.html,
             });
 
-            console.log(`[Email Channel] Notification sent successfully for type: ${payload.type}`);
         } catch (error) {
-            console.error('[Email] Error sending notification:', error);
         }
     },
 };
