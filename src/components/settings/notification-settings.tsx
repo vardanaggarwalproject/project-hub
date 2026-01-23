@@ -30,14 +30,14 @@ export function NotificationSettings() {
     const { user, userRole } = useAuth();
     const userId = user?.id;
     const isAdmin = userRole === "admin";
-    
-    const { 
-        isSupported, 
-        isSubscribed, 
-        isLoading: pushLoading, 
-        permission, 
-        subscribe, 
-        unsubscribe 
+
+    const {
+        isSupported,
+        isSubscribed,
+        isLoading: pushLoading,
+        permission,
+        subscribe,
+        unsubscribe
     } = usePushNotifications({ userId: userId || "" });
 
     const [preferences, setPreferences] = useState<NotificationPreferences>({
@@ -55,7 +55,7 @@ export function NotificationSettings() {
 
     useEffect(() => {
         if (!userId) return;
-        
+
         const fetchPreferences = async () => {
             try {
                 const response = await fetch("/api/notifications/preferences");
@@ -135,9 +135,9 @@ export function NotificationSettings() {
             const response = await fetch("/api/notifications/recipients", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ 
-                    email: newEmail, 
-                    label: newLabel || "Admin" 
+                body: JSON.stringify({
+                    email: newEmail,
+                    label: newLabel || "Admin"
                 }),
             });
 
@@ -239,25 +239,25 @@ export function NotificationSettings() {
 
     if (!isSupported) {
         return (
-            <div className="space-y-6">
+            <div className="space-y-8">
                 <div>
-                    <h3 className="text-lg font-semibold mb-1">Notifications</h3>
+                    <h3 className="text-xl font-semibold mb-1.5">Notifications</h3>
                     <p className="text-sm text-muted-foreground">
                         Manage how you receive notifications
                     </p>
                 </div>
 
-                <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20">
-                    <div className="p-6">
-                        <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                <Card className="border-amber-200/50 bg-amber-50/30 dark:border-amber-900/50 dark:bg-amber-950/20">
+                    <div className="p-8">
+                        <div className="flex items-start gap-4">
+                            <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/30">
                                 <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
                             </div>
                             <div className="flex-1">
-                                <h4 className="font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                                <h4 className="font-medium text-amber-900 dark:text-amber-100 mb-1.5">
                                     Browser Not Supported
                                 </h4>
-                                <p className="text-sm text-amber-800 dark:text-amber-200">
+                                <p className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed">
                                     Your browser doesn't support push notifications. Please use Chrome, Firefox, or Edge for the best experience.
                                 </p>
                             </div>
@@ -269,35 +269,35 @@ export function NotificationSettings() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8">
             <div>
-                <h3 className="text-lg font-semibold mb-1">Notifications</h3>
+                <h3 className="text-xl font-semibold mb-1.5">Notifications</h3>
                 <p className="text-sm text-muted-foreground">
                     Manage how you receive notifications
                 </p>
             </div>
 
-            <Card>
-                <div className="p-6 space-y-6">
+            <Card className="border-border/50">
+                <div className="p-8 space-y-8">
                     {/* Push Notifications (Individual) */}
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 flex-1">
-                            <div className="p-2 rounded-lg bg-muted">
-                                <Smartphone className="h-5 w-5 text-foreground" />
+                    <div className="flex items-start justify-between gap-6">
+                        <div className="flex items-start gap-4 flex-1">
+                            <div className="p-2.5 rounded-xl bg-muted/50 border border-border/30">
+                                <Smartphone className="h-5 w-5 text-foreground/70" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
+                                <div className="flex items-center gap-2.5 mb-1.5">
                                     <Label htmlFor="push-notifications" className="text-base font-medium cursor-pointer">
                                         Push Notifications
                                     </Label>
                                     {isSubscribed && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">
                                             <CheckCircle2 className="h-3 w-3" />
                                             Active
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground leading-relaxed">
                                     Receive real-time desktop notifications for important updates
                                 </p>
                             </div>
@@ -312,36 +312,36 @@ export function NotificationSettings() {
                     </div>
 
                     {permission === 'denied' && (
-                        <div className="flex items-start gap-3 p-4 rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20">
+                        <div className="flex items-start gap-3.5 p-5 rounded-xl border border-amber-200/50 bg-amber-50/30 dark:border-amber-900/50 dark:bg-amber-950/20">
                             <Info className="h-4 w-4 text-amber-600 dark:text-amber-500 mt-0.5 shrink-0" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm text-amber-900 dark:text-amber-100">
-                                    <strong className="font-semibold">Permission Denied:</strong> Click the lock icon in your address bar and allow notifications to enable this feature.
+                                <p className="text-sm text-amber-900 dark:text-amber-100 leading-relaxed">
+                                    <strong className="font-medium">Permission Denied:</strong> Click the lock icon in your address bar and allow notifications to enable this feature.
                                 </p>
                             </div>
                         </div>
                     )}
 
                     {/* Slack Notifications (Individual) */}
-                    <Separator />
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 flex-1">
-                            <div className="p-2 rounded-lg bg-muted">
-                                <MessageSquare className="h-5 w-5 text-foreground" />
+                    <Separator className="bg-border/50" />
+                    <div className="flex items-start justify-between gap-6">
+                        <div className="flex items-start gap-4 flex-1">
+                            <div className="p-2.5 rounded-xl bg-muted/50 border border-border/30">
+                                <MessageSquare className="h-5 w-5 text-foreground/70" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
+                                <div className="flex items-center gap-2.5 mb-1.5">
                                     <Label htmlFor="slack-notifications" className="text-base font-medium cursor-pointer">
                                         Slack Notifications
                                     </Label>
                                     {preferences.slackEnabled && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">
                                             <CheckCircle2 className="h-3 w-3" />
                                             Active
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground leading-relaxed">
                                     Receive notifications in your Slack workspace
                                 </p>
                             </div>
@@ -358,89 +358,91 @@ export function NotificationSettings() {
                     {/* Admin-only: Email Recipients Management */}
                     {isAdmin && (
                         <>
-                            <Separator />
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-2">
-                                    <Mail className="h-5 w-5 text-foreground" />
+                            <Separator className="bg-border/50" />
+                            <div className="space-y-7">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-1.5 rounded-lg bg-muted/50">
+                                        <Mail className="h-4 w-4 text-foreground/70" />
+                                    </div>
                                     <h4 className="text-base font-medium">Email Notification Recipients</h4>
                                 </div>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground leading-relaxed">
                                     Only people listed here will receive email notifications. Any admin can manage this list.
                                 </p>
 
                                 {/* New Recipient Form */}
-                                <div className="grid gap-4 sm:grid-cols-[1fr,1fr,auto] items-end border p-4 rounded-xl bg-muted/30">
+                                <div className="grid gap-4 sm:grid-cols-[1fr,1fr,auto] items-end border border-border/50 p-5 rounded-xl bg-muted/20">
                                     <div className="space-y-2">
-                                        <Label htmlFor="new-email" className="text-xs">Email Address</Label>
-                                        <input 
+                                        <Label htmlFor="new-email" className="text-xs font-medium">Email Address</Label>
+                                        <input
                                             id="new-email"
                                             type="email"
                                             placeholder="email@example.com"
-                                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                            className="flex h-10 w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                             value={newEmail}
                                             onChange={(e) => setNewEmail(e.target.value)}
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="new-label" className="text-xs">Label (e.g. Name/Role)</Label>
-                                        <input 
+                                        <Label htmlFor="new-label" className="text-xs font-medium">Label (e.g. Name/Role)</Label>
+                                        <input
                                             id="new-label"
                                             type="text"
                                             placeholder="Admin: John"
-                                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                            className="flex h-10 w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                             value={newLabel}
                                             onChange={(e) => setNewLabel(e.target.value)}
                                         />
                                     </div>
-                                    <Button onClick={addRecipient} disabled={isAddingRecipient} size="sm" className="w-full sm:w-auto">
+                                    <Button onClick={addRecipient} disabled={isAddingRecipient} size="sm" className="w-full sm:w-auto h-10">
                                         {isAddingRecipient ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
                                     </Button>
                                 </div>
 
                                 {/* Recipients List */}
-                                <div className="space-y-4">
+                                <div className="space-y-3">
                                     {recipients.length === 0 ? (
-                                        <div className="text-center py-8 border-2 border-dashed rounded-xl text-muted-foreground">
+                                        <div className="text-center py-10 border-2 border-dashed border-border/50 rounded-xl text-muted-foreground">
                                             No recipients configured. No emails will be sent.
                                         </div>
                                     ) : (
-                                        <div className="grid gap-4">
+                                        <div className="grid gap-3">
                                             {recipients.map((recipient) => (
-                                                <div key={recipient.id} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border bg-card">
+                                                <div key={recipient.id} className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-xl border border-border/50 bg-card/50">
                                                     <div className="flex-1 min-w-0">
                                                         <p className="font-medium truncate">{recipient.email}</p>
                                                         <p className="text-xs text-muted-foreground truncate">{recipient.label}</p>
                                                     </div>
-                                                    
+
                                                     <div className="flex items-center gap-4 sm:border-l sm:pl-4">
                                                         <div className="flex flex-col items-center gap-1">
                                                             <span className="text-[10px] uppercase font-bold text-muted-foreground">EOD</span>
-                                                            <Switch 
+                                                            <Switch
                                                                 checked={recipient.eodEnabled}
                                                                 onCheckedChange={(checked) => updateRecipientToggle(recipient.id, 'eodEnabled', checked)}
                                                             />
                                                         </div>
                                                         <div className="flex flex-col items-center gap-1">
                                                             <span className="text-[10px] uppercase font-bold text-muted-foreground">Memo</span>
-                                                            <Switch 
+                                                            <Switch
                                                                 checked={recipient.memoEnabled}
                                                                 onCheckedChange={(checked) => updateRecipientToggle(recipient.id, 'memoEnabled', checked)}
                                                             />
                                                         </div>
                                                         <div className="flex flex-col items-center gap-1">
                                                             <span className="text-[10px] uppercase font-bold text-muted-foreground">Proj</span>
-                                                            <Switch 
+                                                            <Switch
                                                                 checked={recipient.projectEnabled}
                                                                 onCheckedChange={(checked) => updateRecipientToggle(recipient.id, 'projectEnabled', checked)}
                                                             />
                                                         </div>
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="icon" 
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
                                                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                                             onClick={() => removeRecipient(recipient.id)}
                                                         >
-                                                            <CheckCircle2 className="h-4 w-4 rotate-45" /> 
+                                                            <CheckCircle2 className="h-4 w-4 rotate-45" />
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -455,17 +457,17 @@ export function NotificationSettings() {
                     {/* Test Notification Button */}
                     {isSubscribed && (
                         <>
-                            <Separator />
-                            <div className="flex items-center justify-between gap-4">
+                            <Separator className="bg-border/50" />
+                            <div className="flex items-center justify-between gap-6">
                                 <div className="flex-1">
-                                    <p className="text-sm font-medium mb-1">Test Notifications</p>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-sm font-medium mb-1.5">Test Notifications</p>
+                                    <p className="text-sm text-muted-foreground leading-relaxed">
                                         Send a test notification to verify your settings
                                     </p>
                                 </div>
-                                <Button 
-                                    variant="outline" 
-                                    size="sm" 
+                                <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={sendTestNotification}
                                     disabled={isTesting}
                                     className="shrink-0"

@@ -1,6 +1,5 @@
 
 import nodemailer from 'nodemailer';
-import webPush from 'web-push';
 import { db } from '@/lib/db';
 import { user, appNotifications, notificationPreferences, pushSubscriptions } from '@/lib/db/schema';
 import { eq, inArray } from 'drizzle-orm';
@@ -45,13 +44,7 @@ class NotificationService {
     private transporter: nodemailer.Transporter | null = null;
 
     constructor() {
-        if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-            webPush.setVapidDetails(
-                process.env.VAPID_SUBJECT || 'mailto:admin@example.com',
-                process.env.VAPID_PUBLIC_KEY,
-                process.env.VAPID_PRIVATE_KEY
-            );
-        }
+        // VAPID configuration moved to sendPush method
     }
 
     private getTransporter() {
@@ -209,6 +202,18 @@ class NotificationService {
             return true;
         }).map(t => t.userId);
         if (userIds.length === 0) return;
+
+        // Dynamically import web-push only when needed (server-side only)
+        const webPush = (await import('web-push')).default;
+
+        // Configure VAPID details
+        if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+            webPush.setVapidDetails(
+                process.env.VAPID_SUBJECT || 'mailto:admin@example.com',
+                process.env.VAPID_PUBLIC_KEY,
+                process.env.VAPID_PRIVATE_KEY
+            );
+        }
 
         const subs = await db.select().from(pushSubscriptions).where(inArray(pushSubscriptions.userId, userIds));
 
