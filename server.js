@@ -121,6 +121,29 @@ app.prepare().then(() => {
       io.to(groupRoom).emit("messages-read", data);
     });
 
+    // Task Comments Events
+    socket.on("task:join", (taskId, callback) => {
+      console.log(`🔔 Received task:join event for taskId: ${taskId}`);
+      if (!taskId) {
+        console.error("❌ task:join called with empty taskId");
+        return;
+      }
+      const taskRoom = `task:${taskId}`;
+      socket.join(taskRoom);
+      console.log(`📝 Socket ${socket.id} joined task: ${taskRoom}`);
+      console.log(`📋 Socket ${socket.id} is now in rooms:`, Array.from(socket.rooms));
+
+      // Send acknowledgment back to client
+      if (callback) callback({ success: true, room: taskRoom });
+    });
+
+    socket.on("task:leave", (taskId) => {
+      if (!taskId) return;
+      const taskRoom = `task:${taskId}`;
+      socket.leave(taskRoom);
+      console.log(`📝 Socket ${socket.id} left task: ${taskRoom}`);
+    });
+
     // 6. Global System Events (Broadcast to all)
     socket.on("project-deleted", (data) => {
       console.log(`🗑️ Project deleted: ${data.projectId}`);

@@ -5,78 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1768385306445,
-      "tag": "0000_volatile_gorgon",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1768382760733,
-      "tag": "0004_huge_turbo",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1768546198166,
-      "tag": "0005_modern_cable",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1768564353347,
-      "tag": "0006_tricky_zaladane",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1768643396240,
-      "tag": "0007_soft_black_crow",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1768808612319,
-      "tag": "0008_chunky_thing",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1768909289353,
-      "tag": "0009_watery_ultron",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1768970752867,
-      "tag": "0010_soft_meteorite",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1769075664601,
-      "tag": "0011_gifted_human_cannonball",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "7",
-      "when": 1769084184279,
-      "tag": "0012_quick_sersi",
-      "breakpoints": true
-    },
-    {
-      "idx": 13,
-      "version": "7",
-      "when": 1769085185162,
-      "tag": "0013_productive_saracen",
+      "when": 1769156193228,
+      "tag": "0000_faithful_mother_askani",
       "breakpoints": true
     }
   ]

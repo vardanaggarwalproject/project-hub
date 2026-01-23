@@ -305,3 +305,193 @@ export const eodsApi = {
     return handleResponse<{ success: boolean }>(response);
   },
 };
+
+/**
+ * Tasks API methods
+ */
+export const tasksApi = {
+  /**
+   * Get all tasks with optional filters
+   */
+  async getAll(params?: URLSearchParams): Promise<any[]> {
+    const url = params
+      ? `/api/tasks?${params.toString()}`
+      : "/api/tasks";
+
+    const response = await fetch(url, {
+      next: { revalidate: CACHE_REVALIDATE.NONE },
+    });
+    return handleResponse<any[]>(response);
+  },
+
+  /**
+   * Get a single task by ID
+   */
+  async getById(id: string): Promise<any> {
+    const response = await fetch(`/api/tasks/${id}`, {
+      next: { revalidate: CACHE_REVALIDATE.NONE },
+    });
+    return handleResponse<any>(response);
+  },
+
+  /**
+   * Create a new task
+   */
+  async create(data: {
+    name: string;
+    description?: string;
+    status?: "todo" | "in_progress" | "done";
+    deadline?: string;
+    projectId: string;
+    priority?: "low" | "medium" | "high";
+    columnId?: string;
+    type?: string;
+    assignedUserIds?: string[];
+  }): Promise<any> {
+    const response = await fetch("/api/tasks", {
+      method: "POST",
+      headers: API_CONFIG.headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<any>(response);
+  },
+
+  /**
+   * Update an existing task
+   */
+  async update(id: string, data: {
+    name?: string;
+    description?: string;
+    status?: "todo" | "in_progress" | "done";
+    deadline?: string;
+    priority?: "low" | "medium" | "high";
+    columnId?: string;
+    type?: string;
+    assignedUserIds?: string[];
+  }): Promise<any> {
+    const response = await fetch(`/api/tasks/${id}`, {
+      method: "PATCH",
+      headers: API_CONFIG.headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<any>(response);
+  },
+
+  /**
+   * Delete a task
+   */
+  async delete(id: string): Promise<{ success: boolean }> {
+    const response = await fetch(`/api/tasks/${id}`, {
+      method: "DELETE",
+      headers: API_CONFIG.headers,
+    });
+    return handleResponse<{ success: boolean }>(response);
+  },
+
+  /**
+   * Reorder a task (drag and drop)
+   */
+  async reorder(data: {
+    taskId: string;
+    sourceColumnId: string | null;
+    destinationColumnId: string;
+    position: number;
+  }): Promise<{ success: boolean }> {
+    const response = await fetch("/api/tasks/reorder", {
+      method: "POST",
+      headers: API_CONFIG.headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<{ success: boolean }>(response);
+  },
+};
+
+/**
+ * Columns API methods
+ */
+export const columnsApi = {
+  /**
+   * Get all columns with optional filters
+   */
+  async getAll(params?: URLSearchParams): Promise<any[]> {
+    const url = params
+      ? `/api/columns?${params.toString()}`
+      : "/api/columns";
+
+    const response = await fetch(url, {
+      next: { revalidate: CACHE_REVALIDATE.NONE },
+    });
+    return handleResponse<any[]>(response);
+  },
+
+  /**
+   * Create a new column
+   */
+  async create(data: {
+    title: string;
+    color?: string;
+    projectId?: string;
+    userId?: string;
+  }): Promise<any> {
+    const response = await fetch("/api/columns", {
+      method: "POST",
+      headers: API_CONFIG.headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<any>(response);
+  },
+
+  /**
+   * Update an existing column
+   */
+  async update(id: string, data: {
+    title?: string;
+    color?: string;
+    position?: number;
+  }): Promise<any> {
+    const response = await fetch(`/api/columns/${id}`, {
+      method: "PATCH",
+      headers: API_CONFIG.headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<any>(response);
+  },
+
+  /**
+   * Delete a column
+   */
+  async delete(id: string): Promise<{ success: boolean }> {
+    const response = await fetch(`/api/columns/${id}`, {
+      method: "DELETE",
+      headers: API_CONFIG.headers,
+    });
+    return handleResponse<{ success: boolean }>(response);
+  },
+};
+
+/**
+ * Task Comments API methods
+ */
+export const taskCommentsApi = {
+  /**
+   * Get all comments for a task
+   */
+  async getByTaskId(taskId: string): Promise<any[]> {
+    const response = await fetch(`/api/tasks/${taskId}/comments`, {
+      next: { revalidate: CACHE_REVALIDATE.NONE },
+    });
+    return handleResponse<any[]>(response);
+  },
+
+  /**
+   * Create a new comment on a task
+   */
+  async create(taskId: string, content: string): Promise<any> {
+    const response = await fetch(`/api/tasks/${taskId}/comments`, {
+      method: "POST",
+      headers: API_CONFIG.headers,
+      body: JSON.stringify({ content }),
+    });
+    return handleResponse<any>(response);
+  },
+};
