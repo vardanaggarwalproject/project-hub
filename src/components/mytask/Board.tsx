@@ -343,8 +343,36 @@ export function Board({ columns, onColumnsChange, projectId }: BoardProps) {
 
     if (!activeColumn || !overColumn) return;
 
-    // Only process if moving to a different column
-    if (activeColumn.id !== overColumn.id) {
+    // Handle reordering within the same column
+    if (activeColumn.id === overColumn.id) {
+      const activeIndex = activeColumn.tasks.findIndex((t) => t.id === activeId);
+      const overIndex = activeColumn.tasks.findIndex((t) => t.id === overId);
+
+      if (activeIndex !== overIndex && activeIndex !== -1 && overIndex !== -1) {
+        // Create a unique key to prevent redundant updates
+        const overKey = `${activeId}-${activeColumn.id}-${overIndex}`;
+        if (lastOverIdRef.current === overKey) return;
+        lastOverIdRef.current = overKey;
+
+        // Cancel any pending frame
+        if (dragOverFrameRef.current) {
+          cancelAnimationFrame(dragOverFrameRef.current);
+        }
+
+        // Use requestAnimationFrame to batch state updates
+        dragOverFrameRef.current = requestAnimationFrame(() => {
+          const newTasks = arrayMove(activeColumn.tasks, activeIndex, overIndex);
+          onColumnsChange(
+            columns.map((col) =>
+              col.id === activeColumn.id ? { ...col, tasks: newTasks } : col
+            )
+          );
+          dragOverFrameRef.current = null;
+        });
+      }
+    }
+    // Handle moving to a different column
+    else if (activeColumn.id !== overColumn.id) {
       const activeTask = activeColumn.tasks.find((t) => t.id === activeId);
       if (!activeTask) return;
 
@@ -434,19 +462,30 @@ export function Board({ columns, onColumnsChange, projectId }: BoardProps) {
       const column = columns.find((c) => c.id === sourceColumnId);
       if (!column) return;
 
-      const oldIndex = column.tasks.findIndex((t) => t.id === activeId);
-      const newIndex = column.tasks.findIndex((t) => t.id === overId);
+      // The UI has already been updated by handleDragOver
+      // Find the current position of the dragged task in the updated array
+      const currentPosition = column.tasks.findIndex((t) => t.id === activeId);
 
-      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+      if (currentPosition !== -1) {
         try {
+          console.log("📡 Saving same-column reorder:", {
+            taskId: activeId,
+            sourceColumnId,
+            destinationColumnId: sourceColumnId,
+            position: currentPosition,
+          });
+
           await tasksApi.reorder({
             taskId: activeId,
             sourceColumnId,
             destinationColumnId: sourceColumnId,
-            position: newIndex,
+            position: currentPosition,
           });
+
+          console.log("✅ Same-column reorder saved successfully");
+          toast.success("Task order updated");
         } catch (error) {
-          console.error("Failed to reorder task:", error);
+          console.error("❌ Failed to reorder task:", error);
           toast.error("Failed to save task order");
         }
       }
@@ -455,20 +494,31 @@ export function Board({ columns, onColumnsChange, projectId }: BoardProps) {
       const task = findTaskById(activeId);
       if (!task) return;
 
-      const newIndex = destinationColumn.tasks.findIndex((t) => t.id === overId);
-      const position = newIndex !== -1 ? newIndex : destinationColumn.tasks.length;
+      // The UI has already been updated by handleDragOver
+      // Find the current position of the dragged task in the destination column
+      const currentPosition = destinationColumn.tasks.findIndex((t) => t.id === activeId);
+      const position = currentPosition !== -1 ? currentPosition : destinationColumn.tasks.length;
 
-      // UI already updated by handleDragOver, just persist to database
+      // Persist to database
       try {
+        console.log("📡 Saving cross-column move:", {
+          taskId: activeId,
+          sourceColumnId,
+          destinationColumnId: destinationColumn.id,
+          position,
+        });
+
         await tasksApi.reorder({
           taskId: activeId,
           sourceColumnId,
           destinationColumnId: destinationColumn.id,
           position,
         });
+
+        console.log("✅ Cross-column move saved successfully");
         toast.success(`Moved to ${destinationColumn.title}`);
       } catch (error) {
-        console.error("Failed to move task:", error);
+        console.error("❌ Failed to move task:", error);
         toast.error("Failed to move task");
         // Reload from server on error
         window.location.reload();
