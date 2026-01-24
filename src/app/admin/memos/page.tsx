@@ -94,11 +94,15 @@ export default function AdminMemosPage() {
 
     // Initialize state from URL params
     const [selectedProject, setSelectedProject] = useState(searchParams.get("project") || "");
-    const [dateRange, setDateRange] = useState<DateRange | undefined>(
-        searchParams.get("fromDate") && searchParams.get("toDate")
-            ? { from: new Date(searchParams.get("fromDate")!), to: new Date(searchParams.get("toDate")!) }
-            : undefined
-    );
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+        if (searchParams.get("fromDate") && searchParams.get("toDate")) {
+            return { from: new Date(searchParams.get("fromDate")!), to: new Date(searchParams.get("toDate")!) };
+        }
+        // Default to today's date
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return { from: today, to: today };
+    });
     const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
     const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get("search") || "");
     const [activeDualMemos, setActiveDualMemos] = useState<{ short?: Memo, universal?: Memo } | null>(null);
@@ -312,7 +316,7 @@ export default function AdminMemosPage() {
                                         placeholder="Filter by report date..."
                                         className="w-[280px]"
                                     />
-                                    <ClearFilterButton 
+                                    <ClearFilterButton
                                         isActive={!!(searchQuery || selectedProject || dateRange || show140Only || showUniversalOnly)}
                                         onClick={() => {
                                             setSearchQuery("");
@@ -328,9 +332,9 @@ export default function AdminMemosPage() {
 
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner w-fit">
-                                <Button 
-                                    variant="ghost" 
-                                    size="sm" 
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => handleViewChange("table")}
                                     className={cn(
                                         "h-8 px-4 text-[10px] uppercase tracking-wider font-black transition-all rounded-lg",
@@ -339,9 +343,9 @@ export default function AdminMemosPage() {
                                 >
                                     <LayoutGrid className="h-3.5 w-3.5 mr-2" /> Table
                                 </Button>
-                                <Button 
-                                    variant="ghost" 
-                                    size="sm" 
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => handleViewChange("calendar")}
                                     className={cn(
                                         "h-8 px-4 text-[10px] uppercase tracking-wider font-black transition-all rounded-lg",
@@ -397,137 +401,137 @@ export default function AdminMemosPage() {
                     <AdminCalendarView type="memo" />
                 ) : (
                     <Card className="border-none shadow-md overflow-hidden bg-white">
-                    <CardContent className="p-0">
-                        <div className="relative w-full overflow-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="hover:bg-transparent border-b border-slate-200">
-                                        <TableHead className="w-[50px] font-bold text-slate-500 uppercase tracking-wider text-[10px]">S.No</TableHead>
-                                        <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">User Name</TableHead>
-                                        <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Project Name</TableHead>
-                                        <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Report Date</TableHead>
-                                        <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Submitted Date</TableHead>
-                                        <TableHead className="w-[80px] text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">Copy</TableHead>
-                                        <TableHead className="w-[80px] text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">View</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {memos.length > 0 ? (
-                                        memos.map((memo, index) => (
-                                            <TableRow key={memo.id} className={cn(
-                                                "group hover:bg-slate-50/80 transition-colors duration-200",
-                                                memo.isMemoRequired && "bg-blue-50/30 hover:bg-blue-50/50"
-                                            )}>
-                                                <TableCell className="font-medium text-slate-600 text-xs text-center border-r border-slate-100/50">
-                                                    {(page - 1) * limit + index + 1}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-3">
-                                                        <Avatar className="h-8 w-8 border-2 border-white ring-1 ring-slate-100 shadow-sm">
-                                                            <AvatarImage src={memo.user.image || ""} />
-                                                            <AvatarFallback className="bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 text-xs font-bold">
-                                                                {memo.user.name.substring(0, 2).toUpperCase()}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="font-semibold text-slate-700 text-sm whitespace-nowrap">{memo.user.name}</span>
-                                                            {memo.isMemoRequired && (
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Badge
-                                                                            variant="outline"
-                                                                            className="bg-amber-50 text-amber-700 border-amber-300 text-[9px] px-1.5 py-0 h-4 cursor-help font-bold"
-                                                                        >
-                                                                            <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-                                                                            140
-                                                                        </Badge>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent side="top">
-                                                                        <p className="text-[10px] font-bold uppercase tracking-wider">Detailed Memo Required</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            )}
+                        <CardContent className="p-0">
+                            <div className="relative w-full overflow-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="hover:bg-transparent border-b border-slate-200">
+                                            <TableHead className="w-[50px] font-bold text-slate-500 uppercase tracking-wider text-[10px]">S.No</TableHead>
+                                            <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">User Name</TableHead>
+                                            <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Project Name</TableHead>
+                                            <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Report Date</TableHead>
+                                            <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Submitted Date</TableHead>
+                                            <TableHead className="w-[80px] text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">Copy</TableHead>
+                                            <TableHead className="w-[80px] text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">View</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {memos.length > 0 ? (
+                                            memos.map((memo, index) => (
+                                                <TableRow key={memo.id} className={cn(
+                                                    "group hover:bg-slate-50/80 transition-colors duration-200",
+                                                    memo.isMemoRequired && "bg-blue-50/30 hover:bg-blue-50/50"
+                                                )}>
+                                                    <TableCell className="font-medium text-slate-600 text-xs text-center border-r border-slate-100/50">
+                                                        {(page - 1) * limit + index + 1}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-3">
+                                                            <Avatar className="h-8 w-8 border-2 border-white ring-1 ring-slate-100 shadow-sm">
+                                                                <AvatarImage src={memo.user.image || ""} />
+                                                                <AvatarFallback className="bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 text-xs font-bold">
+                                                                    {memo.user.name.substring(0, 2).toUpperCase()}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-semibold text-slate-700 text-sm whitespace-nowrap">{memo.user.name}</span>
+                                                                {memo.isMemoRequired && (
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Badge
+                                                                                variant="outline"
+                                                                                className="bg-amber-50 text-amber-700 border-amber-300 text-[9px] px-1.5 py-0 h-4 cursor-help font-bold"
+                                                                            >
+                                                                                <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                                                                                140
+                                                                            </Badge>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent side="top">
+                                                                            <p className="text-[10px] font-bold uppercase tracking-wider">Detailed Memo Required</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Link
-                                                        href={`/admin/projects/${memo.projectId}`}
-                                                        className="group/link flex items-center gap-2 hover:opacity-80 transition-opacity"
-                                                    >
-                                                        <span className="font-semibold text-slate-700 text-sm whitespace-nowrap group-hover/link:text-blue-600 transition-colors">
-                                                            {memo.projectName}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Link
+                                                            href={`/admin/projects/${memo.projectId}`}
+                                                            className="group/link flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                                        >
+                                                            <span className="font-semibold text-slate-700 text-sm whitespace-nowrap group-hover/link:text-blue-600 transition-colors">
+                                                                {memo.projectName}
+                                                            </span>
+                                                            <ExternalLink className="h-3 w-3 text-slate-400 group-hover/link:text-blue-500 transition-colors" />
+                                                        </Link>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span className="text-sm font-semibold text-slate-700">
+                                                            {format(memo.reportDate, "dd/MM/yyyy")}
                                                         </span>
-                                                        <ExternalLink className="h-3 w-3 text-slate-400 group-hover/link:text-blue-500 transition-colors" />
-                                                    </Link>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="text-sm font-semibold text-slate-700">
-                                                        {format(memo.reportDate, "dd/MM/yyyy")}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="text-sm font-semibold text-slate-700">
-                                                        {format(memo.createdAt, "dd/MM/yyyy")}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => copyToClipboard(memo.memoContent)}
-                                                                className="h-8 w-8 p-0 hover:bg-slate-100 rounded-full"
-                                                            >
-                                                                <Copy className="h-3.5 w-3.5 text-slate-500" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p className="text-[10px] font-bold uppercase tracking-wider">Click to copy</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TableCell>
-                                                <TableCell className="text-right pr-6">
-                                                    <Dialog onOpenChange={async (open) => {
-                                                        if (open) {
-                                                            setIsFetchingDual(true);
-                                                            setActiveDualMemos(null);
-                                                            try {
-                                                                const params = new URLSearchParams({
-                                                                    projectId: memo.projectId,
-                                                                    userId: memo.user.id, // Use memo.user.id
-                                                                    date: format(memo.reportDate, "yyyy-MM-dd"),
-                                                                    summary: "true"
-                                                                });
-                                                                const res = await fetch(`/api/memos?${params.toString()}`);
-                                                                const resData = await res.json();
-                                                                if (resData.data) {
-                                                                    const memos = resData.data;
-                                                                    setActiveDualMemos({
-                                                                        short: memos.find((m: any) => m.memoType === 'short'),
-                                                                        universal: memos.find((m: any) => m.memoType === 'universal')
-                                                                    });
-                                                                }
-                                                            } catch (error) {
-                                                                console.error("Error fetching dual memos", error);
-                                                            } finally {
-                                                                setIsFetchingDual(false);
-                                                            }
-                                                        }
-                                                    }}>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span className="text-sm font-semibold text-slate-700">
+                                                            {format(memo.createdAt, "dd/MM/yyyy")}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <DialogTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full">
-                                                                        <Eye className="h-4 w-4" />
-                                                                    </Button>
-                                                                </DialogTrigger>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => copyToClipboard(memo.memoContent)}
+                                                                    className="h-8 w-8 p-0 hover:bg-slate-100 rounded-full"
+                                                                >
+                                                                    <Copy className="h-3.5 w-3.5 text-slate-500" />
+                                                                </Button>
                                                             </TooltipTrigger>
                                                             <TooltipContent>
-                                                                <p className="text-[10px] font-bold uppercase tracking-wider">Click to view Memo</p>
+                                                                <p className="text-[10px] font-bold uppercase tracking-wider">Click to copy</p>
                                                             </TooltipContent>
                                                         </Tooltip>
+                                                    </TableCell>
+                                                    <TableCell className="text-right pr-6">
+                                                        <Dialog onOpenChange={async (open) => {
+                                                            if (open) {
+                                                                setIsFetchingDual(true);
+                                                                setActiveDualMemos(null);
+                                                                try {
+                                                                    const params = new URLSearchParams({
+                                                                        projectId: memo.projectId,
+                                                                        userId: memo.user.id, // Use memo.user.id
+                                                                        date: format(memo.reportDate, "yyyy-MM-dd"),
+                                                                        summary: "true"
+                                                                    });
+                                                                    const res = await fetch(`/api/memos?${params.toString()}`);
+                                                                    const resData = await res.json();
+                                                                    if (resData.data) {
+                                                                        const memos = resData.data;
+                                                                        setActiveDualMemos({
+                                                                            short: memos.find((m: any) => m.memoType === 'short'),
+                                                                            universal: memos.find((m: any) => m.memoType === 'universal')
+                                                                        });
+                                                                    }
+                                                                } catch (error) {
+                                                                    console.error("Error fetching dual memos", error);
+                                                                } finally {
+                                                                    setIsFetchingDual(false);
+                                                                }
+                                                            }
+                                                        }}>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <DialogTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full">
+                                                                            <Eye className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </DialogTrigger>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p className="text-[10px] font-bold uppercase tracking-wider">Click to view Memo</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
                                                             <DialogContent className="max-w-2xl w-[95vw] sm:w-full rounded-2xl border border-slate-200 shadow-lg p-0 bg-white overflow-hidden max-h-[85vh] flex flex-col">
                                                                 <div className="p-6 border-b border-slate-100 bg-slate-50/30 flex-shrink-0">
                                                                     <div className="flex items-center justify-between">
@@ -660,12 +664,12 @@ export default function AdminMemosPage() {
                                                                         <Button
                                                                             variant="outline"
                                                                             size="sm"
-                                                                                onClick={() => {
-                                                                                    const combined = [];
-                                                                                    if (activeDualMemos?.universal) combined.push(`Universal Memo:\n${activeDualMemos.universal.memoContent}`);
-                                                                                    if (activeDualMemos?.short) combined.push(`140 Char Memo:\n${activeDualMemos.short.memoContent}`);
-                                                                                    copyToClipboard(combined.join("\n\n") || memo.memoContent);
-                                                                                }}
+                                                                            onClick={() => {
+                                                                                const combined = [];
+                                                                                if (activeDualMemos?.universal) combined.push(`Universal Memo:\n${activeDualMemos.universal.memoContent}`);
+                                                                                if (activeDualMemos?.short) combined.push(`140 Char Memo:\n${activeDualMemos.short.memoContent}`);
+                                                                                copyToClipboard(combined.join("\n\n") || memo.memoContent);
+                                                                            }}
                                                                             className="h-8 text-[10px] font-bold border-slate-200 hover:bg-white"
                                                                         >
                                                                             Copy Combined
@@ -673,55 +677,55 @@ export default function AdminMemosPage() {
                                                                     </div>
                                                                 </div>
                                                             </DialogContent>
-                                                    </Dialog>
+                                                        </Dialog>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">
+                                                    {isLoading ? "Fetching organization memos..." : "No memos found matching your criteria."}
                                                 </TableCell>
                                             </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">
-                                                {isLoading ? "Fetching organization memos..." : "No memos found matching your criteria."}
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                        {/* Pagination Component */}
-                        {meta && meta.totalPages > 1 && (
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t bg-gradient-to-r from-slate-50/50 to-slate-100/30">
-                                <p className="text-xs text-muted-foreground font-medium">
-                                    Showing <span className="text-[#0f172a] font-bold">{(page - 1) * limit + 1}</span> to <span className="text-[#0f172a] font-bold">{Math.min(page * limit, meta.total)}</span> of <span className="text-[#0f172a] font-bold">{meta.total}</span> memos
-                                </p>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                                        disabled={page === 1}
-                                        className="h-9 px-3 border-slate-200 hover:bg-white font-bold"
-                                    >
-                                        <ChevronLeft className="h-4 w-4 mr-1" />
-                                        Prev
-                                    </Button>
-                                    <div className="text-sm font-bold text-[#0f172a] px-3">
-                                        Page {page} of {meta.totalPages}
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
-                                        disabled={page === meta.totalPages}
-                                        className="h-9 px-3 border-slate-200 hover:bg-white font-bold"
-                                    >
-                                        Next
-                                        <ChevronRight className="h-4 w-4 ml-1" />
-                                    </Button>
-                                </div>
+                                        )}
+                                    </TableBody>
+                                </Table>
                             </div>
-                        )}
-                    </CardContent>
-                </Card>
+                            {/* Pagination Component */}
+                            {meta && meta.totalPages > 1 && (
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t bg-gradient-to-r from-slate-50/50 to-slate-100/30">
+                                    <p className="text-xs text-muted-foreground font-medium">
+                                        Showing <span className="text-[#0f172a] font-bold">{(page - 1) * limit + 1}</span> to <span className="text-[#0f172a] font-bold">{Math.min(page * limit, meta.total)}</span> of <span className="text-[#0f172a] font-bold">{meta.total}</span> memos
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                                            disabled={page === 1}
+                                            className="h-9 px-3 border-slate-200 hover:bg-white font-bold"
+                                        >
+                                            <ChevronLeft className="h-4 w-4 mr-1" />
+                                            Prev
+                                        </Button>
+                                        <div className="text-sm font-bold text-[#0f172a] px-3">
+                                            Page {page} of {meta.totalPages}
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+                                            disabled={page === meta.totalPages}
+                                            className="h-9 px-3 border-slate-200 hover:bg-white font-bold"
+                                        >
+                                            Next
+                                            <ChevronRight className="h-4 w-4 ml-1" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 )}
             </div>
         </TooltipProvider>

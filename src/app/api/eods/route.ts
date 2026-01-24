@@ -54,6 +54,8 @@ export async function GET(req: Request) {
             conditions.push(sql`${user.name} ILIKE ${`%${search}%`}`);
         }
 
+        conditions.push(sql`${user.role} != 'admin'`);
+
         if (conditions.length > 0) {
             whereClause = and(...conditions);
         }
@@ -96,11 +98,9 @@ export async function GET(req: Request) {
             count: sql<number>`count(DISTINCT CONCAT(${eodReports.userId}, ${eodReports.projectId}, ${eodReports.reportDate}))`
         }).from(eodReports);
 
-        // If we have filters that require joining other tables (like search by user name)
-        if (search) {
-            totalQuery = totalQuery.leftJoin(user, eq(eodReports.userId, user.id)) as any;
-            totalQuery = totalQuery.leftJoin(projects, eq(eodReports.projectId, projects.id)) as any;
-        }
+        // Join user and projects always to support filters (search, role, etc)
+        totalQuery = totalQuery.leftJoin(user, eq(eodReports.userId, user.id)) as any;
+        totalQuery = totalQuery.leftJoin(projects, eq(eodReports.projectId, projects.id)) as any;
 
         const totalResult = await totalQuery.where(whereClause);
         const total = Number(totalResult[0]?.count || 0);
@@ -147,32 +147,59 @@ export async function POST(req: Request) {
                 dateComparisonClause(eodReports.reportDate, dateObj)
             ));
 
+        let result;
+        let isNew = false;
+
         if (existing.length > 0) {
             const updatedReport = await db.update(eodReports)
                 .set({
                     clientUpdate,
                     actualUpdate,
-                    createdAt: new Date() // Treat update as a new submission date? Or keep original?
-                    // The user says "they are also correctly update with that" referring to dates.
-                    // So updating createdAt (submitted date) seems correct.
+                    createdAt: new Date()
                 })
                 .where(eq(eodReports.id, existing[0].id))
                 .returning();
-            return NextResponse.json(updatedReport[0], { status: 200 });
+            result = updatedReport[0];
+        } else {
+            const newReport = await db.insert(eodReports).values({
+                id: crypto.randomUUID(),
+                projectId,
+                reportDate: dateObj,
+                clientUpdate,
+                actualUpdate,
+                userId
+            }).returning();
+            result = newReport[0];
+            isNew = true;
         }
 
-        const newReport = await db.insert(eodReports).values({
-            id: crypto.randomUUID(),
-            projectId,
-            reportDate: dateObj,
-            clientUpdate,
-            actualUpdate,
-            userId
-        }).returning();
+        // Send notification to admins (only for new EODs, not updates)
+        if (isNew) {
+            try {
+                // Dynamic import to avoid circular dependencies
+                const { notificationService } = await import('@/lib/notifications');
 
-        return NextResponse.json(newReport[0], { status: 201 });
+                // Fetch user and project names for notification
+                const [userData] = await db.select({ name: user.name }).from(user).where(eq(user.id, userId));
+                const [projectData] = await db.select({ name: projects.name }).from(projects).where(eq(projects.id, projectId));
+
+                await (notificationService as any).notifyEodSubmitted({
+                    userName: userData?.name || 'User',
+                    projectName: projectData?.name || 'Project',
+                    userId,
+                    content: actualUpdate || 'No content provided',
+                    clientContent: clientUpdate || undefined,
+                });
+            } catch (notifyError) {
+                // Don't fail the request if notification fails
+                console.error('[EOD API] Notification error:', notifyError);
+            }
+        }
+
+        return NextResponse.json(result, { status: isNew ? 201 : 200 });
     } catch (error) {
         console.error(error);
         return NextResponse.json({ error: "Failed to create EOD" }, { status: 500 });
     }
 }
+

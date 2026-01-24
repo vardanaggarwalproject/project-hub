@@ -281,7 +281,9 @@ export function DayDetailsDialog({ isOpen, onOpenChange, date, type }: DayDetail
                                             )}>
                                                 <Clock className="h-3.5 w-3.5" />
                                                 <span className="text-[11px] font-bold">
-                                                    {item.status === "submitted" ? item.submittedAt : "No submission"}
+                                                    {item.status === "submitted" && item.submittedAt
+                                                        ? format(new Date(item.submittedAt), "h:mm a")
+                                                        : "No submission"}
                                                 </span>
                                             </div>
                                             

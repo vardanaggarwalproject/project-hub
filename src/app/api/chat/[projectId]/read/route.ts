@@ -34,7 +34,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
                     WHERE id = ${assignmentId}
                 `);
 
-                console.log(`👁️ [Mark Read API] Updated last_read_at for user ${userId}, project ${projectId}`);
 
                 // Emit socket event to notify other users
                 try {
@@ -45,10 +44,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
                             userId,
                             projectId
                         });
-                        console.log(`👁️ [Mark Read API] Emitted messages-read to ${groupRoom}`);
                     }
                 } catch (socketError) {
-                    console.error("Failed to emit mark-read socket event:", socketError);
                 }
 
                 return NextResponse.json({ success: true, action: "updated" });
@@ -60,13 +57,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
                     (id, user_id, project_id, last_read_at, updated_at, assigned_at, created_at, is_active)
                     VALUES (${newId}, ${userId}, ${projectId}, NOW(), NOW(), NOW(), NOW(), true)
                 `);
-                console.log(`👁️ [Mark Read API] Created assignment for admin ${userId}, project ${projectId}`);
                 return NextResponse.json({ success: true, action: "created" });
             }
 
             return NextResponse.json({ success: true, action: "none" });
         } catch (dbError: any) {
-            console.error("Database error in mark-as-read:", dbError);
             return NextResponse.json({
                 error: "Database operation failed",
                 message: dbError.message,
@@ -75,7 +70,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
             }, { status: 500 });
         }
     } catch (error: any) {
-        console.error("Error marking as read:", error);
         return NextResponse.json({
             error: "Failed to mark as read",
             message: error.message

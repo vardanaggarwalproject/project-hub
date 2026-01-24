@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { projects, clients, user, userProjectAssignments, chatGroups, links, assets } from "@/lib/db/schema";
-import { eq, sql, and, inArray } from "drizzle-orm";
+import { eq, sql, and, inArray, asc } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -14,7 +14,15 @@ const updateProjectSchema = z.object({
         id: z.string().optional(),
         label: z.string(),
         value: z.string(),
-        allowedRoles: z.array(z.string()).optional().default(["admin", "developer", "tester", "designer"]),
+        allowedRoles: z.array(z.string()).optional(),
+        position: z.number().optional().default(0),
+    })).optional(),
+    assets: z.array(z.object({
+        id: z.string().optional(),
+        name: z.string(),
+        url: z.string(),
+        allowedRoles: z.array(z.string()).optional(),
+        position: z.number().optional().default(0),
     })).optional(),
     isMemoRequired: z.boolean().optional(),
 });
@@ -77,9 +85,11 @@ export async function GET(
                 id: links.id,
                 label: links.name,
                 value: links.url,
+                allowedRoles: links.allowedRoles,
             })
                 .from(links)
-                .where(eq(links.projectId, id));
+                .where(eq(links.projectId, id))
+                .orderBy(asc(links.position));
         } catch (e) {
             console.error("Error fetching links:", e);
         }
@@ -95,9 +105,11 @@ export async function GET(
                 fileType: assets.fileType,
                 fileSize: assets.fileSize,
                 size: assets.fileSize, // For backward compatibility
+                allowedRoles: assets.allowedRoles,
             })
                 .from(assets)
-                .where(eq(assets.projectId, id));
+                .where(eq(assets.projectId, id))
+                .orderBy(asc(assets.position));
         } catch (e) {
             console.error("Error fetching assets:", e);
         }
@@ -143,7 +155,7 @@ export async function PATCH(
             return NextResponse.json({ error: validation.error.issues }, { status: 400 });
         }
 
-        const { name, description, status, clientId, assignedUserIds, links: projectLinks, isMemoRequired } = validation.data;
+        const { name, description, status, clientId, assignedUserIds, links: projectLinks, assets: projectAssets, isMemoRequired } = validation.data;
 
         // Get current project status
         const currentProject = await db.select({ status: projects.status })
@@ -235,6 +247,7 @@ export async function PATCH(
                             name: link.label,
                             url: link.value,
                             allowedRoles: link.allowedRoles,
+                            position: link.position,
                             updatedAt: new Date(),
                         })
                         .where(eq(links.id, link.id));
@@ -246,6 +259,46 @@ export async function PATCH(
                         url: link.value,
                         projectId: id,
                         allowedRoles: link.allowedRoles || ["admin", "developer", "tester", "designer"],
+                        position: link.position || 0,
+                    });
+                }
+            }
+        }
+
+        // Update project assets
+        if (projectAssets !== undefined) {
+            const existingAssets = await db.select()
+                .from(assets)
+                .where(eq(assets.projectId, id));
+
+            const existingAssetIds = existingAssets.map(a => a.id);
+            const incomingAssetIds = projectAssets.map(a => a.id).filter(Boolean) as string[];
+
+            const assetsToRemove = existingAssetIds.filter(aid => !incomingAssetIds.includes(aid));
+            if (assetsToRemove.length > 0) {
+                await db.delete(assets).where(inArray(assets.id, assetsToRemove));
+            }
+
+            for (const asset of projectAssets) {
+                if (asset.id && existingAssetIds.includes(asset.id)) {
+                    await db.update(assets)
+                        .set({
+                            name: asset.name,
+                            fileUrl: asset.url,
+                            allowedRoles: asset.allowedRoles,
+                            position: asset.position,
+                            updatedAt: new Date(),
+                        })
+                        .where(eq(assets.id, asset.id));
+                } else {
+                    await db.insert(assets).values({
+                        id: crypto.randomUUID(),
+                        name: asset.name,
+                        fileUrl: asset.url,
+                        projectId: id,
+                        uploadedBy: "system", // Or fallback to a real user if possible
+                        allowedRoles: asset.allowedRoles || ["admin", "developer", "tester", "designer"],
+                        position: asset.position || 0,
                     });
                 }
             }

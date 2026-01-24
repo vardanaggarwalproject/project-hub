@@ -71,6 +71,7 @@ export async function PATCH(
         const updateData: any = {};
         if (data.name) updateData.name = data.name;
         if (data.url) updateData.fileUrl = data.url;
+        if (data.allowedRoles) updateData.allowedRoles = data.allowedRoles;
         updateData.updatedAt = new Date();
 
         const [updatedAsset] = await db.update(assets)

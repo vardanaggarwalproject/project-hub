@@ -72,6 +72,7 @@ export async function POST(req: Request) {
             fileSize: data.size ? data.size.toString() : null,
             projectId: data.projectId,
             uploadedBy: data.uploadedBy,
+            allowedRoles: data.allowedRoles,
         }).returning();
 
         return NextResponse.json(newAsset, { status: 201 });
