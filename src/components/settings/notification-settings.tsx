@@ -51,6 +51,7 @@ export function NotificationSettings() {
     const [isAddingRecipient, setIsAddingRecipient] = useState(false);
     const [isLoadingPrefs, setIsLoadingPrefs] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isTestingEmail, setIsTestingEmail] = useState(false);
 
     useEffect(() => {
         if (!userId) return;
@@ -187,6 +188,33 @@ export function NotificationSettings() {
             toast.success("Recipient removed");
         } catch (error) {
             toast.error("Failed to remove recipient");
+        }
+    };
+
+    const sendTestEmail = async () => {
+        if (!user?.email) {
+            toast.error("Your account has no email address associated");
+            return;
+        }
+
+        setIsTestingEmail(true);
+        try {
+            const response = await fetch("/api/notifications/test-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: user.email }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || "Failed to send test email");
+            }
+
+            toast.success("Test email sent! Check your inbox and server logs.");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to send test email");
+        } finally {
+            setIsTestingEmail(false);
         }
     };
 
@@ -345,9 +373,21 @@ export function NotificationSettings() {
                                     </div>
                                     <h4 className="text-base font-medium">Email Notification Recipients</h4>
                                 </div>
-                                <p className="text-sm text-muted-foreground leading-relaxed">
-                                    Only people listed here will receive email notifications. Any admin can manage this list.
-                                </p>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <p className="text-sm text-muted-foreground leading-relaxed">
+                                        Only people listed here will receive email notifications. Any admin can manage this list.
+                                    </p>
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={sendTestEmail} 
+                                        disabled={isTestingEmail}
+                                        className="shrink-0"
+                                    >
+                                        {isTestingEmail ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+                                        Send Test Email
+                                    </Button>
+                                </div>
 
                                 {/* New Recipient Form */}
                                 <div className="grid gap-4 sm:grid-cols-[1fr,1fr,auto] items-end border border-border/50 p-5 rounded-xl bg-muted/20">

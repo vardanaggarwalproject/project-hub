@@ -62,6 +62,7 @@ class NotificationService {
         const smtpPass = process.env.SMTP_PASS;
 
         if (!smtpUser || !smtpPass) {
+            console.warn('[NotificationService] SMTP_USER or SMTP_PASS missing. Email notifications disabled.');
             return null;
         }
 
@@ -69,6 +70,7 @@ class NotificationService {
         const port = parseInt(process.env.SMTP_PORT || '587');
         const secure = process.env.SMTP_SECURE === 'true';
 
+        console.log(`[NotificationService] Initializing transporter: ${host}:${port} (secure: ${secure})`);
 
         this.transporter = nodemailer.createTransport({
             host,
@@ -135,19 +137,21 @@ class NotificationService {
                     return true;
                 })
                 .map(r => r.email);
+
+            console.log(`[NotificationService] Found ${recipients.length} eligible email recipients from managed list`);
         } catch (e) {
+            console.error('[NotificationService] Error fetching recipients:', e);
         }
 
         if (recipients.length === 0) {
+            console.log('[NotificationService] No recipients found for this notification type. Skipping email.');
             return;
         }
 
         const fromEmail = process.env.SMTP_USER;
 
         try {
-
-            // Use 'to' for the primary recipient and 'cc/bcc' for others if needed, 
-            // or just put all in 'to' for simplicity in this case.
+            console.log(`[NotificationService] Sending email to: ${recipients.join(', ')}`);
             await transporter.sendMail({
                 from: `"Project Hub" <${fromEmail}>`,
                 to: recipients.join(', '),
@@ -155,7 +159,9 @@ class NotificationService {
                 text: body,
                 html
             });
+            console.log('[NotificationService] Email sent successfully');
         } catch (e: any) {
+            console.error('[NotificationService] SMTP Error:', e);
         }
     }
 
