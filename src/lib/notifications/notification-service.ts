@@ -66,20 +66,20 @@ class NotificationService {
             return null;
         }
 
-        const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-        const port = parseInt(process.env.SMTP_PORT || '587');
-        const secure = process.env.SMTP_SECURE === 'true';
-
-        console.log(`[NotificationService] Initializing transporter: ${host}:${port} (secure: ${secure})`);
+        console.log(`[NotificationService] Initializing transporter using Gmail service for ${smtpUser}`);
 
         this.transporter = nodemailer.createTransport({
-            host,
-            port,
-            secure,
+            service: 'gmail',
             auth: {
                 user: smtpUser,
                 pass: smtpPass,
             },
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 15000,
+            tls: {
+                rejectUnauthorized: false // Sometimes helps with network-level SSL certificate blocks
+            }
         });
 
         return this.transporter;
