@@ -15,11 +15,11 @@ export function EmptyColumnDropZone({ columnId }: EmptyColumnDropZoneProps) {
   return (
     <div
       ref={setNodeRef}
-      className={`text-center py-12 text-gray-400 text-xs min-h-[200px] flex items-center justify-center rounded-lg border-2 border-dashed transition-colors ${
+      className={`text-center py-6 px-3 text-gray-400 text-xs flex items-center justify-center gap-1 rounded border-2 border-dashed transition-colors ${
         isOver ? "border-blue-500 bg-blue-50 text-blue-600" : "border-gray-200"
       }`}
     >
-      Create your task by Clicking on <Plus className="w-4 h-4"/>
+      Create your task by Clicking on <Plus className="w-3.5 h-3.5"/>
     </div>
   );
 }

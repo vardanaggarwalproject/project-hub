@@ -44,6 +44,7 @@ export default async function AdminLayout({
         { name: "Clients", href: "/admin/clients", icon: "Users" },
         { name: "Projects", href: "/admin/projects", icon: "FolderOpen" },
         { name: "Developers", href: "/admin/developers", icon: "UserSquare2" },
+        { name: "Tasks", href: "/admin/tasks", icon: "ClipboardList" },
     ];
 
     const managementItems = [
