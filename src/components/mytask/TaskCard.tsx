@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, MoreVertical, Trash2, Edit, Circle } from "lucide-react";
+import { Calendar, MoreVertical, Trash2, Circle } from "lucide-react";
 import { Task, getPriorityColor, formatDate } from "./dummy-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -89,13 +89,6 @@ export function TaskCard({ task, onEdit, onDelete, onViewDetail, isDragging }: T
             <MoreVertical className="h-3.5 w-3.5 text-gray-400" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() => onEdit?.(task)}
-              className="cursor-pointer text-sm"
-            >
-              <Edit className="h-3.5 w-3.5 mr-2" />
-              Edit
-            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();
