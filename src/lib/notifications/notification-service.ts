@@ -8,7 +8,20 @@ import { getNotificationTemplate } from './templates';
 /**
  * Unified Notification System
  * Consolidates Email, Slack, Push, and Socket notifications.
+ * Optimized for production with timeouts and non-blocking operations.
  */
+
+/**
+ * Wraps a promise with a timeout to prevent indefinite hanging
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error(`${operation} timeout after ${timeoutMs}ms`)), timeoutMs)
+        )
+    ]);
+}
 
 export interface NotificationTarget {
     userId: string;
@@ -94,7 +107,7 @@ class NotificationService {
             body: payload.body
         });
 
-        // 1. Save to DB
+        // 1. Save to DB (this should be fast and reliable)
         try {
             await db.insert(appNotifications).values(targets.map(t => ({
                 id: crypto.randomUUID(),
@@ -106,18 +119,50 @@ class NotificationService {
                 data: payload.data,
             })));
         } catch (e) {
+            console.error('[NotificationService] Failed to save notification to DB:', e);
         }
 
-        // 2. Process Channels
-        await Promise.allSettled([
-            this.sendEmail(targets, payload.type, payload.title, payload.body, html),
+        // 2. Process Channels - Fire and forget with reduced timeout (3s max per channel)
+        // Use Promise.allSettled to prevent one failure from affecting others
+        Promise.allSettled([
             this.sendSlack(targets, payload.type, slackBlocks),
             this.sendPush(targets, payload.type, payload),
-            this.sendSocket(targets, payload)
-        ]);
+            this.sendSocket(targets, payload),
+            this.sendEmail(targets, payload.type, payload.title, payload.body, html)
+        ]).then(results => {
+            results.forEach((result, index) => {
+                if (result.status === 'rejected') {
+                    const channels = ['Slack', 'Push', 'Socket', 'Email'];
+                    console.warn(`[NotificationService] ${channels[index]} notification failed:`, result.reason);
+                }
+            });
+        }).catch(err => {
+            // This should never happen with allSettled, but just in case
+            console.error('[NotificationService] Unexpected error in notification channels:', err);
+        });
     }
 
     private async sendEmail(targets: NotificationTarget[], type: NotificationType, title: string, body: string, html: string) {
+        if (type === 'test_notification') {
+            // Test notifications bypass preference check but still need a recipient
+            const testTarget = targets[0];
+            if (!testTarget?.email) return;
+            const transporter = this.getTransporter();
+            if (!transporter) return;
+            try {
+                await transporter.sendMail({
+                    from: `"Project Hub" <${process.env.SMTP_USER}>`,
+                    to: testTarget.email,
+                    subject: title,
+                    text: body,
+                    html
+                });
+            } catch (e) {
+                console.error('[NotificationService] Test email failed:', e);
+            }
+            return;
+        }
+
         const transporter = this.getTransporter();
         if (!transporter) {
             return;
@@ -143,7 +188,14 @@ class NotificationService {
             console.error('[NotificationService] Error fetching recipients:', e);
         }
 
-        if (recipients.length === 0) {
+        // Also add individual users who have email enabled in their preferences
+        const targetEmails = targets
+            .filter(t => t.preferences?.email !== false && !!t.email)
+            .map(t => t.email!);
+
+        const allRecipients = Array.from(new Set([...recipients, ...targetEmails]));
+
+        if (allRecipients.length === 0) {
             console.log('[NotificationService] No recipients found for this notification type. Skipping email.');
             return;
         }
@@ -151,10 +203,10 @@ class NotificationService {
         const fromEmail = process.env.SMTP_USER;
 
         try {
-            console.log(`[NotificationService] Sending email to: ${recipients.join(', ')}`);
+            console.log(`[NotificationService] Sending email to: ${allRecipients.join(', ')}`);
             await transporter.sendMail({
                 from: `"Project Hub" <${fromEmail}>`,
-                to: recipients.join(', '),
+                to: allRecipients.join(', '),
                 subject: title,
                 text: body,
                 html
@@ -180,12 +232,17 @@ class NotificationService {
         if (!hasEligibleTargets) return;
 
         try {
-            await fetch(webhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ blocks })
-            });
+            await withTimeout(
+                fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ blocks })
+                }),
+                3000,
+                'Slack notification'
+            );
         } catch (e) {
+            console.warn('[NotificationService] Slack notification failed:', e instanceof Error ? e.message : 'Unknown error');
         }
     }
 
@@ -204,33 +261,46 @@ class NotificationService {
 
         if (userIds.length === 0) return;
 
-        // Dynamically import web-push only when needed (server-side only)
-        const webPush = (await import('web-push')).default;
+        try {
+            // Dynamically import web-push only when needed (server-side only)
+            const webPush = (await import('web-push')).default;
 
-        // Configure VAPID details
-        if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-            webPush.setVapidDetails(
-                process.env.VAPID_SUBJECT || 'mailto:vardan.netweb@gmail.com',
-                process.env.VAPID_PUBLIC_KEY,
-                process.env.VAPID_PRIVATE_KEY
-            );
-        }
-
-        const subs = await db.select().from(pushSubscriptions).where(inArray(pushSubscriptions.userId, userIds));
-        if (subs.length === 0) return;
-
-        await Promise.all(subs.map(async sub => {
-            try {
-                await webPush.sendNotification({
-                    endpoint: sub.endpoint,
-                    keys: { p256dh: sub.p256dh, auth: sub.auth }
-                }, JSON.stringify(payload));
-            } catch (e: any) {
-                if (e.statusCode === 410 || e.statusCode === 403) {
-                    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
-                }
+            // Configure VAPID details
+            if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+                webPush.setVapidDetails(
+                    process.env.VAPID_SUBJECT || 'mailto:vardan.netweb@gmail.com',
+                    process.env.VAPID_PUBLIC_KEY,
+                    process.env.VAPID_PRIVATE_KEY
+                );
             }
-        }));
+
+            const subs = await db.select().from(pushSubscriptions).where(inArray(pushSubscriptions.userId, userIds));
+            if (subs.length === 0) return;
+
+            // Send to all subscriptions with timeout
+            await Promise.allSettled(subs.map(async sub => {
+                try {
+                    await withTimeout(
+                        webPush.sendNotification({
+                            endpoint: sub.endpoint,
+                            keys: { p256dh: sub.p256dh, auth: sub.auth }
+                        }, JSON.stringify(payload)),
+                        3000,
+                        'Push notification'
+                    );
+                } catch (e: any) {
+                    // Auto-cleanup expired/invalid subscriptions
+                    if (e.statusCode === 410 || e.statusCode === 403) {
+                        await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
+                        console.log(`[NotificationService] Removed expired push subscription for user ${sub.userId}`);
+                    } else {
+                        console.warn('[NotificationService] Push notification failed:', e instanceof Error ? e.message : 'Unknown error');
+                    }
+                }
+            }));
+        } catch (e) {
+            console.warn('[NotificationService] Push notification system error:', e instanceof Error ? e.message : 'Unknown error');
+        }
     }
 
     private async sendSocket(targets: NotificationTarget[], payload: NotificationPayload) {
@@ -278,7 +348,7 @@ class NotificationService {
         });
     }
 
-    async notifyMemoSubmitted(data: { userName: string, projectName: string, userId: string, memoType: string, content: string }) {
+    async notifyMemoSubmitted(data: { userName: string, projectName: string, userId: string, memoType: string, content: string, shortContent?: string, reportDate?: string }) {
         const targets = await this.getAdminTargets();
         await this.notify(targets, {
             type: 'memo_submitted',

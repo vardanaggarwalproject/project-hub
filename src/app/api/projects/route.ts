@@ -196,10 +196,22 @@ export async function POST(req: Request) {
             isMemoRequired: isMemoRequired || false,
         }).returning();
 
+        // Fetch all admin IDs to ensure they are assigned
+        const allAdmins = await db.select({ id: user.id })
+            .from(user)
+            .where(eq(user.role, "admin"));
+        const adminIds = allAdmins.map(a => a.id);
+
+        // Merge provided user IDs with all admin IDs
+        const finalAssignedUserIds = Array.from(new Set([
+            ...(assignedUserIds || []),
+            ...adminIds
+        ]));
+
         // Handle assignments
-        if (assignedUserIds && assignedUserIds.length > 0) {
+        if (finalAssignedUserIds.length > 0) {
             await db.insert(userProjectAssignments).values(
-                assignedUserIds.map(userId => ({
+                finalAssignedUserIds.map(userId => ({
                     id: crypto.randomUUID(),
                     userId,
                     projectId: newProject.id

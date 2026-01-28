@@ -227,25 +227,38 @@ async function saveMemo(data: { memoContent?: string; projectId: string; userId:
         userId
     }).returning();
 
-    // Send notification to admins for new memos
-    try {
-        const { notificationService } = await import('@/lib/notifications');
+    // Send notification to admins for new memos only (fire-and-forget, non-blocking)
+    // Don't await - let notification run in background
+    import('@/lib/notifications').then(({ notificationService }) => {
+        Promise.all([
+            db.select({ name: user.name }).from(user).where(eq(user.id, userId)),
+            db.select({ name: projects.name }).from(projects).where(eq(projects.id, projectId)),
+            // Fetch both memo types for the same date to show complete picture
+            db.select().from(memos).where(and(
+                eq(memos.userId, userId),
+                eq(memos.projectId, projectId),
+                dateComparisonClause(memos.reportDate, dateObj)
+            ))
+        ]).then(([userData, projectData, allMemos]) => {
+            // Find universal and short memos
+            const universalMemo = allMemos.find(m => m.memoType === 'universal');
+            const shortMemo = allMemos.find(m => m.memoType === 'short');
 
-        // Fetch user and project names for notification
-        const [userData] = await db.select({ name: user.name }).from(user).where(eq(user.id, userId));
-        const [projectData] = await db.select({ name: projects.name }).from(projects).where(eq(projects.id, projectId));
-
-        await notificationService.notifyMemoSubmitted({
-            userName: userData?.name || 'User',
-            projectName: projectData?.name || 'Project',
-            userId,
-            memoType,
-            content: memoContent || 'No content provided',
+            notificationService.notifyMemoSubmitted({
+                userName: userData[0]?.name || 'User',
+                projectName: projectData[0]?.name || 'Project',
+                userId,
+                memoType,
+                content: universalMemo?.memoContent || (memoType === 'universal' ? memoContent : '') || '',
+                shortContent: shortMemo?.memoContent || (memoType === 'short' ? memoContent : '') || '',
+                reportDate: reportDate instanceof Date ? reportDate.toISOString().split('T')[0] : reportDate, // Add date for differentiation
+            });
+        }).catch(err => {
+            console.error('[Memo API] Notification error:', err);
         });
-    } catch (notifyError) {
-        // Don't fail the request if notification fails
-        console.error('[Memo API] Notification error:', notifyError);
-    }
+    }).catch(err => {
+        console.error('[Memo API] Failed to load notification service:', err);
+    });
 
     return newMemo[0];
 }

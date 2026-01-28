@@ -28,6 +28,7 @@ import {
     ShieldCheck,
     AlertCircle,
     LayoutGrid,
+    RotateCw,
 } from "lucide-react";
 
 import { ProjectSelect } from "@/components/admin/ProjectSelect";
@@ -98,9 +99,21 @@ export default function AdminEODPage() {
         if (searchParams.get("fromDate") && searchParams.get("toDate")) {
             return { from: new Date(searchParams.get("fromDate")!), to: new Date(searchParams.get("toDate")!) };
         }
-        // Default to yesterday to today
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, 2 = Tuesday, etc.
+
+        // If today is Monday (1) or Sunday (0), set range from Friday to today
+        if (dayOfWeek === 0 || dayOfWeek === 1) {
+            const friday = new Date(today);
+            // Calculate days to subtract to get to Friday
+            const daysToSubtract = dayOfWeek === 1 ? 3 : 2; // Monday: go back 3 days, Sunday: go back 2 days
+            friday.setDate(friday.getDate() - daysToSubtract);
+            return { from: friday, to: today };
+        }
+
+        // For other days, default to yesterday to today
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
         return { from: yesterday, to: today };
@@ -293,7 +306,7 @@ export default function AdminEODPage() {
                             </div>
                         )}
 
-                        <div className="flex justify-start">
+                        <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner w-fit">
                                 <Button
                                     variant="ghost"
@@ -318,6 +331,17 @@ export default function AdminEODPage() {
                                     <CalendarIcon className="h-3.5 w-3.5 mr-2" /> Calendar
                                 </Button>
                             </div>
+
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={fetchReports}
+                                disabled={isLoading}
+                                className="h-8 px-4 text-[10px] uppercase tracking-wider font-black transition-all rounded-lg bg-white hover:bg-slate-100 text-slate-600 border-slate-200 shadow-sm gap-2"
+                            >
+                                <RotateCw className={cn("h-3.5 w-3.5 transition-transform", isLoading && "animate-spin")} />
+                                Reload Updates
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -335,7 +359,7 @@ export default function AdminEODPage() {
                                             <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">User Name</TableHead>
                                             <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Project Name</TableHead>
                                             <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Report Date</TableHead>
-                                            <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Submitted Date</TableHead>
+                                            <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Submitted At</TableHead>
                                             <TableHead className="w-[80px] text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">Copy</TableHead>
                                             <TableHead className="w-[80px] text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">View</TableHead>
                                         </TableRow>
@@ -375,9 +399,14 @@ export default function AdminEODPage() {
                                                         </span>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <span className="text-sm font-semibold text-slate-700">
-                                                            {format(report.createdAt, "dd/MM/yyyy")}
-                                                        </span>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-semibold text-slate-700">
+                                                                {format(report.createdAt, "dd/MM/yyyy")}
+                                                            </span>
+                                                            <span className="text-xs text-slate-500 font-medium">
+                                                                {format(report.createdAt, "h:mm a")}
+                                                            </span>
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="text-center">
                                                         <Tooltip>

@@ -276,16 +276,16 @@ export function NotificationSettings() {
     }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             <div>
-                <h3 className="text-xl font-semibold mb-1.5">Notifications</h3>
+                <h3 className="text-2xl font-bold mb-1">Notifications</h3>
                 <p className="text-sm text-muted-foreground">
                     Manage how you receive notifications
                 </p>
             </div>
 
-            <Card className="border-border/50">
-                <div className="p-8 space-y-8">
+            <Card className="border-border/50 shadow-sm">
+                <div className="p-6 space-y-6">
                     {/* Push Notifications (Individual) */}
                     <div className="flex items-start justify-between gap-6">
                         <div className="flex items-start gap-4 flex-1">
@@ -329,43 +329,47 @@ export function NotificationSettings() {
                         </div>
                     )}
 
-                    {/* Slack Notifications (Individual) */}
-                    <Separator className="bg-border/50" />
-                    <div className="flex items-start justify-between gap-6">
-                        <div className="flex items-start gap-4 flex-1">
-                            <div className="p-2.5 rounded-xl bg-muted/50 border border-border/30">
-                                <MessageSquare className="h-5 w-5 text-foreground/70" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2.5 mb-1.5">
-                                    <Label htmlFor="slack-notifications" className="text-base font-medium cursor-pointer">
-                                        Slack Notifications
-                                    </Label>
-                                    {preferences.slackEnabled && (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">
-                                            <CheckCircle2 className="h-3 w-3" />
-                                            Active
-                                        </span>
-                                    )}
+                    {/* Slack Notifications (Individual) - Admin Only */}
+                    {isAdmin && (
+                        <>
+                            <Separator className="bg-gradient-to-r from-transparent via-border to-transparent" />
+                            <div className="flex items-start justify-between gap-6">
+                                <div className="flex items-start gap-4 flex-1">
+                                    <div className="p-2.5 rounded-xl bg-muted/50 border border-border/30">
+                                        <MessageSquare className="h-5 w-5 text-foreground/70" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2.5 mb-1.5">
+                                            <Label htmlFor="slack-notifications" className="text-base font-medium cursor-pointer">
+                                                Slack Notifications
+                                            </Label>
+                                            {preferences.slackEnabled && (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">
+                                                    <CheckCircle2 className="h-3 w-3" />
+                                                    Active
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-muted-foreground leading-relaxed">
+                                            Receive notifications in your Slack workspace
+                                        </p>
+                                    </div>
                                 </div>
-                                <p className="text-sm text-muted-foreground leading-relaxed">
-                                    Receive notifications in your Slack workspace
-                                </p>
+                                <Switch
+                                    id="slack-notifications"
+                                    checked={preferences.slackEnabled}
+                                    onCheckedChange={(checked) => updatePreference("slackEnabled", checked)}
+                                    disabled={isSaving || isLoadingPrefs}
+                                    className="shrink-0"
+                                />
                             </div>
-                        </div>
-                        <Switch
-                            id="slack-notifications"
-                            checked={preferences.slackEnabled}
-                            onCheckedChange={(checked) => updatePreference("slackEnabled", checked)}
-                            disabled={isSaving || isLoadingPrefs}
-                            className="shrink-0"
-                        />
-                    </div>
+                        </>
+                    )}
 
                     {/* Admin-only: Email Recipients Management */}
                     {isAdmin && (
                         <>
-                            <Separator className="bg-border/50" />
+                            <Separator className="bg-gradient-to-r from-transparent via-border to-transparent" />
                             <div className="space-y-7">
                                 <div className="flex items-center gap-3">
                                     <div className="p-1.5 rounded-lg bg-muted/50">
@@ -377,10 +381,10 @@ export function NotificationSettings() {
                                     <p className="text-sm text-muted-foreground leading-relaxed">
                                         Only people listed here will receive email notifications. Any admin can manage this list.
                                     </p>
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={sendTestEmail} 
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={sendTestEmail}
                                         disabled={isTestingEmail}
                                         className="shrink-0"
                                     >
@@ -390,7 +394,7 @@ export function NotificationSettings() {
                                 </div>
 
                                 {/* New Recipient Form */}
-                                <div className="grid gap-4 sm:grid-cols-[1fr,1fr,auto] items-end border border-border/50 p-5 rounded-xl bg-muted/20">
+                                <div className="grid gap-3 sm:grid-cols-[1fr,1fr,auto] items-end border border-border/50 p-4 rounded-lg bg-muted/20">
                                     <div className="space-y-2">
                                         <Label htmlFor="new-email" className="text-xs font-medium">Email Address</Label>
                                         <input
@@ -427,7 +431,7 @@ export function NotificationSettings() {
                                     ) : (
                                         <div className="grid gap-3">
                                             {recipients.map((recipient) => (
-                                                <div key={recipient.id} className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-xl border border-border/50 bg-card/50">
+                                                <div key={recipient.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-lg border border-border/50 bg-card/50">
                                                     <div className="flex-1 min-w-0">
                                                         <p className="font-medium truncate">{recipient.email}</p>
                                                         <p className="text-xs text-muted-foreground truncate">{recipient.label}</p>

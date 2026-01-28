@@ -18,33 +18,33 @@ export function AppearanceSettings() {
     if (!mounted) return null;
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             <div>
-                <h3 className="text-xl font-semibold mb-1.5">Appearance</h3>
+                <h3 className="text-2xl font-bold mb-1">Appearance</h3>
                 <p className="text-sm text-muted-foreground">
                     Customize the interface style of the application
                 </p>
             </div>
 
-            <Card className="border-border/50">
-                <div className="p-8 space-y-8">
-                    <div className="space-y-5">
-                        <div className="flex flex-col gap-1.5">
-                            <h4 className="text-sm font-medium">Theme Mode</h4>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
+            <Card className="border-border/50 shadow-sm">
+                <div className="p-6 space-y-6">
+                    <div className="space-y-4">
+                        <div className="flex flex-col gap-1">
+                            <h4 className="text-sm font-semibold">Theme Mode</h4>
+                            <p className="text-xs text-muted-foreground">
                                 Select your preferred color mode for the dashboard
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl pt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl pt-1">
                             {/* Light Theme */}
-                            <div className="space-y-3">
+                            <div className="space-y-2.5">
                                 <button
                                     onClick={() => setTheme("light")}
                                     className={cn(
-                                        "group relative w-full aspect-[4/3] rounded-xl border-2 p-3 transition-all duration-300 overflow-hidden",
+                                        "group relative w-full aspect-[4/3] rounded-lg border-2 p-2.5 transition-all duration-200 overflow-hidden",
                                         theme === "light"
-                                            ? "border-foreground/20 ring-2 ring-foreground/10 shadow-md"
+                                            ? "border-blue-500 dark:border-blue-400 ring-2 ring-blue-500/20 dark:ring-blue-400/20 shadow-md"
                                             : "border-border/50 bg-muted/20 hover:border-border hover:shadow-sm"
                                     )}
                                 >
@@ -71,13 +71,13 @@ export function AppearanceSettings() {
                             </div>
 
                             {/* Dark Theme */}
-                            <div className="space-y-3">
+                            <div className="space-y-2.5">
                                 <button
                                     onClick={() => setTheme("dark")}
                                     className={cn(
-                                        "group relative w-full aspect-[4/3] rounded-xl border-2 p-3 transition-all duration-300 overflow-hidden",
+                                        "group relative w-full aspect-[4/3] rounded-lg border-2 p-2.5 transition-all duration-200 overflow-hidden",
                                         theme === "dark"
-                                            ? "border-foreground/20 ring-2 ring-foreground/10 shadow-md"
+                                            ? "border-purple-500 dark:border-purple-400 ring-2 ring-purple-500/20 dark:ring-purple-400/20 shadow-md"
                                             : "border-border/50 bg-slate-950 hover:border-border hover:shadow-sm"
                                     )}
                                 >
@@ -104,13 +104,13 @@ export function AppearanceSettings() {
                             </div>
 
                             {/* System Theme */}
-                            <div className="space-y-3">
+                            <div className="space-y-2.5">
                                 <button
                                     onClick={() => setTheme("system")}
                                     className={cn(
-                                        "group relative w-full aspect-[4/3] rounded-xl border-2 p-1 transition-all duration-300 overflow-hidden",
+                                        "group relative w-full aspect-[4/3] rounded-lg border-2 p-1 transition-all duration-200 overflow-hidden",
                                         theme === "system"
-                                            ? "border-foreground/20 ring-2 ring-foreground/10 shadow-md"
+                                            ? "border-indigo-500 dark:border-indigo-400 ring-2 ring-indigo-500/20 dark:ring-indigo-400/20 shadow-md"
                                             : "border-border/50 bg-muted/20 hover:border-border hover:shadow-sm"
                                     )}
                                 >
@@ -138,9 +138,9 @@ export function AppearanceSettings() {
                         </div>
                     </div>
 
-                    <Separator className="bg-border/50" />
+                    <Separator className="bg-gradient-to-r from-transparent via-border to-transparent" />
 
-                    <div className="pt-1">
+                    <div className="pt-0">
                         <p className="text-xs text-muted-foreground leading-relaxed">
                             Appearance settings are saved locally to your browser and will persist across sessions.
                             System theme will automatically match your operating system settings.
