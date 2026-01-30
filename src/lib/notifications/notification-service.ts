@@ -98,7 +98,7 @@ class NotificationService {
         return this.transporter;
     }
 
-    async notify(targets: NotificationTarget[], payload: NotificationPayload) {
+    async notify(targets: NotificationTarget[], payload: NotificationPayload, options?: { skipSlack?: boolean }) {
         if (targets.length === 0) return;
 
         const { html, slackBlocks } = getNotificationTemplate(payload.type, {
@@ -124,12 +124,18 @@ class NotificationService {
 
         // 2. Process Channels - Fire and forget with reduced timeout (3s max per channel)
         // Use Promise.allSettled to prevent one failure from affecting others
-        Promise.allSettled([
-            this.sendSlack(targets, payload.type, slackBlocks),
+        const channelPromises = [
             this.sendPush(targets, payload.type, payload),
             this.sendSocket(targets, payload),
             this.sendEmail(targets, payload.type, payload.title, payload.body, html)
-        ]).then(results => {
+        ];
+
+        // Only add Slack if not skipped
+        if (!options?.skipSlack) {
+            channelPromises.unshift(this.sendSlack(targets, payload.type, slackBlocks));
+        }
+
+        Promise.allSettled(channelPromises).then(results => {
             results.forEach((result, index) => {
                 if (result.status === 'rejected') {
                     const channels = ['Slack', 'Push', 'Socket', 'Email'];
@@ -376,6 +382,9 @@ class NotificationService {
         if (userTarget.length === 0) return;
 
         const target = userTarget[0];
+        const userRole = target.role || 'developer';
+        const projectUrl = userRole === 'admin' ? `/admin/projects` : `/user/projects`;
+
         await this.notify([{
             userId: target.userId,
             userName: target.userName,
@@ -393,9 +402,9 @@ class NotificationService {
             type: 'project_assigned',
             title: '🎯 New Project Assignment',
             body: `You've been assigned to **${data.projectName}**`,
-            url: `/projects/${data.projectId}`,
+            url: projectUrl,
             data
-        });
+        }, { skipSlack: true });
     }
 }
 
