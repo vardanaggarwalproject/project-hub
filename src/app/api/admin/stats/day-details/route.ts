@@ -28,7 +28,6 @@ export async function GET(req: Request) {
             return NextResponse.json([]); // No details for future dates
         }
 
-        // 1. Fetch all active assignments for that date
         const assignments = await db.select({
             userId: userProjectAssignments.userId,
             userName: user.name,
@@ -42,7 +41,8 @@ export async function GET(req: Request) {
         })
             .from(userProjectAssignments)
             .innerJoin(user, eq(userProjectAssignments.userId, user.id))
-            .innerJoin(projects, eq(userProjectAssignments.projectId, projects.id));
+            .innerJoin(projects, eq(userProjectAssignments.projectId, projects.id))
+            .where(sql`${user.role} != 'admin'`);
 
         const activeOnDay = assignments.filter(a => {
             // Must be currently active
@@ -102,7 +102,7 @@ export async function GET(req: Request) {
             results.push({
                 user: a.userName,
                 project: a.projectName,
-                submittedAt: sub ? format(new Date(sub.createdAt), "h:mm a") : "-",
+                submittedAt: sub ? sub.createdAt : null,
                 status: sub ? "submitted" : "missed",
                 id: sub ? sub.id : null,
                 projectId: a.projectId,
@@ -154,7 +154,7 @@ export async function GET(req: Request) {
                     results.push({
                         user: details.userName,
                         project: details.projectName,
-                        submittedAt: format(new Date(sub.createdAt), "h:mm a"),
+                        submittedAt: sub.createdAt,
                         status: "submitted",
                         id: sub.id,
                         projectId: sub.projectId,

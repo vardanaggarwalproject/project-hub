@@ -2,8 +2,8 @@
 /**
  * Unified Notification Templates
  * 
- * This file provides a single source of truth for all notification content used 
- * across different channels (Email, Slack, Push).
+ * Simplified format: "Project Name (Developer Name) - Update Type"
+ * This makes it immediately clear what the notification is about.
  */
 
 export interface NotificationContent {
@@ -14,6 +14,34 @@ export interface NotificationContent {
     slackBlocks: any[];
 }
 
+/**
+ * Formats multi-line content with bullet points for better readability
+ */
+const formatContentWithBullets = (content: string): string => {
+    if (!content) return 'No content provided';
+
+    // Split by newlines and filter empty lines
+    const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+    // If single line, return as is
+    if (lines.length === 1) return content;
+
+    // Format with bullet points
+    return lines.map((line, index) => `• ${line}`).join('\n');
+};
+
+/**
+ * Formats content for Slack (uses markdown bullet points)
+ */
+const formatContentForSlack = (content: string): string => {
+    if (!content) return 'No content provided';
+
+    const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    if (lines.length === 1) return content;
+
+    return lines.map(line => `• ${line}`).join('\n');
+};
+
 const createEmailWrapper = (content: string, title: string, accentColor: string = '#2563eb'): string => {
     return `
         <!DOCTYPE html>
@@ -23,19 +51,76 @@ const createEmailWrapper = (content: string, title: string, accentColor: string 
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>${title}</title>
             <style>
-                body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f4; }
-                .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-                .header { background: ${accentColor}; padding: 30px; text-align: center; color: white; }
-                .content { padding: 40px; color: #333; line-height: 1.6; }
-                .footer { background: #f9f9f9; padding: 20px; text-align: center; color: #999; font-size: 12px; }
-                .button { display: inline-block; background: ${accentColor}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 20px; }
-                .info-box { background: #f0f7ff; border-left: 4px solid ${accentColor}; padding: 15px; margin: 20px 0; border-radius: 4px; }
+                body { 
+                    margin: 0; 
+                    padding: 0; 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+                    background-color: #f4f4f4; 
+                }
+                .container { 
+                    max-width: 600px; 
+                    margin: 20px auto; 
+                    background: #ffffff; 
+                    border-radius: 12px; 
+                    overflow: hidden; 
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.12); 
+                }
+                .header { 
+                    background: linear-gradient(135deg, ${accentColor} 0%, ${accentColor}dd 100%); 
+                    padding: 30px; 
+                    text-align: center; 
+                    color: white; 
+                }
+                .content { 
+                    padding: 40px; 
+                    color: #333; 
+                    line-height: 1.6; 
+                }
+                .footer { 
+                    background: #f9f9f9; 
+                    padding: 20px; 
+                    text-align: center; 
+                    color: #999; 
+                    font-size: 12px; 
+                }
+                .button { 
+                    display: inline-block; 
+                    background: linear-gradient(135deg, ${accentColor} 0%, ${accentColor}cc 100%);
+                    color: white !important; 
+                    padding: 14px 32px; 
+                    text-decoration: none; 
+                    border-radius: 8px; 
+                    font-weight: 600; 
+                    margin-top: 24px; 
+                    box-shadow: 0 4px 12px ${accentColor}40;
+                    transition: all 0.3s ease;
+                    letter-spacing: 0.3px;
+                }
+                .button:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px ${accentColor}60;
+                }
+                .update-section { 
+                    background-color: #fafafa; 
+                    padding: 18px; 
+                    border-radius: 8px; 
+                    border-left: 4px solid ${accentColor}; 
+                    margin: 12px 0; 
+                }
+                .update-label { 
+                    font-weight: 700; 
+                    color: #555; 
+                    font-size: 11px; 
+                    text-transform: uppercase; 
+                    margin-bottom: 10px; 
+                    letter-spacing: 0.5px;
+                }
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    <h1 style="margin: 0; font-size: 24px;">${title}</h1>
+                    <h1 style="margin: 0; font-size: 24px; font-weight: 600;">${title}</h1>
                 </div>
                 <div class="content">
                     ${content}
@@ -56,30 +141,82 @@ export const getNotificationTemplate = (type: string, data: any): NotificationCo
         case 'eod_submitted': {
             const dashboardUrl = `${appUrl}/admin/eods`;
             const accentColor = '#2563eb';
-            const title = '📋 EOD Report Submitted';
-            const body = `${data.userName} submitted EOD for **${data.projectName}**`;
+
+
+            // Simplified format: "Project Name (Developer Name) - EOD Report"
+            const title = `${data.projectName} (${data.userName}) - EOD Report`;
+
+
+            // Format internal and client updates with labels
+            const internalUpdate = formatContentWithBullets(data.content || 'No content provided');
+            const clientUpdate = data.clientContent ? formatContentWithBullets(data.clientContent) : null;
+
+            // For Slack
+            const internalSlack = formatContentForSlack(data.content || 'No content provided');
+            const clientSlack = data.clientContent ? formatContentForSlack(data.clientContent) : null;
+
+            // Build body for push/in-app notifications
+            let body = `Internal Update:\n${internalUpdate}`;
+            if (clientUpdate) {
+                body += `\n\nClient Update:\n${clientUpdate}`;
+            }
 
             return {
-                subject: `📋 EOD Submitted - ${data.projectName}`,
+                subject: `${data.projectName} (${data.userName}) - EOD Report`,
                 title,
                 body,
                 html: createEmailWrapper(`
-                    <p style="font-size: 16px;">Hello Admin,</p>
-                    <p>${data.userName} has submitted a new EOD report for the project <strong>${data.projectName}</strong>.</p>
-                    <div class="info-box">
-                        <strong>Project:</strong> ${data.projectName}<br/>
-                        <strong>Submitted by:</strong> ${data.userName}
+                    <p style="font-size: 16px; font-weight: bold;">${data.projectName} (${data.userName}) - EOD Report</p>
+                    
+                    <div class="update-section">
+                        <div class="update-label">Internal Update</div>
+                        <div style="white-space: pre-wrap;">${internalUpdate}</div>
                     </div>
-                    ${data.content ? `<div style="background-color: #fafafa; padding: 15px; border-radius: 4px; border: 1px solid #eee; white-space: pre-wrap;">${data.content}</div>` : ''}
+                    
+                    ${clientUpdate ? `
+                    <div class="update-section">
+                        <div class="update-label">Client Update</div>
+                        <div style="white-space: pre-wrap;">${clientUpdate}</div>
+                    </div>
+                    ` : ''}
+                    
                     <div style="text-align: center;">
-                        <a href="${dashboardUrl}" class="button">View Full Report</a>
+                        <a href="${dashboardUrl}" class="button">View All EODs</a>
                     </div>
+                    
+                    <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 20px 0;">
                 `, title, accentColor),
                 slackBlocks: [
-                    { type: 'header', text: { type: 'plain_text', text: title, emoji: true } },
-                    { type: 'section', text: { type: 'mrkdwn', text: body } },
-                    ...(data.content ? [{ type: 'divider' }, { type: 'section', text: { type: 'mrkdwn', text: `*Content:*\n>>>${data.content}` } }] : []),
-                    { type: 'actions', elements: [{ type: 'button', text: { type: 'plain_text', text: 'View Report' }, url: dashboardUrl, style: 'primary' }] }
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `*${data.projectName} (${data.userName}) - EOD Report*`
+                        }
+                    },
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `*Internal Update:*\n${internalSlack}`
+                        }
+                    },
+                    ...(clientSlack ? [{
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `*Client Update:*\n${clientSlack}`
+                        }
+                    }] : []),
+                    {
+                        type: 'actions',
+                        elements: [{
+                            type: 'button',
+                            text: { type: 'plain_text', text: 'View All EODs' },
+                            url: dashboardUrl,
+                            style: 'primary'
+                        }]
+                    }
                 ]
             };
         }
@@ -87,31 +224,82 @@ export const getNotificationTemplate = (type: string, data: any): NotificationCo
         case 'memo_submitted': {
             const dashboardUrl = `${appUrl}/admin/memos`;
             const accentColor = '#8b5cf6';
-            const title = '📝 Memo Submitted';
-            const typeLabel = data.memoType === 'universal' ? 'Universal' : '140-char';
-            const body = `${data.userName} submitted a ${typeLabel} memo for **${data.projectName}**`;
+
+
+            // Simplified format: "Project Name (Developer Name) - Memo"
+            const title = `${data.projectName} (${data.userName}) - Memo`;
+
+
+            // Format universal and short memo with labels
+            const universalMemo = formatContentWithBullets(data.content || 'No content provided');
+            const shortMemo = data.shortContent ? formatContentWithBullets(data.shortContent) : null;
+
+            // For Slack
+            const universalSlack = formatContentForSlack(data.content || 'No content provided');
+            const shortSlack = data.shortContent ? formatContentForSlack(data.shortContent) : null;
+
+            // Build body for push/in-app notifications
+            let body = `Universal Memo:\n${universalMemo}`;
+            if (shortMemo) {
+                body += `\n\n140-char Memo:\n${shortMemo}`;
+            }
 
             return {
-                subject: `📝 Memo Submitted - ${data.projectName}`,
+                subject: `${data.projectName} (${data.userName}) - Memo`,
                 title,
                 body,
                 html: createEmailWrapper(`
-                    <p style="font-size: 16px;">Hello Admin,</p>
-                    <p>${data.userName} has submitted a new ${typeLabel} memo for <strong>${data.projectName}</strong>.</p>
-                    <div class="info-box">
-                        <strong>Type:</strong> ${typeLabel}<br/>
-                        <strong>Project:</strong> ${data.projectName}
+                    <p style="font-size: 16px; font-weight: bold;">${data.projectName} (${data.userName}) - Memo</p>
+                    
+                    <div class="update-section">
+                        <div class="update-label">Universal Memo</div>
+                        <div style="white-space: pre-wrap;">${universalMemo}</div>
                     </div>
-                    ${data.content ? `<div style="background-color: #fafafa; padding: 15px; border-radius: 4px; border: 1px solid #eee; white-space: pre-wrap;">${data.content}</div>` : ''}
+                    
+                    ${shortMemo ? `
+                    <div class="update-section">
+                        <div class="update-label">140-char Memo</div>
+                        <div style="white-space: pre-wrap;">${shortMemo}</div>
+                    </div>
+                    ` : ''}
+                    
                     <div style="text-align: center;">
-                        <a href="${dashboardUrl}" class="button">Review Memo</a>
+                        <a href="${dashboardUrl}" class="button">View All Memos</a>
                     </div>
+                    
+                    <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 20px 0;">
                 `, title, accentColor),
                 slackBlocks: [
-                    { type: 'header', text: { type: 'plain_text', text: title, emoji: true } },
-                    { type: 'section', text: { type: 'mrkdwn', text: body } },
-                    ...(data.content ? [{ type: 'divider' }, { type: 'section', text: { type: 'mrkdwn', text: `*Memo Content:*\n>>>${data.content}` } }] : []),
-                    { type: 'actions', elements: [{ type: 'button', text: { type: 'plain_text', text: 'Review Memo' }, url: dashboardUrl, style: 'primary' }] }
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `*${data.projectName} (${data.userName}) - Memo*`
+                        }
+                    },
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `*Universal Memo:*\n${universalSlack}`
+                        }
+                    },
+                    ...(shortSlack ? [{
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `*140-char Memo:*\n${shortSlack}`
+                        }
+                    }] : []),
+                    {
+                        type: 'actions',
+                        elements: [{
+                            type: 'button',
+                            text: { type: 'plain_text', text: 'View All Memos' },
+                            url: dashboardUrl,
+                            style: 'primary'
+                        }]
+                    }
                 ]
             };
         }
@@ -119,30 +307,45 @@ export const getNotificationTemplate = (type: string, data: any): NotificationCo
         case 'project_assigned': {
             const dashboardUrl = `${appUrl}/user/projects`;
             const accentColor = '#10b981';
-            const title = '🎉 New Project Assignment';
-            const body = `You have been assigned to the project **${data.projectName}**`;
+
+            // Simplified format: "Project Name - New Assignment"
+            const title = `${data.projectName} - New Assignment`;
+            const body = `You have been assigned to ${data.projectName}`;
 
             return {
-                subject: `🎯 Project Assignment - ${data.projectName}`,
+                subject: `${data.projectName} - New Assignment`,
                 title,
                 body,
                 html: createEmailWrapper(`
-                    <p style="font-size: 16px;">Hello,</p>
-                    <p>You have been assigned to a new project: <strong>${data.projectName}</strong>.</p>
-                    <p>You can now start collaborating with your team members on this project.</p>
+                    <p style="font-size: 16px; font-weight: bold;">${data.projectName} - New Assignment</p>
+                    <p>You have been assigned to work on this project. You can now start collaborating with your team.</p>
                     <div style="text-align: center;">
-                        <a href="${dashboardUrl}" class="button">Go to Project</a>
+                        <a href="${dashboardUrl}" class="button">View Project</a>
                     </div>
                 `, title, accentColor),
                 slackBlocks: [
-                    { type: 'header', text: { type: 'plain_text', text: title, emoji: true } },
-                    { type: 'section', text: { type: 'mrkdwn', text: body } },
-                    { type: 'actions', elements: [{ type: 'button', text: { type: 'plain_text', text: 'Go to Project' }, url: dashboardUrl, style: 'primary' }] }
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `*${data.projectName} - New Assignment*\n\nYou have been assigned to this project.`
+                        }
+                    },
+                    {
+                        type: 'actions',
+                        elements: [{
+                            type: 'button',
+                            text: { type: 'plain_text', text: 'View Project' },
+                            url: dashboardUrl,
+                            style: 'primary'
+                        }]
+                    }
                 ]
             };
         }
 
         default: {
+            // Fallback for any other notification types
             const accentColor = '#2563eb';
             return {
                 subject: data.title || 'System Notification',
