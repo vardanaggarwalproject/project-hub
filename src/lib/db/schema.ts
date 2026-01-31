@@ -9,6 +9,7 @@ import {
   index,
   jsonb,
   integer,
+  real,
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role_enum", [
@@ -207,6 +208,7 @@ export const tasks = pgTable(
   "tasks",
   {
     id: text("id").primaryKey().notNull(),
+    shortId: text("short_id").notNull().unique(),
     name: text("name").notNull(),
     description: text("description"),
     status: text("status"),
@@ -218,6 +220,7 @@ export const tasks = pgTable(
     columnId: text("column_id"),
     position: integer("position").default(0),
     type: text("type"),
+    parentTaskId: text("parent_task_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -232,11 +235,18 @@ export const tasks = pgTable(
       foreignColumns: [taskColumns.id],
       name: "tasks_column_id_task_columns_id_fk",
     }).onDelete("set null"),
+    foreignKey({
+      columns: [table.parentTaskId],
+      foreignColumns: [table.id],
+      name: "tasks_parent_task_id_tasks_id_fk",
+    }).onDelete("cascade"),
     index("tasks_column_id_idx").on(table.columnId),
     index("tasks_position_idx").on(table.position),
     index("tasks_priority_idx").on(table.priority),
     index("tasks_type_idx").on(table.type),
     index("tasks_status_idx").on(table.status),
+    index("tasks_parent_task_id_idx").on(table.parentTaskId),
+    index("tasks_short_id_idx").on(table.shortId),
   ]
 );
 
@@ -273,6 +283,7 @@ export const eodReports = pgTable(
     reportDate: timestamp("report_date", { withTimezone: true }).notNull(),
     clientUpdate: text("client_update"),
     actualUpdate: text("actual_update"),
+    hoursSpent: real("hours_spent"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

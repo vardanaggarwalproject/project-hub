@@ -10,9 +10,10 @@ interface SortableTaskProps {
   onEdit?: (task: Task) => void;
   onDelete?: (taskId: string) => void;
   onViewDetail?: (task: Task) => void;
+  isSubtask?: boolean;
 }
 
-export function SortableTask({ task, onEdit, onDelete, onViewDetail }: SortableTaskProps) {
+export function SortableTask({ task, onEdit, onDelete, onViewDetail, isSubtask = false }: SortableTaskProps) {
   const {
     attributes,
     listeners,
@@ -43,6 +44,7 @@ export function SortableTask({ task, onEdit, onDelete, onViewDetail }: SortableT
         onDelete={onDelete}
         onViewDetail={onViewDetail}
         isDragging={isDragging}
+        isSubtask={isSubtask}
       />
     </div>
   );

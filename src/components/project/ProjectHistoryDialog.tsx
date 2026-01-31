@@ -63,6 +63,7 @@ export function ProjectHistoryDialog({
   const [initialShortMemoContent, setInitialShortMemoContent] = useState("");
   const [initialClientUpdate, setInitialClientUpdate] = useState("");
   const [initialInternalUpdate, setInitialInternalUpdate] = useState("");
+  const [initialHoursSpent, setInitialHoursSpent] = useState<number | undefined>();
   const [selectedMemo, setSelectedMemo] = useState<Memo | null>(null);
   const [selectedEOD, setSelectedEOD] = useState<EOD | null>(null);
 
@@ -287,6 +288,7 @@ export function ProjectHistoryDialog({
       setSelectedEOD(day.eod);
       setInitialClientUpdate(day.eod.clientUpdate || "");
       setInitialInternalUpdate(day.eod.actualUpdate || "");
+      setInitialHoursSpent(day.eod.hoursSpent);
       setModalMode("view");
     } else {
       setSelectedMemo(null);
@@ -295,6 +297,7 @@ export function ProjectHistoryDialog({
       setInitialShortMemoContent("");
       setInitialClientUpdate("");
       setInitialInternalUpdate("");
+      setInitialHoursSpent(undefined);
       setModalMode("edit");
     }
 
@@ -328,6 +331,7 @@ export function ProjectHistoryDialog({
     shortMemoContent?: string;
     clientUpdate?: string;
     internalUpdate?: string;
+    hoursSpent?: number;
   }) => {
     try {
       const savePromises = [];
@@ -389,6 +393,7 @@ export function ProjectHistoryDialog({
             eodsApi.update(selectedEOD.id, {
               clientUpdate: data.clientUpdate || "",
               actualUpdate: data.internalUpdate,
+              hoursSpent: data.hoursSpent,
               projectId,
               userId,
               reportDate: data.date,
@@ -399,6 +404,7 @@ export function ProjectHistoryDialog({
             eodsApi.create({
               clientUpdate: data.clientUpdate || "",
               actualUpdate: data.internalUpdate,
+              hoursSpent: data.hoursSpent,
               projectId,
               userId,
               reportDate: data.date,
@@ -521,6 +527,7 @@ export function ProjectHistoryDialog({
           initialShortMemoContent={initialShortMemoContent}
           initialClientUpdate={initialClientUpdate}
           initialInternalUpdate={initialInternalUpdate}
+          initialHoursSpent={initialHoursSpent}
           onSubmit={handleSubmit}
           showDatePicker={true}
           maxDate={format(new Date(), "yyyy-MM-dd")}
