@@ -22,7 +22,9 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { StatsCards } from "@/components/update-history/StatsCards";
 import { CalendarHeader } from "@/components/update-history/CalendarHeader";
 import { CalendarGrid } from "@/components/update-history/CalendarGrid";
+import { WeeklyViewTab } from "@/components/update-history/WeeklyViewTab";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import type { Project, ProjectAssignment } from "@/types/project";
 import type { Memo, EOD, DayStatus } from "@/types/report";
@@ -493,22 +495,43 @@ export function ProjectHistoryDialog({
             </div>
           ) : (
             <ErrorBoundary>
-              <div className="space-y-4">
-                <StatsCards stats={stats} />
-                <div className="border rounded-xl bg-white overflow-hidden shadow-sm">
-                  <CalendarHeader
-                    currentMonth={currentMonth}
-                    projectName={project?.name}
-                    onPrevMonth={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                    onNextMonth={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                  />
-                  <CalendarGrid
-                    calendarDays={calendarDays}
-                    onDayClick={handleDayClick}
-                    isMemoRequired={project?.isMemoRequired}
-                  />
-                </div>
-              </div>
+              <Tabs defaultValue="calendar" className="w-full">
+                <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-6">
+                  <TabsTrigger value="calendar" className="font-semibold">
+                    Calendar View
+                  </TabsTrigger>
+                  <TabsTrigger value="weekly" className="font-semibold">
+                    Weekly View
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="calendar" className="space-y-4 mt-0">
+                  <StatsCards stats={stats} />
+                  <div className="border rounded-xl bg-white overflow-hidden shadow-sm">
+                    <CalendarHeader
+                      currentMonth={currentMonth}
+                      projectName={project?.name}
+                      onPrevMonth={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                      onNextMonth={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                    />
+                    <CalendarGrid
+                      calendarDays={calendarDays}
+                      onDayClick={handleDayClick}
+                      isMemoRequired={project?.isMemoRequired}
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="weekly" className="mt-0">
+                  <div className="border rounded-xl bg-white overflow-hidden shadow-sm">
+                    <WeeklyViewTab
+                      projectId={projectId}
+                      userId={userId}
+                      projectName={project?.name}
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
             </ErrorBoundary>
           )}
         </div>
