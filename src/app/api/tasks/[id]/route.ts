@@ -50,9 +50,37 @@ export async function GET(
             .innerJoin(user, eq(userTaskAssignments.userId, user.id))
             .where(eq(userTaskAssignments.taskId, id));
 
+        // Fetch subtasks
+        const subtasksList = await db.select().from(tasks)
+            .where(eq(tasks.parentTaskId, id));
+
+        // Fetch assignees for subtasks
+        const subtaskIds = subtasksList.map(st => st.id);
+        const subtaskAssignments = subtaskIds.length > 0
+            ? await db.select({
+                taskId: userTaskAssignments.taskId,
+                user: {
+                    id: user.id,
+                    name: user.name,
+                    image: user.image
+                }
+            })
+                .from(userTaskAssignments)
+                .innerJoin(user, eq(userTaskAssignments.userId, user.id))
+                .where(inArray(userTaskAssignments.taskId, subtaskIds))
+            : [];
+
+        const subtasksWithAssignees = subtasksList.map(subtask => ({
+            ...subtask,
+            assignees: subtaskAssignments
+                .filter(a => a.taskId === subtask.id)
+                .map(a => a.user)
+        }));
+
         const taskWithAssignees = {
             ...task,
-            assignees: assignments.map(a => a.user)
+            assignees: assignments.map(a => a.user),
+            subtasks: subtasksWithAssignees
         };
 
         return NextResponse.json(taskWithAssignees);

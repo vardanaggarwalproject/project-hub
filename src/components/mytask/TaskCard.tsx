@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, MoreVertical, Trash2, Circle } from "lucide-react";
+import { Calendar, MoreVertical, Trash2, Circle, CheckSquare } from "lucide-react";
 import { Task, getPriorityColor, formatDate } from "./dummy-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +34,10 @@ interface TaskCardProps {
   onDelete?: (taskId: string) => void;
   onViewDetail?: (task: Task) => void;
   isDragging?: boolean;
+  isSubtask?: boolean;
 }
 
-export function TaskCard({ task, onEdit, onDelete, onViewDetail, isDragging }: TaskCardProps) {
+export function TaskCard({ task, onEdit, onDelete, onViewDetail, isDragging, isSubtask = false }: TaskCardProps) {
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
 
@@ -72,15 +73,20 @@ export function TaskCard({ task, onEdit, onDelete, onViewDetail, isDragging }: T
     <>
     <div
       onClick={handleCardClick}
-      className={`group bg-app-card border rounded px-2.5 py-2 cursor-pointer transition-all hover:shadow-sm hover:border-gray-300 dark:hover:border-gray-700 ${
-        isDragging ? "opacity-50 rotate-1 scale-105" : ""
+      className={`group bg-white border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 ${
+        isDragging ? "opacity-50 rotate-1 scale-105 shadow-lg" : "hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5"
+      } ${
+        isSubtask
+          ? "px-2.5 py-2 bg-gray-50/50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 scale-95"
+          : "px-3 py-2.5 shadow-sm"
       }`}
     >
       {/* Task Title with Status Icon */}
-      <div className="flex items-start gap-2 mb-1.5">
-        <Circle className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${getPriorityCircleColor()}`} />
+      <div className="flex items-start gap-2.5 mb-2">
+        <Circle className={`${isSubtask ? 'h-3 w-3' : 'h-3.5 w-3.5'} mt-0.5 flex-shrink-0 ${getPriorityCircleColor()}`} />
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm leading-tight text-app-heading font-normal truncate">
+          <h4 className={`leading-snug font-medium text-gray-900 dark:text-gray-100 ${isSubtask ? 'text-xs' : 'text-[13px]'}`}>
+            {isSubtask && <CheckSquare className="inline h-3 w-3 mr-1 text-gray-400" />}
             {task.title}
           </h4>
         </div>
@@ -111,17 +117,27 @@ export function TaskCard({ task, onEdit, onDelete, onViewDetail, isDragging }: T
       )}
 
       {/* Footer with metadata */}
-      <div className="flex items-center justify-between gap-2 ml-5">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Priority Badge - Smaller */}
+      <div className="flex items-center justify-between gap-2 ml-[22px]">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Priority Badge */}
           <Badge
             variant="outline"
-            className={`text-[10px] px-1.5 py-0 h-4 capitalize font-normal ${getPriorityColor(
+            className={`text-[10px] px-2 py-0.5 h-5 capitalize font-medium ${getPriorityColor(
               task.priority
             )}`}
           >
             {task.priority}
           </Badge>
+
+          {/* Subtasks Count */}
+          {(task as any).subtasks && (task as any).subtasks.length > 0 && (
+            <div className="flex items-center gap-0.5 text-[10px] text-gray-500">
+              <CheckSquare className="h-3 w-3" />
+              <span>
+                {(task as any).subtasks.filter((st: any) => st.status === "done").length}/{(task as any).subtasks.length}
+              </span>
+            </div>
+          )}
 
           {/* Due Date */}
           {task.dueDate && (

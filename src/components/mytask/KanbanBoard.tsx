@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Network } from "lucide-react";
 
 interface Project {
   id: string;
@@ -24,6 +26,7 @@ export function KanbanBoard() {
   const [columns, setColumns] = useState<ColumnType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showSubtasks, setShowSubtasks] = useState(false);
 
   // Fetch projects on mount
   useEffect(() => {
@@ -50,11 +53,14 @@ export function KanbanBoard() {
       setIsLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams({ projectId: selectedProjectId });
+        const params = new URLSearchParams({
+          projectId: selectedProjectId,
+          includeSubtasks: 'true' // ⚡ Fetch subtasks too!
+        });
 
         // Fetch columns and tasks in parallel
         const [columnsData, tasksData] = await Promise.all([
-          columnsApi.getAll(params),
+          columnsApi.getAll(new URLSearchParams({ projectId: selectedProjectId })),
           tasksApi.getAll(params),
         ]);
 
@@ -64,15 +70,32 @@ export function KanbanBoard() {
           title: col.title,
           color: col.color,
           tasks: tasksData
-            .filter((t: any) => t.columnId === col.id)
+            .filter((t: any) => t.columnId === col.id && !t.parentTaskId) // Only show parent tasks
             .map((t: any) => ({
               id: t.id,
+              shortId: t.shortId,
               title: t.name,
               description: t.description || "",
               priority: t.priority || "medium",
               dueDate: t.deadline ? new Date(t.deadline).toISOString() : undefined,
               assignees: t.assignees || [],
               projectId: t.projectId,
+              columnId: t.columnId,
+              // Include subtasks
+              subtasks: tasksData
+                .filter((st: any) => st.parentTaskId === t.id)
+                .map((st: any) => ({
+                  id: st.id,
+                  shortId: st.shortId,
+                  title: st.name,
+                  description: st.description || "",
+                  priority: st.priority || "medium",
+                  dueDate: st.deadline ? new Date(st.deadline).toISOString() : undefined,
+                  assignees: st.assignees || [],
+                  projectId: st.projectId,
+                  columnId: st.columnId,
+                  parentTaskId: st.parentTaskId,
+                })),
             })),
         }));
 
@@ -95,9 +118,27 @@ export function KanbanBoard() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-lg font-semibold text-app-heading">My Tasks</h1>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span>{columns.length} columns</span>
+              <span>•</span>
+              <span>
+                {columns.reduce((acc, col) => acc + col.tasks.length, 0)} tasks
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant={showSubtasks ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowSubtasks(!showSubtasks)}
+              className="h-8 gap-2"
+            >
+              <Network className="h-4 w-4" />
+              {showSubtasks ? "Hide" : "Show"} Subtasks
+            </Button>
             {projects.length > 0 && (
               <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                <SelectTrigger className="w-[250px]">
+                <SelectTrigger className="min-w-50">
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
@@ -109,13 +150,6 @@ export function KanbanBoard() {
                 </SelectContent>
               </Select>
             )}
-          </div>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span>{columns.length} columns</span>
-            <span>•</span>
-            <span>
-              {columns.reduce((acc, col) => acc + col.tasks.length, 0)} tasks
-            </span>
           </div>
         </div>
       </div>
@@ -140,6 +174,7 @@ export function KanbanBoard() {
           columns={columns}
           onColumnsChange={setColumns}
           projectId={selectedProjectId}
+          showSubtasks={showSubtasks}
         />
       )}
     </div>

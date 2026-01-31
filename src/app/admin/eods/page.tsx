@@ -67,6 +67,7 @@ interface EODReport {
     id: string;
     clientUpdate: string | null;
     actualUpdate: string | null;
+    hoursSpent?: number;
     reportDate: Date;
     createdAt: Date;
     projectName: string;
@@ -360,6 +361,7 @@ export default function AdminEODPage() {
                                             <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Project Name</TableHead>
                                             <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Report Date</TableHead>
                                             <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Submitted At</TableHead>
+                                            <TableHead className="w-[100px] text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">Hours Spent</TableHead>
                                             <TableHead className="w-[80px] text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">Copy</TableHead>
                                             <TableHead className="w-[80px] text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">View</TableHead>
                                         </TableRow>
@@ -407,6 +409,11 @@ export default function AdminEODPage() {
                                                                 {format(report.createdAt, "h:mm a")}
                                                             </span>
                                                         </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <span className="text-sm font-semibold text-slate-700">
+                                                            {report.hoursSpent ? `${report.hoursSpent} hrs` : '-'}
+                                                        </span>
                                                     </TableCell>
                                                     <TableCell className="text-center">
                                                         <Tooltip>

@@ -67,6 +67,7 @@ export async function GET(req: Request) {
             userId: eodReports.userId,
             clientUpdate: sql<string>`MAX(${eodReports.clientUpdate})`,
             actualUpdate: sql<string>`MAX(${eodReports.actualUpdate})`,
+            hoursSpent: sql<number>`MAX(${eodReports.hoursSpent})`,
             reportDate: eodReports.reportDate,
             createdAt: sql<Date>`MAX(${eodReports.createdAt})`,
             projectName: sql<string>`MAX(${projects.name})`,
@@ -133,7 +134,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: validation.error.issues }, { status: 400 });
         }
 
-        const { clientUpdate, actualUpdate, projectId, userId, reportDate } = validation.data;
+        const { clientUpdate, actualUpdate, hoursSpent, projectId, userId, reportDate } = validation.data;
 
         // Convert to Date object - this preserves the date in local timezone
         // We append T00:00:00 to ensure it's treated as a local date at midnight
@@ -155,6 +156,7 @@ export async function POST(req: Request) {
                 .set({
                     clientUpdate,
                     actualUpdate,
+                    hoursSpent,
                     createdAt: new Date()
                 })
                 .where(eq(eodReports.id, existing[0].id))
@@ -167,6 +169,7 @@ export async function POST(req: Request) {
                 reportDate: dateObj,
                 clientUpdate,
                 actualUpdate,
+                hoursSpent,
                 userId
             }).returning();
             result = newReport[0];

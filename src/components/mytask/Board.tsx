@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
   DragEndEvent,
@@ -27,7 +28,6 @@ import { EmptyColumnDropZone } from "./EmptyColumnDropZone";
 import { AddColumnButton } from "./AddColumnButton";
 import { AddTaskModal } from "./AddTaskModal";
 import { EditColumnModal } from "./EditColumnModal";
-import { TaskDetailModal } from "./TaskDetailModal";
 import { Column as ColumnType, Task } from "./dummy-data";
 import { tasksApi, columnsApi } from "@/lib/api/client";
 import { toast } from "sonner";
@@ -36,16 +36,18 @@ interface BoardProps {
   columns: ColumnType[];
   onColumnsChange: (columns: ColumnType[]) => void;
   projectId: string;
+  showSubtasks?: boolean;
 }
 
-export function Board({ columns, onColumnsChange, projectId }: BoardProps) {
+export function Board({ columns, onColumnsChange, projectId, showSubtasks = false }: BoardProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isEditColumnModalOpen, setIsEditColumnModalOpen] = useState(false);
-  const [isTaskDetailModalOpen, setIsTaskDetailModalOpen] = useState(false);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingColumn, setEditingColumn] = useState<ColumnType | null>(null);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [draggedTaskOriginalColumn, setDraggedTaskOriginalColumn] = useState<string | null>(null);
@@ -215,6 +217,7 @@ export function Board({ columns, onColumnsChange, projectId }: BoardProps) {
 
         const taskToAdd: Task = {
           id: newTask.id,
+          shortId: newTask.shortId, // Include shortId
           title: newTask.name,
           description: newTask.description || "",
           priority: newTask.priority,
@@ -257,54 +260,11 @@ export function Board({ columns, onColumnsChange, projectId }: BoardProps) {
 
   // View task detail
   const handleViewTaskDetail = (task: Task) => {
-    // Find which column contains this task
-    const column = columns.find((col) =>
-      col.tasks.some((t) => t.id === task.id),
-    );
-    if (column) {
-      setSelectedColumnId(column.id);
-      setSelectedTask(task);
-      setIsTaskDetailModalOpen(true);
-    }
-  };
-
-  // Save task from detail modal (without opening AddTaskModal)
-  const handleSaveTaskFromDetail = async (updatedTask: Task) => {
-    if (!selectedColumnId) return;
-
-    try {
-      // Update task via API
-      await tasksApi.update(updatedTask.id, {
-        name: updatedTask.title,
-        description: updatedTask.description,
-        priority: updatedTask.priority,
-        deadline: updatedTask.dueDate,
-        assignedUserIds: updatedTask.assignees?.map((a) => a.id) || [],
-      });
-
-      // Update local state
-      onColumnsChange(
-        columns.map((col) =>
-          col.id === selectedColumnId
-            ? {
-                ...col,
-                tasks: col.tasks.map((t) =>
-                  t.id === updatedTask.id ? updatedTask : t
-                ),
-              }
-            : col
-        )
-      );
-
-      // Update selected task to reflect changes in the modal
-      setSelectedTask(updatedTask);
-
-      toast.success("Task updated successfully");
-    } catch (error) {
-      console.error("Failed to update task:", error);
-      toast.error("Failed to update task");
-      throw error; // Re-throw so the modal can handle it
-    }
+    // Add query param to URL to open modal
+    const params = new URLSearchParams(searchParams.toString());
+    const taskShortId = (task as any).shortId || task.id.slice(0, 8);
+    params.set("viewtask", taskShortId);
+    router.push(`/user/tasks?${params.toString()}`);
   };
 
   // Drag handlers
@@ -576,19 +536,36 @@ export function Board({ columns, onColumnsChange, projectId }: BoardProps) {
                   onEditTask={handleEditTask}
                   onDeleteTask={handleDeleteTask}
                   onViewDetailTask={handleViewTaskDetail}
+                  showSubtasks={showSubtasks}
                 >
                   {column.tasks.length === 0 ? (
                     <EmptyColumnDropZone columnId={column.id} />
                   ) : (
                     <div className="space-y-2">
                       {column.tasks.map((task) => (
-                        <SortableTask
-                          key={task.id}
-                          task={task}
-                          onEdit={handleEditTask}
-                          onDelete={handleDeleteTask}
-                          onViewDetail={handleViewTaskDetail}
-                        />
+                        <div key={task.id} className="space-y-1.5">
+                          <SortableTask
+                            task={task}
+                            onEdit={handleEditTask}
+                            onDelete={handleDeleteTask}
+                            onViewDetail={handleViewTaskDetail}
+                          />
+                          {/* Subtasks */}
+                          {showSubtasks && task.subtasks && task.subtasks.length > 0 && (
+                            <div className="ml-4 space-y-1.5 border-l-2 border-gray-200 pl-3">
+                              {task.subtasks.map((subtask) => (
+                                <SortableTask
+                                  key={subtask.id}
+                                  task={subtask}
+                                  onEdit={handleEditTask}
+                                  onDelete={handleDeleteTask}
+                                  onViewDetail={handleViewTaskDetail}
+                                  isSubtask
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
@@ -652,29 +629,6 @@ export function Board({ columns, onColumnsChange, projectId }: BoardProps) {
       />
 
       {/* Task Detail Modal */}
-      <TaskDetailModal
-        isOpen={isTaskDetailModalOpen}
-        onClose={() => {
-          setIsTaskDetailModalOpen(false);
-          setSelectedTask(null);
-          setSelectedColumnId(null);
-        }}
-        task={selectedTask}
-        columnId={selectedColumnId || undefined}
-        columnTitle={
-          selectedColumnId
-            ? columns.find((col) => col.id === selectedColumnId)?.title
-            : undefined
-        }
-        columnColor={
-          selectedColumnId
-            ? columns.find((col) => col.id === selectedColumnId)?.color
-            : undefined
-        }
-        onEdit={handleEditTask}
-        onSave={handleSaveTaskFromDetail}
-        onDelete={handleDeleteTask}
-      />
     </div>
   );
 }

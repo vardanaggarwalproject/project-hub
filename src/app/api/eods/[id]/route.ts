@@ -20,6 +20,7 @@ export async function GET(
       id: eodReports.id,
       clientUpdate: eodReports.clientUpdate,
       actualUpdate: eodReports.actualUpdate,
+      hoursSpent: eodReports.hoursSpent,
       reportDate: eodReports.reportDate,
       createdAt: eodReports.createdAt,
       projectId: eodReports.projectId,
@@ -70,7 +71,7 @@ export async function PUT(
       );
     }
 
-    const { clientUpdate, actualUpdate, projectId, userId, reportDate } =
+    const { clientUpdate, actualUpdate, hoursSpent, projectId, userId, reportDate } =
       validation.data;
 
     // Convert to Date object
@@ -105,6 +106,7 @@ export async function PUT(
       .set({
         clientUpdate: clientUpdate || "",
         actualUpdate,
+        hoursSpent,
         projectId,
         reportDate: dateObj,
         updatedAt: new Date(),
