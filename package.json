@@ -9,8 +9,7 @@
     "lint": "next lint",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
-    "seed-admin": "tsx src/lib/db/seed-admin.ts",
-    "test:drive-access": "tsx src/lib/google-drive/test-access.ts"
+    "seed-admin": "tsx src/lib/db/seed-admin.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

@@ -38,13 +38,22 @@ export class OAuthDriveService {
   }
 
   /**
-   * Find folder by name in user's Drive
+   * Normalize folder name for fuzzy matching
+   * Converts to lowercase and removes hyphens, underscores, spaces
+   */
+  private normalizeFolderName(name: string): string {
+    return name.toLowerCase().replace(/[-_\s]/g, '');
+  }
+
+  /**
+   * Find folder by name in user's Drive with fuzzy matching
+   * Matches folders ignoring case, hyphens, underscores, and spaces
    */
   async findFolder(folderName: string, parentFolderId?: string): Promise<string | null> {
     try {
+      // First, try exact match for performance
       const escapedFolderName = folderName.replace(/'/g, "\\'");
-
-      let query = `name='${escapedFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+      let query = `mimeType='application/vnd.google-apps.folder' and trashed=false`;
 
       if (parentFolderId) {
         query += ` and '${parentFolderId}' in parents`;
@@ -54,21 +63,36 @@ export class OAuthDriveService {
 
       console.log(`🔎 Searching for folder: "${folderName}"${parentFolderId ? ` inside parent: ${parentFolderId}` : ' in root'}`);
 
+      // Get all folders in the location (we'll filter client-side for fuzzy match)
       const response = await this.drive.files.list({
         q: query,
         fields: 'files(id, name, parents)',
         spaces: 'drive',
+        pageSize: 100, // Get more results for fuzzy matching
       });
 
       const folders = response.data.files || [];
 
-      if (folders.length > 0) {
-        console.log(`✅ Found folder "${folderName}": ${folders[0].id}`);
-        return folders[0].id || null;
-      } else {
-        console.log(`❌ Folder "${folderName}" not found${parentFolderId ? ` inside parent ${parentFolderId}` : ' in root'}`);
+      if (folders.length === 0) {
+        console.log(`❌ No folders found${parentFolderId ? ` inside parent ${parentFolderId}` : ' in root'}`);
         return null;
       }
+
+      // Normalize the search name
+      const normalizedSearchName = this.normalizeFolderName(folderName);
+
+      // Try fuzzy matching
+      for (const folder of folders) {
+        const normalizedFolderName = this.normalizeFolderName(folder.name || '');
+
+        if (normalizedFolderName === normalizedSearchName) {
+          console.log(`✅ Found folder (fuzzy match): "${folder.name}" matches "${folderName}" -> ID: ${folder.id}`);
+          return folder.id || null;
+        }
+      }
+
+      console.log(`❌ Folder "${folderName}" not found (tried fuzzy matching)${parentFolderId ? ` inside parent ${parentFolderId}` : ' in root'}`);
+      return null;
     } catch (error) {
       console.error(`❌ Error finding folder "${folderName}":`, error);
       throw error; // Don't swallow errors - let caller handle them
@@ -105,7 +129,7 @@ export class OAuthDriveService {
   }
 
   /**
-   * Ensure project folder structure exists under "project-hub" parent folder
+   * Ensure project folder structure exists under configured parent folder
    */
   async ensureProjectFolders(projectName: string): Promise<{
     projectFolderId: string;
@@ -113,12 +137,14 @@ export class OAuthDriveService {
     internalFolderId: string;
   }> {
     try {
-      // 1. Check/Create "project-hub-projects-data" parent folder in user's root
-      console.log('🔍 Looking for parent folder: project-hub-projects-data');
-      let parentFolderId = await this.findFolder('project-hub-projects-data');
+      // 1. Check/Create parent folder in user's root (configurable via env)
+      const PARENT_FOLDER_NAME = process.env.GOOGLE_DRIVE_PARENT_FOLDER_NAME || 'project-hub-projects-data';
+
+      console.log(`🔍 Looking for parent folder: ${PARENT_FOLDER_NAME}`);
+      let parentFolderId = await this.findFolder(PARENT_FOLDER_NAME);
       if (!parentFolderId) {
-        console.log('📁 Creating parent folder: project-hub-projects-data');
-        const folder = await this.createFolder('project-hub-projects-data');
+        console.log(`📁 Creating parent folder: ${PARENT_FOLDER_NAME}`);
+        const folder = await this.createFolder(PARENT_FOLDER_NAME);
         parentFolderId = folder.id;
         console.log('✅ Parent folder created:', parentFolderId);
       } else {
