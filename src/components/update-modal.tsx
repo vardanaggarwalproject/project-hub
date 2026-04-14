@@ -49,6 +49,7 @@ interface UpdateModalProps {
   initialShortMemoContent?: string;
   initialClientUpdate?: string;
   initialInternalUpdate?: string;
+  initialHoursSpent?: number;
   referenceDataFetcher?: (
     type: "memo" | "eod",
     projectId: string,
@@ -64,6 +65,7 @@ interface UpdateModalProps {
     shortMemoContent?: string;
     clientUpdate?: string;
     internalUpdate?: string;
+    hoursSpent?: number;
   }) => Promise<void>;
   onDelete?: (
     type: "memo" | "eod",
@@ -93,6 +95,7 @@ export function UpdateModal({
   initialShortMemoContent = "",
   initialClientUpdate = "",
   initialInternalUpdate = "",
+  initialHoursSpent,
   referenceDataFetcher,
   existingMemos = [],
   existingEods = [],
@@ -106,6 +109,7 @@ export function UpdateModal({
   const [shortMemoContent, setShortMemoContent] = useState(initialShortMemoContent);
   const [clientUpdate, setClientUpdate] = useState(initialClientUpdate);
   const [internalUpdate, setInternalUpdate] = useState(initialInternalUpdate);
+  const [hoursSpent, setHoursSpent] = useState<number | undefined>(initialHoursSpent);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [referenceData, setReferenceData] = useState<{
     type: string;
@@ -177,8 +181,8 @@ export function UpdateModal({
         }
       } else {
         const key = getDraftKey(selectedProjectId, selectedDate, "eod");
-        if (clientUpdate || internalUpdate) {
-          localStorage.setItem(key, JSON.stringify({ clientUpdate, internalUpdate }));
+        if (clientUpdate || internalUpdate || hoursSpent) {
+          localStorage.setItem(key, JSON.stringify({ clientUpdate, internalUpdate, hoursSpent }));
         } else {
           localStorage.removeItem(key);
         }
@@ -186,7 +190,7 @@ export function UpdateModal({
     };
 
     saveDraft();
-  }, [memoContent, shortMemoContent, clientUpdate, internalUpdate, selectedProjectId, selectedDate, modalTab, localMode, isOpen]);
+  }, [memoContent, shortMemoContent, clientUpdate, internalUpdate, hoursSpent, selectedProjectId, selectedDate, modalTab, localMode, isOpen]);
 
   // Combined Effect to handle initialization
   useEffect(() => {
@@ -215,6 +219,7 @@ export function UpdateModal({
           setShortMemoContent(initialShortMemoContent);
           setClientUpdate(initialClientUpdate);
           setInternalUpdate(initialInternalUpdate);
+          setHoursSpent(initialHoursSpent);
           setModalTab(initialTab);
           setSelectedDate(initialDate);
           setSelectedProjectId(initialProjectId);
@@ -238,7 +243,7 @@ export function UpdateModal({
         }
 
         const dateStr = targetDate; 
-        let foundContent: { memo?: string; shortMemo?: string; client?: string; internal?: string } | null = null;
+        let foundContent: { memo?: string; shortMemo?: string; client?: string; internal?: string; hours?: number } | null = null;
         let exists = false;
 
         if (targetTab === "memo") {
@@ -256,7 +261,7 @@ export function UpdateModal({
             const match = existingEods.find(e => e.projectId === targetProjectId && getLocalDateString(e.reportDate) === dateStr);
             if (match) {
                 exists = true;
-                foundContent = { client: match.clientUpdate, internal: match.actualUpdate };
+                foundContent = { client: match.clientUpdate, internal: match.actualUpdate, hours: match.hoursSpent };
             }
         }
 
@@ -268,6 +273,7 @@ export function UpdateModal({
             } else {
                 setClientUpdate(foundContent.client || "");
                 setInternalUpdate(foundContent.internal || "");
+                setHoursSpent(foundContent.hours);
             }
         } else {
             setLocalMode("edit");
@@ -284,6 +290,7 @@ export function UpdateModal({
                     } else {
                         setClientUpdate(draft.clientUpdate || "");
                         setInternalUpdate(draft.internalUpdate || "");
+                        setHoursSpent(draft.hoursSpent);
                     }
                     draftFound = true;
                 } catch (e) {
@@ -298,6 +305,7 @@ export function UpdateModal({
                 } else {
                      setClientUpdate(initialClientUpdate);
                      setInternalUpdate(initialInternalUpdate);
+                     setHoursSpent(initialHoursSpent);
                 }
             } 
             
@@ -312,6 +320,7 @@ export function UpdateModal({
                     } else {
                          setClientUpdate("");
                          setInternalUpdate("");
+                         setHoursSpent(undefined);
                     }
                 }
             }
@@ -328,7 +337,7 @@ export function UpdateModal({
 
     initializeModal();
 
-  }, [isOpen, modalTab, selectedDate, selectedProjectId, existingMemos, existingEods, initialProjectId, initialDate, initialTab, initialMemoContent, initialShortMemoContent, initialClientUpdate, initialInternalUpdate, mode, referenceDataFetcher, isMemoRequired]);
+  }, [isOpen, modalTab, selectedDate, selectedProjectId, existingMemos, existingEods, initialProjectId, initialDate, initialTab, initialMemoContent, initialShortMemoContent, initialClientUpdate, initialInternalUpdate, initialHoursSpent, mode, referenceDataFetcher, isMemoRequired]);
 
   const handleInternalEditClick = () => {
     const dateStr = selectedDate;
@@ -350,6 +359,16 @@ export function UpdateModal({
   const handleSubmit = async () => {
     if (modalTab === "memo" && isMemoRequired && memoContent.length > 140) {
         toast.error(`This project requires a memo within 140 characters (maximum). Current: ${memoContent.length}/140`);
+        return;
+    }
+
+    if (modalTab === "eod" && !hoursSpent) {
+        toast.error("Hours spent is required for EOD reports");
+        return;
+    }
+
+    if (modalTab === "eod" && hoursSpent && (hoursSpent < 0.25 || hoursSpent > 24)) {
+        toast.error("Hours spent must be between 0.25 and 24");
         return;
     }
 
@@ -389,6 +408,7 @@ export function UpdateModal({
         shortMemoContent,
         clientUpdate,
         internalUpdate,
+        hoursSpent,
       });
       localStorage.removeItem(getDraftKey(selectedProjectId, selectedDate, "memo"));
       localStorage.removeItem(getDraftKey(selectedProjectId, selectedDate, "eod"));
@@ -715,6 +735,32 @@ export function UpdateModal({
                 </div>
               ) : (
                 <div className="space-y-6">
+                  {/* Hours Spent */}
+                  <div className="space-y-3">
+                    <Label htmlFor="hours-spent" className="text-sm font-semibold text-slate-700 ml-1">
+                      Hours Spent <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                      <input
+                        id="hours-spent"
+                        type="number"
+                        value={hoursSpent ?? ""}
+                        onChange={(e) => setHoursSpent(e.target.value ? parseFloat(e.target.value) : undefined)}
+                        placeholder="e.g., 8 or 4.5"
+                        step="0.25"
+                        min="0.25"
+                        max="24"
+                        className="w-full h-11 pl-10 pr-4 border border-slate-200 rounded-lg bg-slate-50/30 focus:bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all shadow-sm"
+                        readOnly={isViewMode}
+                        required
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 ml-1">
+                      Enter hours in decimal format (e.g., 30 mins = 0.5, 1 hr 15 mins = 1.25)
+                    </p>
+                  </div>
+
                   {/* Internal Update */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">

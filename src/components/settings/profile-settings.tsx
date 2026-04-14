@@ -94,22 +94,22 @@ export function ProfileSettings() {
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             <div>
-                <h3 className="text-xl font-semibold mb-1.5">Profile</h3>
+                <h3 className="text-2xl font-bold mb-1">Profile</h3>
                 <p className="text-sm text-muted-foreground">
                     Manage your public profile and personal information
                 </p>
             </div>
 
-            <Card className="border-border/50">
-                <div className="p-8 space-y-10">
+            <Card className="border-border/50 shadow-sm">
+                <div className="p-6 space-y-6">
                     {/* Avatar Selection */}
-                    <div className="flex flex-col sm:flex-row items-center gap-8">
+                    <div className="flex flex-col sm:flex-row items-center gap-6">
                         <div className="relative group">
-                            <Avatar className="h-28 w-28 sm:h-36 sm:w-36 border-2 border-border/50 shadow-lg ring-4 ring-background transition-all">
+                            <Avatar className="h-24 w-24 sm:h-28 sm:w-28 border-2 border-gradient-to-br from-blue-200 to-purple-200 dark:from-blue-800 dark:to-purple-800 shadow-md ring-2 ring-background transition-all">
                                 <AvatarImage src={session?.user?.image || ""} className="object-cover" />
-                                <AvatarFallback className="text-4xl font-light bg-muted/50 text-muted-foreground">
+                                <AvatarFallback className="text-3xl font-semibold bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/50 dark:to-purple-950/50 text-blue-600 dark:text-blue-400">
                                     {session?.user?.name?.charAt(0) || "U"}
                                 </AvatarFallback>
                             </Avatar>
@@ -147,10 +147,10 @@ export function ProfileSettings() {
                         </div>
                     </div>
 
-                    <Separator className="bg-border/50" />
+                    <Separator className="bg-gradient-to-r from-transparent via-border to-transparent" />
 
                     {/* Form Fields */}
-                    <div className="space-y-8">
+                    <div className="space-y-5">
                         <div className="grid gap-3">
                             <div className="flex items-center gap-2.5">
                                 <div className="p-1.5 rounded-lg bg-muted/50">
@@ -163,26 +163,26 @@ export function ProfileSettings() {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Your full name"
-                                className="max-w-md h-11 border-border/50"
+                                className="max-w-md h-10 border-border/50 focus-visible:ring-blue-500"
                             />
-                            <p className="text-xs text-muted-foreground leading-relaxed">
+                            <p className="text-xs text-muted-foreground">
                                 This is your public display name shown to other team members.
                             </p>
                         </div>
 
-                        <div className="grid gap-3">
-                            <div className="flex items-center gap-2.5">
-                                <div className="p-1.5 rounded-lg bg-muted/50">
-                                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                        <div className="grid gap-2.5">
+                            <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-md bg-purple-50 dark:bg-purple-950/30 border border-purple-200/50 dark:border-purple-800/30">
+                                    <Mail className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
                                 </div>
-                                <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
+                                <Label htmlFor="email" className="text-sm font-semibold">Email Address</Label>
                             </div>
                             <Input
                                 id="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={(session?.user as any)?.role !== "admin"}
-                                className={`max-w-md h-11 border-border/50 ${(session?.user as any)?.role !== "admin" ? "bg-muted/30 text-muted-foreground cursor-not-allowed" : ""}`}
+                                className={`max-w-md h-10 border-border/50 focus-visible:ring-purple-500 ${(session?.user as any)?.role !== "admin" ? "bg-muted/30 text-muted-foreground cursor-not-allowed" : ""}`}
                             />
                             <p className="text-xs text-muted-foreground leading-relaxed">
                                 {(session?.user as any)?.role === "admin"
@@ -192,11 +192,11 @@ export function ProfileSettings() {
                         </div>
                     </div>
 
-                    <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                    <div className="pt-1 flex flex-col sm:flex-row gap-2">
                         <Button
                             onClick={handleSave}
                             disabled={isLoading || isUploading || (name === session?.user?.name && email === session?.user?.email)}
-                            className="w-full sm:w-auto px-8 h-11"
+                            className="w-full sm:w-auto h-10 px-6"
                         >
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Save Changes

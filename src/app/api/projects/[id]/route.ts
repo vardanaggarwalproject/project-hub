@@ -192,7 +192,17 @@ export async function PATCH(
                 .where(eq(userProjectAssignments.projectId, id));
 
             const existingUserIds = existingAssignments.map(a => a.userId);
-            const uniqueAssignedUserIds = Array.from(new Set(assignedUserIds));
+
+            // Fetch all admin IDs to ensure they are assigned
+            const allAdmins = await db.select({ id: user.id })
+                .from(user)
+                .where(eq(user.role, "admin"));
+            const adminIds = allAdmins.map(a => a.id);
+
+            const uniqueAssignedUserIds = Array.from(new Set([
+                ...assignedUserIds,
+                ...adminIds
+            ]));
 
             // 2. Determine users to add and remove
             const usersToAdd = uniqueAssignedUserIds.filter(uid => !existingUserIds.includes(uid));

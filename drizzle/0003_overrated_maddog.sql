@@ -1,0 +1,1 @@
+ALTER TABLE "eod_reports" ADD COLUMN "hours_spent" real;

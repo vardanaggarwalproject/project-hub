@@ -10,13 +10,20 @@ export interface User {
 
 export interface Task {
   id: string;
+  shortId?: string;
   title: string;
   description?: string;
   priority: Priority;
+  status?: string;
   dueDate?: string;
   assignees: User[];
   tags?: string[];
   projectId?: string;
+  columnId?: string;
+  parentTaskId?: string;
+  subtasks?: Task[];
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface Column {

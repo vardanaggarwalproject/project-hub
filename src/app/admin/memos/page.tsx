@@ -27,6 +27,7 @@ import {
     Trash2,
     Clock,
     LayoutGrid,
+    RotateCw,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
@@ -356,43 +357,56 @@ export default function AdminMemosPage() {
                                 </Button>
                             </div>
 
-                            {viewMode === "table" && (
-                                <div className="flex items-center gap-6">
-                                    <div className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id="140-memos"
-                                            checked={show140Only}
-                                            onCheckedChange={(c) => {
-                                                setShow140Only(!!c);
-                                                if (!!c) {
-                                                    setSelectedProject("");
-                                                    setShowUniversalOnly(false);
-                                                }
-                                                setPage(1);
-                                            }}
-                                            className="data-[state=checked]:bg-blue-600 border-slate-300 rounded-md"
-                                        />
-                                        <Label htmlFor="140-memos" className="text-xs font-bold text-slate-600 uppercase tracking-widest cursor-pointer select-none">140 Char Memo</Label>
-                                    </div>
+                            <div className="flex items-center gap-4 ml-auto">
+                                {viewMode === "table" && (
+                                    <div className="flex items-center gap-6">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="140-memos"
+                                                checked={show140Only}
+                                                onCheckedChange={(c) => {
+                                                    setShow140Only(!!c);
+                                                    if (!!c) {
+                                                        setSelectedProject("");
+                                                        setShowUniversalOnly(false);
+                                                    }
+                                                    setPage(1);
+                                                }}
+                                                className="data-[state=checked]:bg-blue-600 border-slate-300 rounded-md"
+                                            />
+                                            <Label htmlFor="140-memos" className="text-xs font-bold text-slate-600 uppercase tracking-widest cursor-pointer select-none">140 Char Memo</Label>
+                                        </div>
 
-                                    <div className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id="universal-memos"
-                                            checked={showUniversalOnly}
-                                            onCheckedChange={(c) => {
-                                                setShowUniversalOnly(!!c);
-                                                if (!!c) {
-                                                    setSelectedProject("");
-                                                    setShow140Only(false);
-                                                }
-                                                setPage(1);
-                                            }}
-                                            className="data-[state=checked]:bg-blue-600 border-slate-300 rounded-md"
-                                        />
-                                        <Label htmlFor="universal-memos" className="text-xs font-bold text-slate-600 uppercase tracking-widest cursor-pointer select-none">Universal Only</Label>
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="universal-memos"
+                                                checked={showUniversalOnly}
+                                                onCheckedChange={(c) => {
+                                                    setShowUniversalOnly(!!c);
+                                                    if (!!c) {
+                                                        setSelectedProject("");
+                                                        setShow140Only(false);
+                                                    }
+                                                    setPage(1);
+                                                }}
+                                                className="data-[state=checked]:bg-blue-600 border-slate-300 rounded-md"
+                                            />
+                                            <Label htmlFor="universal-memos" className="text-xs font-bold text-slate-600 uppercase tracking-widest cursor-pointer select-none">Universal Only</Label>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={fetchMemos}
+                                    disabled={isLoading}
+                                    className="h-8 px-4 text-[10px] uppercase tracking-wider font-black transition-all rounded-lg bg-white hover:bg-slate-100 text-slate-600 border-slate-200 shadow-sm gap-2"
+                                >
+                                    <RotateCw className={cn("h-3.5 w-3.5 transition-transform", isLoading && "animate-spin")} />
+                                    Reload Memos
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -410,7 +424,7 @@ export default function AdminMemosPage() {
                                             <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">User Name</TableHead>
                                             <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Project Name</TableHead>
                                             <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Report Date</TableHead>
-                                            <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Submitted Date</TableHead>
+                                            <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Submitted At</TableHead>
                                             <TableHead className="w-[80px] text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">Copy</TableHead>
                                             <TableHead className="w-[80px] text-center font-bold text-slate-500 uppercase tracking-wider text-[10px]">View</TableHead>
                                         </TableRow>
@@ -471,9 +485,14 @@ export default function AdminMemosPage() {
                                                         </span>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <span className="text-sm font-semibold text-slate-700">
-                                                            {format(memo.createdAt, "dd/MM/yyyy")}
-                                                        </span>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-semibold text-slate-700">
+                                                                {format(memo.createdAt, "dd/MM/yyyy")}
+                                                            </span>
+                                                            <span className="text-xs text-slate-500 font-medium">
+                                                                {format(memo.createdAt, "h:mm a")}
+                                                            </span>
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="text-center">
                                                         <Tooltip>
@@ -594,7 +613,7 @@ export default function AdminMemosPage() {
                                                                                 <Button
                                                                                     variant="ghost"
                                                                                     size="sm"
-                                                                                    onClick={() => activeDualMemos?.universal && copyToClipboard(activeDualMemos.universal.memoContent)}
+                                                                                    onClick={() => activeDualMemos?.universal && copyToClipboard(`UNIVERSAL MEMO:\n${activeDualMemos.universal.memoContent}`)}
                                                                                     className="h-7 text-[10px] font-bold text-slate-400 hover:text-blue-600 hover:bg-blue-50"
                                                                                     disabled={!activeDualMemos?.universal}
                                                                                 >
@@ -631,7 +650,7 @@ export default function AdminMemosPage() {
                                                                                     <Button
                                                                                         variant="ghost"
                                                                                         size="sm"
-                                                                                        onClick={() => activeDualMemos?.short && copyToClipboard(activeDualMemos.short.memoContent)}
+                                                                                        onClick={() => activeDualMemos?.short && copyToClipboard(`140 CHAR MEMO:\n${activeDualMemos.short.memoContent}`)}
                                                                                         className="h-7 text-[10px] font-bold text-blue-400 hover:text-blue-600 hover:bg-blue-50/50"
                                                                                         disabled={!activeDualMemos?.short}
                                                                                     >
@@ -666,8 +685,8 @@ export default function AdminMemosPage() {
                                                                             size="sm"
                                                                             onClick={() => {
                                                                                 const combined = [];
-                                                                                if (activeDualMemos?.universal) combined.push(`Universal Memo:\n${activeDualMemos.universal.memoContent}`);
-                                                                                if (activeDualMemos?.short) combined.push(`140 Char Memo:\n${activeDualMemos.short.memoContent}`);
+                                                                                if (activeDualMemos?.universal) combined.push(`UNIVERSAL MEMO:\n${activeDualMemos.universal.memoContent}`);
+                                                                                if (activeDualMemos?.short) combined.push(`140 CHAR MEMO:\n${activeDualMemos.short.memoContent}`);
                                                                                 copyToClipboard(combined.join("\n\n") || memo.memoContent);
                                                                             }}
                                                                             className="h-8 text-[10px] font-bold border-slate-200 hover:bg-white"

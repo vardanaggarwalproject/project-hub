@@ -19,6 +19,7 @@ const baseReportSchema = z.object({
 export const eodSchema = baseReportSchema.extend({
   clientUpdate: z.string().optional(),
   actualUpdate: z.string().min(1, "Internal update required"),
+  hoursSpent: z.number().min(0.25, "Minimum 0.25 hours").max(24, "Maximum 24 hours").optional(),
 });
 
 /**

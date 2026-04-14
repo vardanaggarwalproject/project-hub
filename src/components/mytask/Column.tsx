@@ -33,6 +33,7 @@ interface ColumnProps {
   onEditTask?: (task: Task) => void;
   onDeleteTask?: (taskId: string) => void;
   onViewDetailTask?: (task: Task) => void;
+  showSubtasks?: boolean;
   children?: React.ReactNode;
 }
 
@@ -45,6 +46,7 @@ export function Column({
   onEditTask,
   onDeleteTask,
   onViewDetailTask,
+  showSubtasks,
   children,
 }: ColumnProps) {
   const [isEditing, setIsEditing] = useState(false);

@@ -21,6 +21,7 @@ export interface EOD {
   id: string;
   clientUpdate: string;
   actualUpdate: string;
+  hoursSpent?: number;
   reportDate: Date;
   projectId: string;
   userId: string;

@@ -55,6 +55,7 @@ export default function UserDashboardPage() {
   const [initialShortMemoContent, setInitialShortMemoContent] = useState("");
   const [initialClientUpdate, setInitialClientUpdate] = useState("");
   const [initialInternalUpdate, setInitialInternalUpdate] = useState("");
+  const [initialHoursSpent, setInitialHoursSpent] = useState<number | undefined>();
 
   useEffect(() => {
     const socket = getSocket();
@@ -455,6 +456,7 @@ export default function UserDashboardPage() {
     shortMemoContent?: string;
     clientUpdate?: string;
     internalUpdate?: string;
+    hoursSpent?: number;
   }) => {
     if (!session?.user?.id) {
       toast.error("You must be logged in to submit updates");
@@ -522,6 +524,7 @@ export default function UserDashboardPage() {
           eodsApi.create({
             clientUpdate: data.clientUpdate || "",
             actualUpdate: data.internalUpdate,
+            hoursSpent: data.hoursSpent,
             projectId: data.projectId,
             userId: session.user.id,
             reportDate: data.date,
@@ -551,6 +554,7 @@ export default function UserDashboardPage() {
     shortMemoContent?: string;
     clientUpdate?: string;
     internalUpdate?: string;
+    hoursSpent?: number;
   }) => {
     // For simplicity, we use the optimized create API which handles updates on backend now
     await handleUpdateSubmit(data);
@@ -692,6 +696,7 @@ export default function UserDashboardPage() {
           initialShortMemoContent={initialShortMemoContent}
           initialClientUpdate={initialClientUpdate}
           initialInternalUpdate={initialInternalUpdate}
+          initialHoursSpent={initialHoursSpent}
           onDelete={handleUpdateDelete}
         />
 

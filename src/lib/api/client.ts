@@ -262,6 +262,7 @@ export const eodsApi = {
   async create(data: {
     clientUpdate?: string;
     actualUpdate: string;
+    hoursSpent?: number;
     projectId: string;
     userId: string;
     reportDate: string;
@@ -281,6 +282,7 @@ export const eodsApi = {
   async update(id: string, data: {
     clientUpdate?: string;
     actualUpdate: string;
+    hoursSpent?: number;
     projectId: string;
     userId: string;
     reportDate: string;
@@ -347,6 +349,7 @@ export const tasksApi = {
     columnId?: string;
     type?: string;
     assignedUserIds?: string[];
+    parentTaskId?: string;
   }): Promise<any> {
     const response = await fetch("/api/tasks", {
       method: "POST",
@@ -403,6 +406,16 @@ export const tasksApi = {
       body: JSON.stringify(data),
     });
     return handleResponse<{ success: boolean }>(response);
+  },
+
+  /**
+   * Get all subtasks for a parent task
+   */
+  async getSubtasks(parentTaskId: string): Promise<any[]> {
+    const response = await fetch(`/api/tasks/${parentTaskId}/subtasks`, {
+      next: { revalidate: CACHE_REVALIDATE.NONE },
+    });
+    return handleResponse<any[]>(response);
   },
 };
 

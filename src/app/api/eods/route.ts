@@ -54,6 +54,8 @@ export async function GET(req: Request) {
             conditions.push(sql`${user.name} ILIKE ${`%${search}%`}`);
         }
 
+        conditions.push(sql`${user.role} != 'admin'`);
+
         if (conditions.length > 0) {
             whereClause = and(...conditions);
         }
@@ -65,6 +67,7 @@ export async function GET(req: Request) {
             userId: eodReports.userId,
             clientUpdate: sql<string>`MAX(${eodReports.clientUpdate})`,
             actualUpdate: sql<string>`MAX(${eodReports.actualUpdate})`,
+            hoursSpent: sql<number>`MAX(${eodReports.hoursSpent})`,
             reportDate: eodReports.reportDate,
             createdAt: sql<Date>`MAX(${eodReports.createdAt})`,
             projectName: sql<string>`MAX(${projects.name})`,
@@ -96,11 +99,9 @@ export async function GET(req: Request) {
             count: sql<number>`count(DISTINCT CONCAT(${eodReports.userId}, ${eodReports.projectId}, ${eodReports.reportDate}))`
         }).from(eodReports);
 
-        // If we have filters that require joining other tables (like search by user name)
-        if (search) {
-            totalQuery = totalQuery.leftJoin(user, eq(eodReports.userId, user.id)) as any;
-            totalQuery = totalQuery.leftJoin(projects, eq(eodReports.projectId, projects.id)) as any;
-        }
+        // Join user and projects always to support filters (search, role, etc)
+        totalQuery = totalQuery.leftJoin(user, eq(eodReports.userId, user.id)) as any;
+        totalQuery = totalQuery.leftJoin(projects, eq(eodReports.projectId, projects.id)) as any;
 
         const totalResult = await totalQuery.where(whereClause);
         const total = Number(totalResult[0]?.count || 0);
@@ -133,7 +134,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: validation.error.issues }, { status: 400 });
         }
 
-        const { clientUpdate, actualUpdate, projectId, userId, reportDate } = validation.data;
+        const { clientUpdate, actualUpdate, hoursSpent, projectId, userId, reportDate } = validation.data;
 
         // Convert to Date object - this preserves the date in local timezone
         // We append T00:00:00 to ensure it's treated as a local date at midnight
@@ -155,6 +156,7 @@ export async function POST(req: Request) {
                 .set({
                     clientUpdate,
                     actualUpdate,
+                    hoursSpent,
                     createdAt: new Date()
                 })
                 .where(eq(eodReports.id, existing[0].id))
@@ -167,33 +169,35 @@ export async function POST(req: Request) {
                 reportDate: dateObj,
                 clientUpdate,
                 actualUpdate,
+                hoursSpent,
                 userId
             }).returning();
             result = newReport[0];
             isNew = true;
         }
 
-        // Send notification to admins (only for new EODs, not updates)
+        // Send notification to admins (only for new EODs, not updates) - fire-and-forget, non-blocking
         if (isNew) {
-            try {
-                // Dynamic import to avoid circular dependencies
-                const { notificationService } = await import('@/lib/notifications');
-
-                // Fetch user and project names for notification
-                const [userData] = await db.select({ name: user.name }).from(user).where(eq(user.id, userId));
-                const [projectData] = await db.select({ name: projects.name }).from(projects).where(eq(projects.id, projectId));
-
-                await (notificationService as any).notifyEodSubmitted({
-                    userName: userData?.name || 'User',
-                    projectName: projectData?.name || 'Project',
-                    userId,
-                    content: actualUpdate || 'No content provided',
-                    clientContent: clientUpdate || undefined,
+            // Don't await - let notification run in background
+            import('@/lib/notifications').then(({ notificationService }) => {
+                Promise.all([
+                    db.select({ name: user.name }).from(user).where(eq(user.id, userId)),
+                    db.select({ name: projects.name }).from(projects).where(eq(projects.id, projectId))
+                ]).then(([userData, projectData]) => {
+                    (notificationService as any).notifyEodSubmitted({
+                        userName: userData[0]?.name || 'User',
+                        projectName: projectData[0]?.name || 'Project',
+                        userId,
+                        content: actualUpdate || 'No content provided',
+                        clientContent: clientUpdate || undefined,
+                        reportDate: reportDate, // Add date for differentiation
+                    });
+                }).catch(err => {
+                    console.error('[EOD API] Notification error:', err);
                 });
-            } catch (notifyError) {
-                // Don't fail the request if notification fails
-                console.error('[EOD API] Notification error:', notifyError);
-            }
+            }).catch(err => {
+                console.error('[EOD API] Failed to load notification service:', err);
+            });
         }
 
         return NextResponse.json(result, { status: isNew ? 201 : 200 });

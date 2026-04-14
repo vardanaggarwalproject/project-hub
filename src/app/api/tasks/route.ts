@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { generateShortId } from "@/lib/utils/generateShortId";
 
 const taskSchema = z.object({
     name: z.string().min(1, "Name required"),
@@ -17,6 +18,7 @@ const taskSchema = z.object({
     columnId: z.string().optional(),
     type: z.string().optional(),
     assignedUserIds: z.array(z.string()).optional(),
+    parentTaskId: z.string().optional(),
 });
 
 export const dynamic = 'force-dynamic';
@@ -33,6 +35,7 @@ export async function GET(req: Request) {
         const status = searchParams.get("status");
         const columnId = searchParams.get("columnId");
         const priority = searchParams.get("priority");
+        const includeSubtasks = searchParams.get("includeSubtasks") === "true";
 
         let whereClause = undefined;
         const conditions = [];
@@ -41,6 +44,11 @@ export async function GET(req: Request) {
         if (status) conditions.push(eq(tasks.status, status));
         if (columnId) conditions.push(eq(tasks.columnId, columnId));
         if (priority) conditions.push(eq(tasks.priority, priority));
+
+        // By default, exclude subtasks from the main board view
+        if (!includeSubtasks) {
+            conditions.push(sql`${tasks.parentTaskId} IS NULL`);
+        }
 
         if (conditions.length > 0) {
             whereClause = and(...conditions);
@@ -94,7 +102,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: validation.error.issues }, { status: 400 });
         }
 
-        const { name, description, status, deadline, projectId, priority, columnId, type, assignedUserIds } = validation.data;
+        const { name, description, status, deadline, projectId, priority, columnId, type, assignedUserIds, parentTaskId } = validation.data;
 
         // Calculate position - append to end of column
         let position = 0;
@@ -104,8 +112,31 @@ export async function POST(req: Request) {
             position = existingTasks.length;
         }
 
+        // Generate unique shortId with retry logic
+        let shortId: string;
+        let attempts = 0;
+        const maxAttempts = 5;
+
+        while (attempts < maxAttempts) {
+            shortId = generateShortId();
+            // Check if this shortId already exists
+            const existing = await db.select().from(tasks)
+                .where(eq(tasks.shortId, shortId))
+                .limit(1);
+
+            if (existing.length === 0) {
+                break; // Unique ID found
+            }
+            attempts++;
+        }
+
+        if (attempts === maxAttempts) {
+            return NextResponse.json({ error: "Failed to generate unique task ID" }, { status: 500 });
+        }
+
         const [newTask] = await db.insert(tasks).values({
             id: crypto.randomUUID(),
+            shortId: shortId!,
             name,
             description,
             status: status || "todo",
@@ -115,6 +146,7 @@ export async function POST(req: Request) {
             columnId: columnId || null,
             position,
             type: type || null,
+            parentTaskId: parentTaskId || null,
         }).returning();
 
         if (assignedUserIds && assignedUserIds.length > 0) {

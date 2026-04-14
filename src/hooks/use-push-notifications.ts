@@ -95,7 +95,6 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions): U
         setIsLoading(true);
 
         try {
-
             // 1. Check Permissions
             let currentPermission = Notification.permission;
 
@@ -111,47 +110,42 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions): U
             // 2. VAPID Key Check
             const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
             if (!vapidPublicKey) {
+                console.error('VAPID public key not found');
                 return false;
             }
 
             // 3. Service Worker Registration
-            // We register, but we use 'ready' to get the active registration for subscription
-            // Unregister existing to ensure fresh start
-            try {
-                const initialRegistration = await navigator.serviceWorker.getRegistration();
-                if (initialRegistration) {
-                    await initialRegistration.unregister();
-                }
-            } catch (err) {
+            // Register if not already registered, otherwise get the active one
+            let registration = await navigator.serviceWorker.getRegistration();
+
+            if (!registration) {
+                registration = await navigator.serviceWorker.register('/sw.js');
             }
 
-            await navigator.serviceWorker.register('/sw.js');
-
-            const registration = await navigator.serviceWorker.ready;
+            // Wait for it to be ready
+            registration = await navigator.serviceWorker.ready;
 
             if (!registration.pushManager) {
+                console.error('PushManager not supported on this registration');
                 return false;
             }
 
-            const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey!);
+            const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
 
             // 4. Subscribe with Push Manager
-
             // Check for existing subscription
-            const existingSubscription = await registration.pushManager.getSubscription();
-            if (existingSubscription) {
-                // If we already have one, maybe we should just return true? 
-                // Or unsubscribe if it's broken? 
-                // For now, let's just log it. If it fails to sync, we might need to resubscribe.
-                // But usually we want to ensure we have a fresh one if the user explicitly clicked "Enable".
-                // Let's try to unsubscribe to be safe if we are "enabling" from scratch.
-                await existingSubscription.unsubscribe();
-            }
+            let subscription = await registration.pushManager.getSubscription();
 
-            const subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
-            });
+            if (subscription) {
+                // Check if keys match or if we need to refresh
+                // For simplicity and reliability, we'll use the existing one if it exists
+                // and just ensure the server has it.
+            } else {
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
+                });
+            }
 
             // 5. Send to Server
             const response = await fetch('/api/notifications/subscribe', {
@@ -171,8 +165,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions): U
             setIsSubscribed(true);
             return true;
         } catch (error) {
-            // Re-throw or handle based on needs, but here returning false letting UI handle generic failure
-            // We could improve UI feedback based on specific error types here if we wanted to return a code
+            console.error('Push subscription failed:', error);
             return false;
         } finally {
             setIsLoading(false);

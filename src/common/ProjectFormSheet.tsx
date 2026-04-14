@@ -182,7 +182,10 @@ export function ProjectFormSheet({
           description,
           status,
           clientId,
-          assignedUserIds: team.map((u) => u.id),
+          assignedUserIds: Array.from(new Set([
+            ...team.map((u) => u.id),
+            ...availableUsers.filter(u => u.role === "admin").map(u => u.id)
+          ])),
           links: validLinks.map((link) => ({
             id: link.id,
             label: link.label,
@@ -236,8 +239,10 @@ export function ProjectFormSheet({
 
   const filteredUsers = availableUsers.filter(
     (u) =>
-      u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.email.toLowerCase().includes(userSearch.toLowerCase())
+      u.role !== "admin" && (
+        u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+        u.email.toLowerCase().includes(userSearch.toLowerCase())
+      )
   );
 
   return (
@@ -312,282 +317,282 @@ export function ProjectFormSheet({
               </div>
             ) : (
               <>
-            {/* Project Name */}
-            <div className="space-y-2">
-              <Label
-                htmlFor="name"
-                className="text-sm font-semibold text-app-body flex items-center gap-2"
-              >
-                <FolderKanban className="h-4 w-4 text-blue-600" />
-                Project Name
-                <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="name"
-                placeholder="e.g. Website Redesign"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-11 bg-app-input border-app focus-ring-app"
-              />
-            </div>
-
-            {/* Client and Status Row */}
-            <div className={cn("grid gap-4", fixedClientId ? "grid-cols-1" : "grid-cols-2")}>
-              {/* Client - Hidden when fixedClientId is set */}
-              {!fixedClientId && (
-                <div className="space-y-2 min-w-0">
+                {/* Project Name */}
+                <div className="space-y-2">
                   <Label
-                    htmlFor="client"
+                    htmlFor="name"
                     className="text-sm font-semibold text-app-body flex items-center gap-2"
                   >
-                    <Building2 className="h-4 w-4 text-blue-600" />
-                    Client
+                    <FolderKanban className="h-4 w-4 text-blue-600" />
+                    Project Name
                     <span className="text-red-500">*</span>
                   </Label>
-                  <Select value={clientId} onValueChange={setClientId} required>
-                    <SelectTrigger className="h-11 bg-white border-slate-200 w-full">
-                      <SelectValue placeholder="Select client" className="truncate">
-                        {clientId ? <span className="truncate">{clients.find(c => c.id === clientId)?.name || "Select client"}</span> : "Select client"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    id="name"
+                    placeholder="e.g. Website Redesign"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-11 bg-app-input border-app focus-ring-app"
+                  />
                 </div>
-              )}
 
-              {/* Status */}
-              <div className="space-y-2 min-w-0">
-                <Label
-                  htmlFor="status"
-                  className="text-sm font-semibold text-app-body flex items-center gap-2"
-                >
-                  Status
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger
-                    className={cn(
-                      "h-11 font-medium w-full",
-                      status === "active"
-                        ? "text-emerald-600 bg-emerald-50 border-emerald-200"
-                        : status === "completed"
-                        ? "text-blue-600 bg-blue-50 border-blue-200"
-                        : "text-slate-600 bg-slate-50"
-                    )}
-                  >
-                    <SelectValue className="truncate" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="on-hold">On Hold</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                {/* Client and Status Row */}
+                <div className={cn("grid gap-4", fixedClientId ? "grid-cols-1" : "grid-cols-2")}>
+                  {/* Client - Hidden when fixedClientId is set */}
+                  {!fixedClientId && (
+                    <div className="space-y-2 min-w-0">
+                      <Label
+                        htmlFor="client"
+                        className="text-sm font-semibold text-app-body flex items-center gap-2"
+                      >
+                        <Building2 className="h-4 w-4 text-blue-600" />
+                        Client
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Select value={clientId} onValueChange={setClientId} required>
+                        <SelectTrigger className="h-11 bg-white border-slate-200 w-full">
+                          <SelectValue placeholder="Select client" className="truncate">
+                            {clientId ? <span className="truncate">{clients.find(c => c.id === clientId)?.name || "Select client"}</span> : "Select client"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
-            {/* Description */}
-            <div className="space-y-2">
-              <Label
-                htmlFor="description"
-                className="text-sm font-semibold text-app-body flex items-center gap-2"
-              >
-                <FileText className="h-4 w-4 text-blue-600" />
-                Description
-                <span className="text-xs font-normal text-slate-500">
-                  (Optional)
-                </span>
-              </Label>
-              <Textarea
-                id="description"
-                placeholder="Briefly describe the project scope and goals..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="min-h-[100px] max-h-[150px] bg-app-input border-app focus-ring-app resize-none"
-              />
-            </div>
+                  {/* Status */}
+                  <div className="space-y-2 min-w-0">
+                    <Label
+                      htmlFor="status"
+                      className="text-sm font-semibold text-app-body flex items-center gap-2"
+                    >
+                      Status
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Select value={status} onValueChange={setStatus}>
+                      <SelectTrigger
+                        className={cn(
+                          "h-11 font-medium w-full",
+                          status === "active"
+                            ? "text-emerald-600 bg-emerald-50 border-emerald-200"
+                            : status === "completed"
+                              ? "text-blue-600 bg-blue-50 border-blue-200"
+                              : "text-slate-600 bg-slate-50"
+                        )}
+                      >
+                        <SelectValue className="truncate" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="on-hold">On Hold</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-            {/* Memo Requirement Toggle */}
-            <div className="rounded-lg border border-app bg-app-card p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1 flex-1">
+                {/* Description */}
+                <div className="space-y-2">
                   <Label
-                    htmlFor="memo-required"
-                    className="text-sm font-semibold text-app-body flex items-center gap-2 cursor-pointer"
+                    htmlFor="description"
+                    className="text-sm font-semibold text-app-body flex items-center gap-2"
                   >
-                    <AlertCircle className="h-4 w-4 text-amber-600" />
-                    Require 140 Character Memo
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    Description
+                    <span className="text-xs font-normal text-slate-500">
+                      (Optional)
+                    </span>
                   </Label>
-                  <p className="text-xs text-app-muted">
-                    When enabled, developers must provide a maximum 140 character memo for this project
-                  </p>
+                  <Textarea
+                    id="description"
+                    placeholder="Briefly describe the project scope and goals..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="min-h-[100px] max-h-[150px] bg-app-input border-app focus-ring-app resize-none"
+                  />
                 </div>
-                <Switch
-                  id="memo-required"
-                  checked={isMemoRequired}
-                  onCheckedChange={setIsMemoRequired}
-                  className="ml-4"
+
+                {/* Memo Requirement Toggle */}
+                <div className="rounded-lg border border-app bg-app-card p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1 flex-1">
+                      <Label
+                        htmlFor="memo-required"
+                        className="text-sm font-semibold text-app-body flex items-center gap-2 cursor-pointer"
+                      >
+                        <AlertCircle className="h-4 w-4 text-amber-600" />
+                        Require 140 Character Memo
+                      </Label>
+                      <p className="text-xs text-app-muted">
+                        When enabled, developers must provide a maximum 140 character memo for this project
+                      </p>
+                    </div>
+                    <Switch
+                      id="memo-required"
+                      checked={isMemoRequired}
+                      onCheckedChange={setIsMemoRequired}
+                      className="ml-4"
+                    />
+                  </div>
+                  {isMemoRequired && (
+                    <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md animate-in fade-in slide-in-from-top-1 duration-200">
+                      <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                      <p className="text-xs text-amber-800 dark:text-amber-200">
+                        Team members assigned to this project will be required to submit a detailed memo (maximum 140 characters) daily.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Dynamic Fields - Project Links */}
+                <DynamicFieldsInput
+                  fields={dynamicFields}
+                  onChange={setDynamicFields}
+                  globalAllowedRoles={globalAllowedRoles}
+                  onGlobalRolesChange={setGlobalAllowedRoles}
                 />
-              </div>
-              {isMemoRequired && (
-                <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md animate-in fade-in slide-in-from-top-1 duration-200">
-                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                  <p className="text-xs text-amber-800 dark:text-amber-200">
-                    Team members assigned to this project will be required to submit a detailed memo (maximum 140 characters) daily.
-                  </p>
-                </div>
-              )}
-            </div>
 
-            {/* Dynamic Fields - Project Links */}
-            <DynamicFieldsInput
-              fields={dynamicFields}
-              onChange={setDynamicFields}
-              globalAllowedRoles={globalAllowedRoles}
-              onGlobalRolesChange={setGlobalAllowedRoles}
-            />
+                {/* Team Assignment */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <Users className="h-4 w-4 text-blue-600" />
+                      Team Members
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      {/* Selected team avatars */}
+                      {team.length > 0 && (
+                        <TooltipProvider>
+                          <div className="flex items-center -space-x-3">
+                            {team.filter(u => u.role !== "admin").slice(0, 3).map((member, index) => (
+                              <Tooltip key={member.id}>
+                                <TooltipTrigger asChild>
+                                  <Avatar className="h-8 w-8 border-2 border-white shadow-sm cursor-pointer hover:z-10 hover:scale-110 transition-transform">
+                                    <AvatarImage src={member.image || ""} />
+                                    <AvatarFallback className="text-xs font-bold bg-blue-500 text-white">
+                                      {member.name.charAt(0).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs font-medium">{member.name}</p>
+                                  <p className="text-[10px] text-slate-400 uppercase">{member.role}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ))}
+                            {team.filter(u => u.role !== "admin").length > 3 && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="h-8 w-8 rounded-full bg-slate-200 border-2 border-white shadow-sm flex items-center justify-center cursor-pointer hover:z-10 hover:scale-110 transition-transform">
+                                    <span className="text-xs font-bold text-slate-600">+{team.filter(u => u.role !== "admin").length - 3}</span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <div className="space-y-1">
+                                    {team.filter(u => u.role !== "admin").slice(3).map((member) => (
+                                      <div key={member.id} className="text-xs">
+                                        <p className="font-medium">{member.name}</p>
+                                        <p className="text-[10px] text-slate-400 uppercase">{member.role}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </TooltipProvider>
+                      )}
+                      <Badge variant="secondary" className="font-mono">
+                        {team.filter(u => u.role !== "admin").length} selected
+                      </Badge>
+                    </div>
+                  </div>
 
-            {/* Team Assignment */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                  <Users className="h-4 w-4 text-blue-600" />
-                  Team Members
-                </Label>
-                <div className="flex items-center gap-2">
-                  {/* Selected team avatars */}
-                  {team.length > 0 && (
-                    <TooltipProvider>
-                      <div className="flex items-center -space-x-3">
-                        {team.slice(0, 3).map((member, index) => (
-                          <Tooltip key={member.id}>
-                            <TooltipTrigger asChild>
-                              <Avatar className="h-8 w-8 border-2 border-white shadow-sm cursor-pointer hover:z-10 hover:scale-110 transition-transform">
-                                <AvatarImage src={member.image || ""} />
-                                <AvatarFallback className="text-xs font-bold bg-blue-500 text-white">
-                                  {member.name.charAt(0).toUpperCase()}
+                  {/* Search Box */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-app-icon" />
+                    <Input
+                      placeholder="Search team members..."
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      className="pl-10 h-10 bg-app-input border-app"
+                    />
+                  </div>
+
+                  {/* Team Members Checkbox List */}
+                  <div className="border border-app rounded-lg bg-app-card max-h-[280px] overflow-y-auto">
+                    {filteredUsers.length > 0 ? (
+                      <div className="p-2 space-y-1">
+                        {filteredUsers.map((user) => {
+                          const isSelected = team.some((u) => u.id === user.id);
+                          return (
+                            <div
+                              key={user.id}
+                              className={cn(
+                                "flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all hover:bg-blue-50",
+                                isSelected ? "bg-blue-50/50 border border-blue-200" : "border border-transparent"
+                              )}
+                              onClick={() => toggleTeamMember(user)}
+                            >
+                              <div
+                                className={cn(
+                                  "h-5 w-5 rounded border-2 flex items-center justify-center transition-all shrink-0",
+                                  isSelected
+                                    ? "bg-blue-500 border-blue-500"
+                                    : "border-slate-300 hover:border-blue-400"
+                                )}
+                              >
+                                {isSelected && (
+                                  <svg
+                                    className="h-3 w-3 text-white"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={3}
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                )}
+                              </div>
+                              <Avatar className="h-8 w-8 shrink-0">
+                                <AvatarImage src={user.image || ""} />
+                                <AvatarFallback className="text-xs bg-slate-100 text-slate-600">
+                                  {user.name.charAt(0)}
                                 </AvatarFallback>
                               </Avatar>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-xs font-medium">{member.name}</p>
-                              <p className="text-[10px] text-slate-400 uppercase">{member.role}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        ))}
-                        {team.length > 3 && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="h-8 w-8 rounded-full bg-slate-200 border-2 border-white shadow-sm flex items-center justify-center cursor-pointer hover:z-10 hover:scale-110 transition-transform">
-                                <span className="text-xs font-bold text-slate-600">+{team.length - 3}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-app-heading truncate">
+                                  {user.name}
+                                </p>
+                                <p className="text-[10px] text-app-muted uppercase tracking-wider truncate">
+                                  {user.role}
+                                </p>
                               </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="space-y-1">
-                                {team.slice(3).map((member) => (
-                                  <div key={member.id} className="text-xs">
-                                    <p className="font-medium">{member.name}</p>
-                                    <p className="text-[10px] text-slate-400 uppercase">{member.role}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    </TooltipProvider>
-                  )}
-                  <Badge variant="secondary" className="font-mono">
-                    {team.length} selected
-                  </Badge>
+                    ) : (
+                      <div className="p-8 text-center">
+                        <Users className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                        <p className="text-sm text-slate-500">
+                          {userSearch ? "No users found" : "No team members available"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-
-              {/* Search Box */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-app-icon" />
-                <Input
-                  placeholder="Search team members..."
-                  value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
-                  className="pl-10 h-10 bg-app-input border-app"
-                />
-              </div>
-
-              {/* Team Members Checkbox List */}
-              <div className="border border-app rounded-lg bg-app-card max-h-[280px] overflow-y-auto">
-                {filteredUsers.length > 0 ? (
-                  <div className="p-2 space-y-1">
-                    {filteredUsers.map((user) => {
-                      const isSelected = team.some((u) => u.id === user.id);
-                      return (
-                        <div
-                          key={user.id}
-                          className={cn(
-                            "flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all hover:bg-blue-50",
-                            isSelected ? "bg-blue-50/50 border border-blue-200" : "border border-transparent"
-                          )}
-                          onClick={() => toggleTeamMember(user)}
-                        >
-                          <div
-                            className={cn(
-                              "h-5 w-5 rounded border-2 flex items-center justify-center transition-all shrink-0",
-                              isSelected
-                                ? "bg-blue-500 border-blue-500"
-                                : "border-slate-300 hover:border-blue-400"
-                            )}
-                          >
-                            {isSelected && (
-                              <svg
-                                className="h-3 w-3 text-white"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={3}
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                            )}
-                          </div>
-                          <Avatar className="h-8 w-8 shrink-0">
-                            <AvatarImage src={user.image || ""} />
-                            <AvatarFallback className="text-xs bg-slate-100 text-slate-600">
-                              {user.name.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-app-heading truncate">
-                              {user.name}
-                            </p>
-                            <p className="text-[10px] text-app-muted uppercase tracking-wider truncate">
-                              {user.role}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center">
-                    <Users className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                    <p className="text-sm text-slate-500">
-                      {userSearch ? "No users found" : "No team members available"}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
               </>
             )}
           </div>

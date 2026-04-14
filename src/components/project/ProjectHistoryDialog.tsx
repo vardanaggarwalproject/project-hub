@@ -22,7 +22,9 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { StatsCards } from "@/components/update-history/StatsCards";
 import { CalendarHeader } from "@/components/update-history/CalendarHeader";
 import { CalendarGrid } from "@/components/update-history/CalendarGrid";
+import { WeeklyViewTab } from "@/components/update-history/WeeklyViewTab";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import type { Project, ProjectAssignment } from "@/types/project";
 import type { Memo, EOD, DayStatus } from "@/types/report";
@@ -63,6 +65,7 @@ export function ProjectHistoryDialog({
   const [initialShortMemoContent, setInitialShortMemoContent] = useState("");
   const [initialClientUpdate, setInitialClientUpdate] = useState("");
   const [initialInternalUpdate, setInitialInternalUpdate] = useState("");
+  const [initialHoursSpent, setInitialHoursSpent] = useState<number | undefined>();
   const [selectedMemo, setSelectedMemo] = useState<Memo | null>(null);
   const [selectedEOD, setSelectedEOD] = useState<EOD | null>(null);
 
@@ -287,6 +290,7 @@ export function ProjectHistoryDialog({
       setSelectedEOD(day.eod);
       setInitialClientUpdate(day.eod.clientUpdate || "");
       setInitialInternalUpdate(day.eod.actualUpdate || "");
+      setInitialHoursSpent(day.eod.hoursSpent);
       setModalMode("view");
     } else {
       setSelectedMemo(null);
@@ -295,6 +299,7 @@ export function ProjectHistoryDialog({
       setInitialShortMemoContent("");
       setInitialClientUpdate("");
       setInitialInternalUpdate("");
+      setInitialHoursSpent(undefined);
       setModalMode("edit");
     }
 
@@ -328,6 +333,7 @@ export function ProjectHistoryDialog({
     shortMemoContent?: string;
     clientUpdate?: string;
     internalUpdate?: string;
+    hoursSpent?: number;
   }) => {
     try {
       const savePromises = [];
@@ -389,6 +395,7 @@ export function ProjectHistoryDialog({
             eodsApi.update(selectedEOD.id, {
               clientUpdate: data.clientUpdate || "",
               actualUpdate: data.internalUpdate,
+              hoursSpent: data.hoursSpent,
               projectId,
               userId,
               reportDate: data.date,
@@ -399,6 +406,7 @@ export function ProjectHistoryDialog({
             eodsApi.create({
               clientUpdate: data.clientUpdate || "",
               actualUpdate: data.internalUpdate,
+              hoursSpent: data.hoursSpent,
               projectId,
               userId,
               reportDate: data.date,
@@ -487,22 +495,43 @@ export function ProjectHistoryDialog({
             </div>
           ) : (
             <ErrorBoundary>
-              <div className="space-y-4">
-                <StatsCards stats={stats} />
-                <div className="border rounded-xl bg-white overflow-hidden shadow-sm">
-                  <CalendarHeader
-                    currentMonth={currentMonth}
-                    projectName={project?.name}
-                    onPrevMonth={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                    onNextMonth={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                  />
-                  <CalendarGrid
-                    calendarDays={calendarDays}
-                    onDayClick={handleDayClick}
-                    isMemoRequired={project?.isMemoRequired}
-                  />
-                </div>
-              </div>
+              <Tabs defaultValue="calendar" className="w-full">
+                <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-6">
+                  <TabsTrigger value="calendar" className="font-semibold">
+                    Calendar View
+                  </TabsTrigger>
+                  <TabsTrigger value="weekly" className="font-semibold">
+                    Weekly View
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="calendar" className="space-y-4 mt-0">
+                  <StatsCards stats={stats} />
+                  <div className="border rounded-xl bg-white overflow-hidden shadow-sm">
+                    <CalendarHeader
+                      currentMonth={currentMonth}
+                      projectName={project?.name}
+                      onPrevMonth={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                      onNextMonth={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                    />
+                    <CalendarGrid
+                      calendarDays={calendarDays}
+                      onDayClick={handleDayClick}
+                      isMemoRequired={project?.isMemoRequired}
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="weekly" className="mt-0">
+                  <div className="border rounded-xl bg-white overflow-hidden shadow-sm">
+                    <WeeklyViewTab
+                      projectId={projectId}
+                      userId={userId}
+                      projectName={project?.name}
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
             </ErrorBoundary>
           )}
         </div>
@@ -521,6 +550,7 @@ export function ProjectHistoryDialog({
           initialShortMemoContent={initialShortMemoContent}
           initialClientUpdate={initialClientUpdate}
           initialInternalUpdate={initialInternalUpdate}
+          initialHoursSpent={initialHoursSpent}
           onSubmit={handleSubmit}
           showDatePicker={true}
           maxDate={format(new Date(), "yyyy-MM-dd")}

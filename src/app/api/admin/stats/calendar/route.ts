@@ -27,31 +27,39 @@ export async function GET(req: Request) {
         const fetchStart = startOfWeek(monthStart);
         const fetchEnd = endOfWeek(monthEnd);
 
-        // 1. Fetch all submissions for the extended range
         const [eodData, memoData] = await Promise.all([
             db.select({
                 userId: eodReports.userId,
                 projectId: eodReports.projectId,
                 reportDate: eodReports.reportDate,
             }).from(eodReports)
-                .where(between(eodReports.reportDate, fetchStart, fetchEnd)),
+                .innerJoin(user, eq(eodReports.userId, user.id))
+                .where(and(
+                    between(eodReports.reportDate, fetchStart, fetchEnd),
+                    sql`${user.role} != 'admin'`
+                )),
 
             db.select({
                 userId: memos.userId,
                 projectId: memos.projectId,
                 reportDate: memos.reportDate,
             }).from(memos)
-                .where(between(memos.reportDate, fetchStart, fetchEnd))
+                .innerJoin(user, eq(memos.userId, user.id))
+                .where(and(
+                    between(memos.reportDate, fetchStart, fetchEnd),
+                    sql`${user.role} != 'admin'`
+                ))
         ]);
 
-        // 2. Fetch all project assignments with their activation status
         const assignments = await db.select({
             userId: userProjectAssignments.userId,
             projectId: userProjectAssignments.projectId,
             assignedAt: userProjectAssignments.assignedAt,
             isActive: userProjectAssignments.isActive,
             lastActivatedAt: userProjectAssignments.lastActivatedAt,
-        }).from(userProjectAssignments);
+        }).from(userProjectAssignments)
+            .innerJoin(user, eq(userProjectAssignments.userId, user.id))
+            .where(sql`${user.role} != 'admin'`);
 
         const days = eachDayOfInterval({ start: fetchStart, end: fetchEnd });
         const todayAtMidnight = new Date();

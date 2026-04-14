@@ -43,12 +43,14 @@ import { format } from "date-fns";
 interface AddTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (task: Omit<Task, "id">) => void;
+  onSubmit: (task: Omit<Task, "id"> & { parentTaskId?: string }) => void;
   columnId?: string;
   columnTitle?: string;
   columnColor?: string;
   editTask?: Task;
   projectId?: string; // Current project ID from context
+  parentTaskId?: string; // Parent task ID if creating a subtask
+  parentTaskName?: string; // Parent task name for display
 }
 
 export function AddTaskModal({
@@ -60,6 +62,8 @@ export function AddTaskModal({
   columnColor,
   editTask,
   projectId, // Receive projectId from parent
+  parentTaskId,
+  parentTaskName,
 }: AddTaskModalProps) {
   const [title, setTitle] = useState(editTask?.title || "");
   const [description, setDescription] = useState(editTask?.description || "");
@@ -148,7 +152,7 @@ export function AddTaskModal({
 
     // Note: projectId is now provided by parent component (Board) via props
     // and is automatically used when creating/updating tasks
-    const newTask: Omit<Task, "id"> = {
+    const newTask = {
       title: title.trim(),
       description: description.trim() || undefined,
       priority,
@@ -156,6 +160,7 @@ export function AddTaskModal({
       assignees: selectedUsers,
       tags: editTask?.tags || [],
       projectId: projectId || editTask?.projectId, // Use projectId from props or existing task
+      parentTaskId: parentTaskId, // Include parent task ID if creating subtask
     };
 
     onSubmit(newTask);
@@ -202,20 +207,31 @@ export function AddTaskModal({
         onWheel={(e) => e.stopPropagation()}
       >
         <DialogHeader className="px-6 py-5 border-b">
-          <div className="flex items-center gap-4">
-            <DialogTitle className="text-lg font-semibold text-gray-900">
-              {editTask ? "Edit Task" : "Create a new task"}
-            </DialogTitle>
-            {/* Status Badge */}
-            {columnTitle && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 font-medium">Status:</span>
-                <Badge
-                  variant="secondary"
-                  className="px-3 py-1 font-semibold uppercase text-xs tracking-wide text-white"
-                  style={{ backgroundColor: columnColor || "#6B7280" }}
-                >
-                  {columnTitle}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-4">
+              <DialogTitle className="text-lg font-semibold text-gray-900">
+                {editTask ? "Edit Task" : parentTaskId ? "Create a new subtask" : "Create a new task"}
+              </DialogTitle>
+              {/* Status Badge */}
+              {columnTitle && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 font-medium">Status:</span>
+                  <Badge
+                    variant="secondary"
+                    className="px-3 py-1 font-semibold uppercase text-xs tracking-wide text-white"
+                    style={{ backgroundColor: columnColor || "#6B7280" }}
+                  >
+                    {columnTitle}
+                  </Badge>
+                </div>
+              )}
+            </div>
+            {/* Parent Task Badge */}
+            {parentTaskId && parentTaskName && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Parent Task:</span>
+                <Badge variant="outline" className="font-normal">
+                  {parentTaskName}
                 </Badge>
               </div>
             )}

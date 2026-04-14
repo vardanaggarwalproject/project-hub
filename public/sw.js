@@ -12,11 +12,13 @@
 
 // 1. Install Event: Skip waiting to activate immediately
 self.addEventListener('install', (event) => {
+  console.log('[SW] Service Worker installed');
   self.skipWaiting();
 });
 
 // 2. Activate Event: Claim clients immediately so we can control the page
 self.addEventListener('activate', (event) => {
+  console.log('[SW] Service Worker activated');
   event.waitUntil(clients.claim());
 });
 

@@ -102,12 +102,13 @@ export function ProjectDetailsModal({
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
-  
+  const [copiedAssetId, setCopiedAssetId] = useState<string | null>(null);
+
   // Drag and Drop State
   const [orderedLinks, setOrderedLinks] = useState<any[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [isOrderChanged, setIsOrderChanged] = useState(false);
-  
+
   const [orderedAssets, setOrderedAssets] = useState<any[]>([]);
   const [draggedAssetIndex, setDraggedAssetIndex] = useState<number | null>(null);
   const [isAssetOrderChanged, setIsAssetOrderChanged] = useState(false);
@@ -122,7 +123,7 @@ export function ProjectDetailsModal({
   const [linkUrl, setLinkUrl] = useState("");
   const [selectedRoles, setSelectedRoles] = useState<string[]>(["admin", "developer", "tester", "designer"]);
   const [isSavingLink, setIsSavingLink] = useState(false);
-  
+
   // Link Delete state
   const [linkToDelete, setLinkToDelete] = useState<{ id: string; label: string } | null>(null);
   const [isDeletingLink, setIsDeletingLink] = useState(false);
@@ -172,19 +173,19 @@ export function ProjectDetailsModal({
     if (open && projectId) {
       fetchProjectDetails();
     }
-    
+
     const socket = getSocket();
     if (!socket) return;
 
     const onProjectUpdated = (data: { projectId: string; project: any }) => {
-        if (data.projectId === projectId && open) {
-             fetchProjectDetails(); 
-        }
+      if (data.projectId === projectId && open) {
+        fetchProjectDetails();
+      }
     };
 
     socket.on("project-updated", onProjectUpdated);
     return () => {
-        socket.off("project-updated", onProjectUpdated);
+      socket.off("project-updated", onProjectUpdated);
     };
   }, [open, projectId]);
 
@@ -235,7 +236,7 @@ export function ProjectDetailsModal({
     const draggedItem = newLinks[draggedIndex];
     newLinks.splice(draggedIndex, 1);
     newLinks.splice(targetIndex, 0, draggedItem);
-    
+
     setDraggedIndex(targetIndex);
     setOrderedLinks(newLinks);
     setIsOrderChanged(true);
@@ -295,7 +296,7 @@ export function ProjectDetailsModal({
     const draggedItem = newAssets[draggedAssetIndex];
     newAssets.splice(draggedAssetIndex, 1);
     newAssets.splice(targetIndex, 0, draggedItem);
-    
+
     setDraggedAssetIndex(targetIndex);
     setOrderedAssets(newAssets);
     setIsAssetOrderChanged(true);
@@ -334,14 +335,14 @@ export function ProjectDetailsModal({
     setEditingLink(null);
     setLinkTitle("");
     setLinkUrl("");
-    
+
     // Set default roles based on current user role: Admin + Current User Role
     const defaultRoles = ["admin"];
     const normalizedRole = userRole?.toLowerCase();
     if (normalizedRole && normalizedRole !== "admin") {
       defaultRoles.push(normalizedRole);
     }
-    
+
     setSelectedRoles(defaultRoles);
     setIsFormOpen(true);
   };
@@ -362,7 +363,7 @@ export function ProjectDetailsModal({
     try {
       const url = editingLink ? `/api/links/${editingLink.id}` : "/api/links";
       const method = editingLink ? "PATCH" : "POST";
-      
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -418,14 +419,14 @@ export function ProjectDetailsModal({
     setEditingAsset(null);
     setAssetTitle("");
     setAssetUrl("");
-    
+
     // Set default roles based on current user role: Admin + Current User Role
     const defaultRoles = ["admin"];
     const normalizedRole = userRole?.toLowerCase();
     if (normalizedRole && normalizedRole !== "admin") {
       defaultRoles.push(normalizedRole);
     }
-    
+
     setAssetRoles(defaultRoles);
     setIsAssetFormOpen(true);
   };
@@ -446,7 +447,7 @@ export function ProjectDetailsModal({
     try {
       const url = editingAsset ? `/api/assets/${editingAsset.id}` : "/api/assets";
       const method = editingAsset ? "PATCH" : "POST";
-      
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -521,6 +522,17 @@ export function ProjectDetailsModal({
     }
   };
 
+  const copyAssetToClipboard = async (url: string, assetId: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedAssetId(assetId);
+      toast.success("Asset link copied to clipboard!", { description: url });
+      setTimeout(() => setCopiedAssetId(null), 2000);
+    } catch (error) {
+      toast.error("Failed to copy asset link");
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[90vw] lg:max-w-7xl max-h-[90vh] p-0 bg-white dark:bg-[#191919] border border-app flex flex-col rounded-2xl overflow-hidden">
@@ -529,12 +541,12 @@ export function ProjectDetailsModal({
             <DialogTitle className="sr-only">Loading project details...</DialogTitle>
             <div className="flex flex-col lg:flex-row min-h-[500px] h-fit max-h-[calc(90vh-2rem)]">
               <div className="w-full lg:w-2/5 p-8 bg-slate-50 dark:bg-[#1e1e1e] border-r border-app space-y-6">
-                 <Skeleton className="h-12 w-12 rounded-xl" />
-                 <Skeleton className="h-8 w-3/4" />
-                 <Skeleton className="h-24 w-full rounded-lg" />
+                <Skeleton className="h-12 w-12 rounded-xl" />
+                <Skeleton className="h-8 w-3/4" />
+                <Skeleton className="h-24 w-full rounded-lg" />
               </div>
               <div className="flex-1 p-8">
-                 <Skeleton className="h-full w-full rounded-2xl" />
+                <Skeleton className="h-full w-full rounded-2xl" />
               </div>
             </div>
           </>
@@ -551,8 +563,8 @@ export function ProjectDetailsModal({
                   <Badge className={cn(
                     "px-3 py-1 text-xs font-bold uppercase",
                     project.status === "active" ? "bg-emerald-100 text-emerald-700" :
-                    project.status === "completed" ? "bg-blue-100 text-blue-700" :
-                    "bg-slate-100 text-slate-700"
+                      project.status === "completed" ? "bg-blue-100 text-blue-700" :
+                        "bg-slate-100 text-slate-700"
                   )}>
                     {project.status}
                   </Badge>
@@ -617,7 +629,7 @@ export function ProjectDetailsModal({
                 <section className="flex-1 flex flex-col min-h-0">
                   <div className="flex items-center justify-between mb-4 flex-shrink-0">
                     <h3 className="text-lg font-bold text-app-heading flex items-center gap-2">
-                       <Link2 className="h-4 w-4 text-blue-600" /> Resources & Links
+                      <Link2 className="h-4 w-4 text-blue-600" /> Resources & Links
                     </h3>
                     <div className="flex items-center gap-2">
                       {isOrderChanged && (
@@ -652,8 +664,8 @@ export function ProjectDetailsModal({
                             <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-app-subtle rounded-xl border border-app shadow-sm">
                               {["admin", "developer", "tester", "designer"].map((role) => (
                                 <div key={role} className="flex items-center space-x-2 bg-white dark:bg-app-card px-3 py-1.5 rounded-lg border border-app hover:border-blue-200 transition-colors">
-                                  <Checkbox 
-                                    id={`link-role-${role}`} 
+                                  <Checkbox
+                                    id={`link-role-${role}`}
                                     checked={selectedRoles.includes(role)}
                                     onCheckedChange={(checked) => checked ? setSelectedRoles([...selectedRoles, role]) : setSelectedRoles(selectedRoles.filter(r => r !== role))}
                                     disabled={role === "admin" || role.toLowerCase() === userRole?.toLowerCase()}
@@ -677,8 +689,8 @@ export function ProjectDetailsModal({
                         {filteredLinks.map((link) => {
                           const originalIndex = orderedLinks.findIndex(l => l.id === link.id);
                           return (
-                            <div 
-                              key={link.id} 
+                            <div
+                              key={link.id}
                               draggable={canManageLinks}
                               onDragStart={(e) => onDragStart(e, originalIndex)}
                               onDragEnd={onDragEnd}
@@ -738,7 +750,7 @@ export function ProjectDetailsModal({
                 <section className="flex-1 flex flex-col min-h-0">
                   <div className="flex items-center justify-between mb-4 flex-shrink-0">
                     <h3 className="text-lg font-bold text-app-heading flex items-center gap-2">
-                       <FileText className="h-4 w-4 text-purple-600" /> Project Assets
+                      <FileText className="h-4 w-4 text-purple-600" /> Project Assets
                     </h3>
                     <div className="flex items-center gap-2">
                       {isAssetOrderChanged && (
@@ -773,8 +785,8 @@ export function ProjectDetailsModal({
                             <div className="flex flex-wrap gap-4 p-4 bg-slate-50 dark:bg-app-subtle rounded-xl border border-app shadow-sm">
                               {["admin", "developer", "tester", "designer"].map((role) => (
                                 <div key={role} className="flex items-center space-x-2 bg-white dark:bg-app-card px-3 py-1.5 rounded-lg border border-app hover:border-purple-200 transition-colors">
-                                  <Checkbox 
-                                    id={`asset-role-${role}`} 
+                                  <Checkbox
+                                    id={`asset-role-${role}`}
                                     checked={assetRoles.includes(role)}
                                     onCheckedChange={(checked) => checked ? setAssetRoles([...assetRoles, role]) : setAssetRoles(assetRoles.filter(r => r !== role))}
                                     disabled={role === "admin" || role.toLowerCase() === userRole?.toLowerCase()}
@@ -798,8 +810,8 @@ export function ProjectDetailsModal({
                         {filteredAssets.map((asset) => {
                           const originalIndex = orderedAssets.findIndex(a => a.id === asset.id);
                           return (
-                            <div 
-                              key={asset.id} 
+                            <div
+                              key={asset.id}
                               draggable={canManageLinks}
                               onDragStart={(e) => onAssetDragStart(e, originalIndex)}
                               onDragEnd={onAssetDragEnd}
@@ -833,6 +845,9 @@ export function ProjectDetailsModal({
                                     <button onClick={() => setAssetToDelete({ id: asset.id, label: asset.name })} className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
                                   </>
                                 )}
+                                <button onClick={() => copyAssetToClipboard(asset.url, asset.id)} className="p-1.5 hover:bg-white rounded-md">
+                                  {copiedAssetId === asset.id ? <CheckCheck className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
+                                </button>
                                 <a href={asset.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-white rounded-md text-slate-400 hover:text-purple-600">
                                   <ExternalLink className="h-3.5 w-3.5" />
                                 </a>

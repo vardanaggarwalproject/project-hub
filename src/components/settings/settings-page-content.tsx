@@ -31,26 +31,26 @@ export function SettingsPageContent() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="w-full px-6 sm:px-8 lg:px-12 py-10 sm:py-16">
-                {/* Premium Minimal Header */}
-                <div className="mb-12">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2.5 rounded-xl bg-muted/50 border border-border/50">
+            <div className="w-full px-6 sm:px-8 lg:px-12 py-8 sm:py-10">
+                {/* Clean Header */}
+                <div className="mb-8">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-lg bg-muted/50 border border-border/50">
                             <Settings2 className="h-5 w-5 text-foreground/70" />
                         </div>
-                        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">Settings</h1>
+                        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Settings</h1>
                     </div>
-                    <p className="text-muted-foreground text-sm sm:text-base ml-14">
+                    <p className="text-muted-foreground text-sm ml-12">
                         Manage your account preferences and configurations
                     </p>
                 </div>
 
-                <Separator className="mb-10" />
+                <Separator className="mb-8" />
 
                 {/* Main Content */}
-                <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
+                <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
                     {/* Sidebar Navigation */}
-                    <aside className="w-full lg:w-72 shrink-0">
+                    <aside className="w-full lg:w-64 shrink-0">
                         <SidebarNav
                             items={sidebarNavItems}
                             activeTab={activeTab}
